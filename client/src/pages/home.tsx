@@ -5,6 +5,7 @@ import { WeeklyCalendar } from "@/components/weekly-calendar";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
+import { MealSelectionModal } from "@/components/meal-selection-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,8 @@ export default function Home() {
   const [showAddRecipe, setShowAddRecipe] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedMealType, setSelectedMealType] = useState<string>("almuerzo");
+  const [showMealSelection, setShowMealSelection] = useState(false);
 
   const { data: recipes, isLoading: recipesLoading } = useQuery({
     queryKey: ["/api/recipes"],
@@ -42,11 +45,11 @@ export default function Home() {
   });
 
   const addToWeekMutation = useMutation({
-    mutationFn: async ({ recipeId, date }: { recipeId: number; date: string }) => {
+    mutationFn: async ({ recipeId, date, mealType }: { recipeId: number; date: string; mealType: string }) => {
       const response = await apiRequest("POST", "/api/meal-plans", {
         fecha: date,
         recetaId: recipeId,
-        tipoComida: "principal"
+        tipoComida: mealType
       });
       return response.json();
     },
@@ -71,9 +74,10 @@ export default function Home() {
     }
   };
 
-  const handleAddMeal = (date: string) => {
+  const handleAddMeal = (date: string, mealType: string) => {
     setSelectedDate(date);
-    setShowAddRecipe(true);
+    setSelectedMealType(mealType);
+    setShowMealSelection(true);
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
@@ -83,8 +87,8 @@ export default function Home() {
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
-    if (selectedDate) {
-      addToWeekMutation.mutate({ recipeId: recipe.id, date: selectedDate });
+    if (selectedDate && selectedMealType) {
+      addToWeekMutation.mutate({ recipeId: recipe.id, date: selectedDate, mealType: selectedMealType });
     } else {
       // If no specific date selected, let user choose
       toast({ 
@@ -225,6 +229,17 @@ export default function Home() {
           setSelectedDate("");
         }}
         recipe={editingRecipe}
+      />
+
+      <MealSelectionModal
+        isOpen={showMealSelection}
+        onClose={() => {
+          setShowMealSelection(false);
+          setSelectedDate("");
+          setSelectedMealType("almuerzo");
+        }}
+        selectedDate={selectedDate}
+        mealType={selectedMealType}
       />
     </div>
   );

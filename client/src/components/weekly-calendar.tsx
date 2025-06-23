@@ -7,7 +7,7 @@ import { formatWeekRange, getMonday, getDayName, formatDate, getWeekDates } from
 import type { MealPlan, Recipe } from "@shared/schema";
 
 interface WeeklyCalendarProps {
-  onAddMeal: (date: string) => void;
+  onAddMeal: (date: string, mealType: string) => void;
   onViewMeal: (mealPlan: MealPlan & { recipe?: Recipe }) => void;
 }
 
@@ -47,9 +47,9 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
     setCurrentWeekStart(newDate);
   };
 
-  const getMealForDate = (date: Date) => {
+  const getMealForDate = (date: Date, mealType: string) => {
     const dateStr = formatDate(date);
-    const mealPlan = mealPlans?.find(mp => mp.fecha === dateStr);
+    const mealPlan = mealPlans?.find(mp => mp.fecha === dateStr && mp.tipoComida === mealType);
     if (mealPlan && recipes) {
       const recipe = recipes.find(r => r.id === mealPlan.recetaId);
       return { ...mealPlan, recipe };
@@ -98,12 +98,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
 
       <div className="space-y-3">
         {weekDates.map((date, index) => {
-          const meal = getMealForDate(date);
+          const lunchMeal = getMealForDate(date, "almuerzo");
+          const dinnerMeal = getMealForDate(date, "cena");
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
           if (isWeekend && index === 5) {
             // Combine weekend days
-            const sundayMeal = getMealForDate(weekDates[6]);
+            const sundayLunch = getMealForDate(weekDates[6], "almuerzo");
+            const sundayDinner = getMealForDate(weekDates[6], "cena");
             
             return (
               <Card key="weekend" className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -114,72 +116,173 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                       {date.getDate()}-{weekDates[6].getDate()}
                     </span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1.5 rounded-full hover:bg-gray-100"
-                    onClick={() => onAddMeal(formatDate(date))}
-                  >
-                    <Plus className="text-gray-600 w-4 h-4" />
-                  </Button>
                 </div>
                 
-                {meal || sundayMeal ? (
-                  <div className="space-y-2">
-                    {meal && (
-                      <div 
-                        className="flex items-center space-x-3 p-2 bg-orange-50 rounded-lg cursor-pointer"
-                        onClick={() => onViewMeal(meal)}
-                      >
-                        {meal.recipe?.imagen && (
-                          <img 
-                            src={meal.recipe.imagen} 
-                            alt={meal.recipe.nombre}
-                            className="w-8 h-8 rounded-lg object-cover"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-app-neutral truncate">
-                            {meal.recipe?.nombre || 'Comida planificada'}
-                          </p>
-                          {meal.recipe && (
-                            <div className="flex items-center space-x-1">
-                              {renderStars(meal.recipe.calificacionNinos || 0)}
-                            </div>
-                          )}
+                <div className="space-y-3">
+                  {/* Saturday */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-400">SÁBADO</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">Almuerzo</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
+                            onClick={() => onAddMeal(formatDate(date), "almuerzo")}
+                          >
+                            <Plus className="text-gray-400 w-3 h-3" />
+                          </Button>
                         </div>
-                      </div>
-                    )}
-                    {sundayMeal && (
-                      <div 
-                        className="flex items-center space-x-3 p-2 bg-teal-50 rounded-lg cursor-pointer"
-                        onClick={() => onViewMeal(sundayMeal)}
-                      >
-                        {sundayMeal.recipe?.imagen && (
-                          <img 
-                            src={sundayMeal.recipe.imagen} 
-                            alt={sundayMeal.recipe.nombre}
-                            className="w-8 h-8 rounded-lg object-cover"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-app-neutral truncate">
-                            {sundayMeal.recipe?.nombre || 'Comida planificada'}
-                          </p>
-                          {sundayMeal.recipe && (
-                            <div className="flex items-center space-x-1">
-                              {renderStars(sundayMeal.recipe.calificacionNinos || 0)}
+                        {lunchMeal ? (
+                          <div 
+                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer"
+                            onClick={() => onViewMeal(lunchMeal)}
+                          >
+                            {lunchMeal.recipe?.imagen && (
+                              <img 
+                                src={lunchMeal.recipe.imagen} 
+                                alt={lunchMeal.recipe.nombre}
+                                className="w-6 h-6 rounded object-cover"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-app-neutral truncate">
+                                {lunchMeal.recipe?.nombre || 'Planificado'}
+                              </p>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-gray-50 rounded-lg text-center">
+                            <p className="text-xs text-gray-400">Sin planificar</p>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">Cena</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
+                            onClick={() => onAddMeal(formatDate(date), "cena")}
+                          >
+                            <Plus className="text-gray-400 w-3 h-3" />
+                          </Button>
+                        </div>
+                        {dinnerMeal ? (
+                          <div 
+                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer"
+                            onClick={() => onViewMeal(dinnerMeal)}
+                          >
+                            {dinnerMeal.recipe?.imagen && (
+                              <img 
+                                src={dinnerMeal.recipe.imagen} 
+                                alt={dinnerMeal.recipe.nombre}
+                                className="w-6 h-6 rounded object-cover"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-app-neutral truncate">
+                                {dinnerMeal.recipe?.nombre || 'Planificado'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-gray-50 rounded-lg text-center">
+                            <p className="text-xs text-gray-400">Sin planificar</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-gray-500">Planificar fin de semana</p>
+
+                  {/* Sunday */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-400">DOMINGO</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">Almuerzo</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
+                            onClick={() => onAddMeal(formatDate(weekDates[6]), "almuerzo")}
+                          >
+                            <Plus className="text-gray-400 w-3 h-3" />
+                          </Button>
+                        </div>
+                        {sundayLunch ? (
+                          <div 
+                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer"
+                            onClick={() => onViewMeal(sundayLunch)}
+                          >
+                            {sundayLunch.recipe?.imagen && (
+                              <img 
+                                src={sundayLunch.recipe.imagen} 
+                                alt={sundayLunch.recipe.nombre}
+                                className="w-6 h-6 rounded object-cover"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-app-neutral truncate">
+                                {sundayLunch.recipe?.nombre || 'Planificado'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-gray-50 rounded-lg text-center">
+                            <p className="text-xs text-gray-400">Sin planificar</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">Cena</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
+                            onClick={() => onAddMeal(formatDate(weekDates[6]), "cena")}
+                          >
+                            <Plus className="text-gray-400 w-3 h-3" />
+                          </Button>
+                        </div>
+                        {sundayDinner ? (
+                          <div 
+                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer"
+                            onClick={() => onViewMeal(sundayDinner)}
+                          >
+                            {sundayDinner.recipe?.imagen && (
+                              <img 
+                                src={sundayDinner.recipe.imagen} 
+                                alt={sundayDinner.recipe.nombre}
+                                className="w-6 h-6 rounded object-cover"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-app-neutral truncate">
+                                {sundayDinner.recipe?.nombre || 'Planificado'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-gray-50 rounded-lg text-center">
+                            <p className="text-xs text-gray-400">Sin planificar</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
               </Card>
             );
           }
@@ -193,46 +296,95 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                   <span className="text-sm font-medium text-gray-500">{getDayName(date)}</span>
                   <span className="text-lg font-semibold text-app-neutral">{date.getDate()}</span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-1.5 rounded-full hover:bg-gray-100"
-                  onClick={() => onAddMeal(formatDate(date))}
-                >
-                  <Plus className="text-gray-600 w-4 h-4" />
-                </Button>
               </div>
               
-              {meal ? (
-                <div className="space-y-2">
-                  <div 
-                    className="flex items-center space-x-3 p-2 bg-orange-50 rounded-lg cursor-pointer"
-                    onClick={() => onViewMeal(meal)}
-                  >
-                    {meal.recipe?.imagen && (
-                      <img 
-                        src={meal.recipe.imagen} 
-                        alt={meal.recipe.nombre}
-                        className="w-8 h-8 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-app-neutral truncate">
-                        {meal.recipe?.nombre || 'Comida planificada'}
-                      </p>
-                      {meal.recipe && (
-                        <div className="flex items-center space-x-1">
-                          {renderStars(meal.recipe.calificacionNinos || 0)}
-                        </div>
-                      )}
-                    </div>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Lunch */}
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500">Almuerzo</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
+                      onClick={() => onAddMeal(formatDate(date), "almuerzo")}
+                    >
+                      <Plus className="text-gray-400 w-3 h-3" />
+                    </Button>
                   </div>
+                  {lunchMeal ? (
+                    <div 
+                      className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer"
+                      onClick={() => onViewMeal(lunchMeal)}
+                    >
+                      {lunchMeal.recipe?.imagen && (
+                        <img 
+                          src={lunchMeal.recipe.imagen} 
+                          alt={lunchMeal.recipe.nombre}
+                          className="w-8 h-8 rounded-lg object-cover"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-app-neutral truncate">
+                          {lunchMeal.recipe?.nombre || 'Planificado'}
+                        </p>
+                        {lunchMeal.recipe && (
+                          <div className="flex items-center space-x-1">
+                            {renderStars(lunchMeal.recipe.calificacionNinos || 0)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <p className="text-xs text-gray-400">Sin planificar</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">Agregar comida</p>
+                
+                {/* Dinner */}
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500">Cena</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
+                      onClick={() => onAddMeal(formatDate(date), "cena")}
+                    >
+                      <Plus className="text-gray-400 w-3 h-3" />
+                    </Button>
+                  </div>
+                  {dinnerMeal ? (
+                    <div 
+                      className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer"
+                      onClick={() => onViewMeal(dinnerMeal)}
+                    >
+                      {dinnerMeal.recipe?.imagen && (
+                        <img 
+                          src={dinnerMeal.recipe.imagen} 
+                          alt={dinnerMeal.recipe.nombre}
+                          className="w-8 h-8 rounded-lg object-cover"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-app-neutral truncate">
+                          {dinnerMeal.recipe?.nombre || 'Planificado'}
+                        </p>
+                        {dinnerMeal.recipe && (
+                          <div className="flex items-center space-x-1">
+                            {renderStars(dinnerMeal.recipe.calificacionNinos || 0)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                      <p className="text-xs text-gray-400">Sin planificar</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </Card>
           );
         })}

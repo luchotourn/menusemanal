@@ -103,7 +103,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Default to current week
         const today = new Date();
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+        const dayOfWeek = today.getDay();
+        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday
+        startOfWeek.setDate(diff);
         mealPlans = await storage.getMealPlansForWeek(startOfWeek.toISOString().split('T')[0]);
       }
       

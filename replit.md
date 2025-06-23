@@ -91,4 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
-- June 23, 2025. Initial setup
+- June 23, 2025: Updated meal planning system to support separate lunch and dinner scheduling for each day
+- June 23, 2025: Enhanced weekly calendar with dedicated lunch/dinner sections
+- June 23, 2025: Added meal selection modal for choosing recipes for specific meal types
+- June 23, 2025: Initial setup with Spanish Argentina localization

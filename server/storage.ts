@@ -14,6 +14,7 @@ export interface IStorage {
   // Meal plan methods
   getMealPlansForWeek(startDate: string): Promise<MealPlan[]>;
   getMealPlanByDate(fecha: string): Promise<MealPlan[]>;
+  getMealPlanByDateAndType(fecha: string, tipoComida: string): Promise<MealPlan | undefined>;
   createMealPlan(mealPlan: InsertMealPlan): Promise<MealPlan>;
   updateMealPlan(id: number, mealPlan: Partial<InsertMealPlan>): Promise<MealPlan | undefined>;
   deleteMealPlan(id: number): Promise<boolean>;
@@ -61,7 +62,19 @@ export class MemStorage implements IStorage {
 
   async createRecipe(insertRecipe: InsertRecipe): Promise<Recipe> {
     const id = this.currentRecipeId++;
-    const recipe: Recipe = { ...insertRecipe, id };
+    const recipe: Recipe = { 
+      ...insertRecipe, 
+      id,
+      descripcion: insertRecipe.descripcion || null,
+      imagen: insertRecipe.imagen || null,
+      enlaceExterno: insertRecipe.enlaceExterno || null,
+      calificacionNinos: insertRecipe.calificacionNinos || null,
+      ingredientes: insertRecipe.ingredientes || null,
+      instrucciones: insertRecipe.instrucciones || null,
+      tiempoPreparacion: insertRecipe.tiempoPreparacion || null,
+      porciones: insertRecipe.porciones || null,
+      esFavorita: insertRecipe.esFavorita || null
+    };
     this.recipes.set(id, recipe);
     return recipe;
   }
@@ -70,7 +83,19 @@ export class MemStorage implements IStorage {
     const existingRecipe = this.recipes.get(id);
     if (!existingRecipe) return undefined;
     
-    const updatedRecipe: Recipe = { ...existingRecipe, ...updateData };
+    const updatedRecipe: Recipe = { 
+      ...existingRecipe, 
+      ...updateData,
+      descripcion: updateData.descripcion !== undefined ? updateData.descripcion || null : existingRecipe.descripcion,
+      imagen: updateData.imagen !== undefined ? updateData.imagen || null : existingRecipe.imagen,
+      enlaceExterno: updateData.enlaceExterno !== undefined ? updateData.enlaceExterno || null : existingRecipe.enlaceExterno,
+      calificacionNinos: updateData.calificacionNinos !== undefined ? updateData.calificacionNinos || null : existingRecipe.calificacionNinos,
+      ingredientes: updateData.ingredientes !== undefined ? updateData.ingredientes || null : existingRecipe.ingredientes,
+      instrucciones: updateData.instrucciones !== undefined ? updateData.instrucciones || null : existingRecipe.instrucciones,
+      tiempoPreparacion: updateData.tiempoPreparacion !== undefined ? updateData.tiempoPreparacion || null : existingRecipe.tiempoPreparacion,
+      porciones: updateData.porciones !== undefined ? updateData.porciones || null : existingRecipe.porciones,
+      esFavorita: updateData.esFavorita !== undefined ? updateData.esFavorita || null : existingRecipe.esFavorita
+    };
     this.recipes.set(id, updatedRecipe);
     return updatedRecipe;
   }
@@ -96,9 +121,21 @@ export class MemStorage implements IStorage {
     return Array.from(this.mealPlans.values()).filter(mealPlan => mealPlan.fecha === fecha);
   }
 
+  async getMealPlanByDateAndType(fecha: string, tipoComida: string): Promise<MealPlan | undefined> {
+    return Array.from(this.mealPlans.values()).find(mealPlan => 
+      mealPlan.fecha === fecha && mealPlan.tipoComida === tipoComida
+    );
+  }
+
   async createMealPlan(insertMealPlan: InsertMealPlan): Promise<MealPlan> {
     const id = this.currentMealPlanId++;
-    const mealPlan: MealPlan = { ...insertMealPlan, id };
+    const mealPlan: MealPlan = { 
+      ...insertMealPlan, 
+      id,
+      recetaId: insertMealPlan.recetaId || null,
+      tipoComida: insertMealPlan.tipoComida || "almuerzo",
+      notas: insertMealPlan.notas || null
+    };
     this.mealPlans.set(id, mealPlan);
     return mealPlan;
   }
@@ -107,7 +144,13 @@ export class MemStorage implements IStorage {
     const existingMealPlan = this.mealPlans.get(id);
     if (!existingMealPlan) return undefined;
     
-    const updatedMealPlan: MealPlan = { ...existingMealPlan, ...updateData };
+    const updatedMealPlan: MealPlan = { 
+      ...existingMealPlan, 
+      ...updateData,
+      recetaId: updateData.recetaId !== undefined ? updateData.recetaId || null : existingMealPlan.recetaId,
+      tipoComida: updateData.tipoComida !== undefined ? updateData.tipoComida || "almuerzo" : existingMealPlan.tipoComida,
+      notas: updateData.notas !== undefined ? updateData.notas || null : existingMealPlan.notas
+    };
     this.mealPlans.set(id, updatedMealPlan);
     return updatedMealPlan;
   }

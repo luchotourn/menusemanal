@@ -53,7 +53,7 @@ export default function Recipes() {
       const response = await apiRequest("POST", "/api/meal-plans", {
         fecha: date,
         recetaId: recipeId,
-        tipoComida: "principal"
+        tipoComida: "almuerzo"
       });
       return response.json();
     },

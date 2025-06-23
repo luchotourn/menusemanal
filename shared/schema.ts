@@ -21,7 +21,7 @@ export const mealPlans = pgTable("meal_plans", {
   id: serial("id").primaryKey(),
   fecha: text("fecha").notNull(), // YYYY-MM-DD format
   recetaId: integer("receta_id").references(() => recipes.id),
-  tipoComida: text("tipo_comida").default("principal"), // "desayuno", "almuerzo", "cena", "merienda"
+  tipoComida: text("tipo_comida").notNull().default("almuerzo"), // "almuerzo", "cena"
   notas: text("notas"),
 });
 
