@@ -1,0 +1,94 @@
+# Family Meal Planner Application
+
+## Overview
+
+This is a family meal planning application built with React (frontend) and Express.js (backend), designed to help families organize their weekly meals, manage recipes, and track favorite dishes with kid-friendly ratings. The app features a mobile-first design with a clean, intuitive interface optimized for family use.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter for lightweight client-side routing
+- **Styling**: Tailwind CSS with shadcn/ui component library
+- **State Management**: TanStack Query (React Query) for server state management
+- **Build Tool**: Vite for development and building
+- **UI Components**: Radix UI primitives with custom styling
+
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Database Provider**: Neon serverless PostgreSQL
+- **API Design**: RESTful endpoints for recipes and meal plans
+- **Development**: Hot reload with Vite middleware integration
+
+### Data Storage Solutions
+- **Primary Database**: PostgreSQL (configured for Neon serverless)
+- **ORM**: Drizzle ORM for type-safe database operations
+- **Schema Management**: Drizzle Kit for migrations and schema management
+- **Fallback Storage**: In-memory storage implementation for development
+
+## Key Components
+
+### Database Schema
+- **recipes**: Stores recipe information including name, description, ingredients, instructions, categories, kid ratings, and favorite status
+- **meal_plans**: Links recipes to specific dates and meal types for weekly planning
+
+### API Endpoints
+- **Recipe Management**: CRUD operations for recipes with filtering by category, favorites, and search
+- **Meal Planning**: Weekly meal plan management with date-based queries
+- **Categories**: Support for multiple meal categories (breakfast, lunch, dinner, snacks, etc.)
+
+### UI Components
+- **Bottom Navigation**: Mobile-first navigation with Home, Recipes, Favorites, and Settings
+- **Recipe Cards**: Compact display with images, ratings, and quick actions
+- **Weekly Calendar**: Visual meal planning interface with date navigation
+- **Modal System**: Full-screen modals for recipe details and adding/editing recipes
+
+## Data Flow
+
+1. **Recipe Management**: Users can create, edit, and delete recipes through modal interfaces
+2. **Meal Planning**: Recipes are assigned to specific dates and meal types via the weekly calendar
+3. **Favorites System**: Recipes can be marked as favorites and filtered accordingly
+4. **Search and Filter**: Real-time search and category filtering for recipe discovery
+5. **Kid Ratings**: 5-star rating system specifically for tracking how much kids like each recipe
+
+## External Dependencies
+
+### Frontend Dependencies
+- **UI Framework**: React, Wouter for routing
+- **Styling**: Tailwind CSS, Radix UI components, shadcn/ui
+- **State Management**: TanStack Query for server state
+- **Form Handling**: React Hook Form with Zodschema validation
+- **Utilities**: clsx, class-variance-authority, date-fns
+
+### Backend Dependencies
+- **Database**: Drizzle ORM, Neon serverless PostgreSQL driver
+- **Validation**: Zod for schema validation
+- **Development**: tsx for TypeScript execution, esbuild for production builds
+
+## Deployment Strategy
+
+### Development Environment
+- **Local Development**: Vite dev server with Express.js backend
+- **Database**: Neon serverless PostgreSQL with connection pooling
+- **Hot Reload**: Vite middleware integration for seamless development
+
+### Production Deployment
+- **Platform**: Replit with autoscale deployment target
+- **Build Process**: Vite build for frontend, esbuild for backend bundling
+- **Database**: Neon serverless PostgreSQL for production
+- **Port Configuration**: Port 5000 mapped to external port 80
+
+### Environment Configuration
+- **Database**: Requires DATABASE_URL environment variable
+- **Node.js**: Version 20 with ESM modules
+- **PostgreSQL**: Version 16 for development compatibility
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## Changelog
+
+Changelog:
+- June 23, 2025. Initial setup

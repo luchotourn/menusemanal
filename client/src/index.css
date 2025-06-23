@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(210, 20%, 17%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(210, 20%, 17%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(210, 20%, 17%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(16, 100%, 61%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(174, 47%, 58%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --accent: hsl(51, 100%, 70%);
+  --accent-foreground: hsl(210, 20%, 17%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(210, 20%, 17%);
+  --radius: 0.75rem;
+
+  /* Custom colors matching design */
+  --app-primary: hsl(16, 100%, 61%); /* #FF6B35 */
+  --app-secondary: hsl(174, 47%, 58%); /* #4ECDC4 */
+  --app-accent: hsl(51, 100%, 70%); /* #FFE66D */
+  --app-neutral: hsl(210, 20%, 17%); /* #2C3E50 */
+  --app-background: hsl(0, 0%, 98%); /* #FAFAFA */
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(16, 100%, 61%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(174, 47%, 58%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --accent: hsl(51, 100%, 70%);
+  --accent-foreground: hsl(210, 20%, 17%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-app-background text-app-neutral;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-app-primary {
+    color: var(--app-primary);
+  }
+  
+  .text-app-secondary {
+    color: var(--app-secondary);
+  }
+
+  .text-app-accent {
+    color: var(--app-accent);
+  }
+
+  .text-app-neutral {
+    color: var(--app-neutral);
+  }
+
+  .bg-app-primary {
+    background-color: var(--app-primary);
+  }
+
+  .bg-app-secondary {
+    background-color: var(--app-secondary);
+  }
+
+  .bg-app-accent {
+    background-color: var(--app-accent);
+  }
+
+  .bg-app-background {
+    background-color: var(--app-background);
+  }
+
+  .border-app-primary {
+    border-color: var(--app-primary);
+  }
+
+  .hover\:bg-app-primary:hover {
+    background-color: var(--app-primary);
+  }
+
+  .hover\:bg-app-secondary:hover {
+    background-color: var(--app-secondary);
+  }
+}
