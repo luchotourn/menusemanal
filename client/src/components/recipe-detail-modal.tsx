@@ -51,18 +51,10 @@ export function RecipeDetailModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4 flex flex-row items-center justify-between">
+        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4">
           <DialogTitle className="text-lg font-semibold text-app-neutral">
             {recipe.nombre}
           </DialogTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 rounded-full hover:bg-gray-100"
-            onClick={onClose}
-          >
-            <X className="text-gray-600 w-4 h-4" />
-          </Button>
         </DialogHeader>
         
         <div className="p-4">
@@ -89,7 +81,7 @@ export function RecipeDetailModal({
 
             <div>
               <h4 className="font-medium text-app-neutral mb-2">Categoría</h4>
-              <Badge className="bg-app-primary bg-opacity-10 text-app-primary">
+              <Badge className="bg-orange-100 text-orange-800">
                 {recipe.categoria}
               </Badge>
             </div>
