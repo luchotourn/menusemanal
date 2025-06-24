@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Star } from "lucide-react";
+import { X, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,6 +102,30 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/recipes/${recipe!.id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al eliminar la receta");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      toast({ title: "¡Receta eliminada exitosamente!" });
+      onClose();
+      resetForm();
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error al eliminar la receta", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       nombre: "",
@@ -131,6 +155,12 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
       updateMutation.mutate(formData);
     } else {
       createMutation.mutate(formData);
+    }
+  };
+
+  const handleDelete = () => {
+    if (window.confirm("¿Estás seguro de que quieres eliminar esta receta? Esta acción no se puede deshacer.")) {
+      deleteMutation.mutate();
     }
   };
 
@@ -364,11 +394,27 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
             <Button
               type="submit"
               className="flex-1 bg-app-primary text-white hover:bg-app-primary/90"
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
             >
               {isEditing ? "Actualizar Receta" : "Crear Receta"}
             </Button>
-            <Button type="button" variant="outline" onClick={onClose}>
+            {isEditing && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
+                className="px-3"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              disabled={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending}
+            >
               Cancelar
             </Button>
           </div>

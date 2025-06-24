@@ -77,6 +77,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/recipes/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Check if recipe is used in meal plans
+      const isUsed = await storage.isRecipeUsedInMealPlans(id);
+      if (isUsed) {
+        return res.status(400).json({ 
+          error: "No se puede eliminar la receta porque está asignada a uno o más días de la semana. Primero elimine la receta de la planificación semanal." 
+        });
+      }
+      
       const deleted = await storage.deleteRecipe(id);
       
       if (!deleted) {

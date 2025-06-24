@@ -12,6 +12,7 @@ export interface IStorage {
   createRecipe(recipe: InsertRecipe): Promise<Recipe>;
   updateRecipe(id: number, recipe: Partial<InsertRecipe>): Promise<Recipe | undefined>;
   deleteRecipe(id: number): Promise<boolean>;
+  isRecipeUsedInMealPlans(recipeId: number): Promise<boolean>;
   
   // Meal plan methods
   getMealPlansForWeek(startDate: string): Promise<MealPlan[]>;
@@ -104,6 +105,15 @@ export class MemStorage implements IStorage {
 
   async deleteRecipe(id: number): Promise<boolean> {
     return this.recipes.delete(id);
+  }
+
+  async isRecipeUsedInMealPlans(recipeId: number): Promise<boolean> {
+    for (const mealPlan of this.mealPlans.values()) {
+      if (mealPlan.recetaId === recipeId) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // Meal plan methods
@@ -214,8 +224,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRecipe(id: number): Promise<boolean> {
-    const result = await db.delete(recipes).where(eq(recipes.id, id));
-    return result.rowCount > 0;
+    try {
+      const result = await db.delete(recipes).where(eq(recipes.id, id));
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Database error in deleteRecipe:', error);
+      throw new Error('Error al eliminar la receta de la base de datos');
+    }
+  }
+
+  async isRecipeUsedInMealPlans(recipeId: number): Promise<boolean> {
+    try {
+      const result = await db.select().from(mealPlans).where(eq(mealPlans.recetaId, recipeId)).limit(1);
+      return result.length > 0;
+    } catch (error) {
+      console.error('Database error in isRecipeUsedInMealPlans:', error);
+      throw new Error('Error al verificar si la receta está en uso');
+    }
   }
 
   async getMealPlansForWeek(startDate: string): Promise<MealPlan[]> {
