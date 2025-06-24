@@ -1,4 +1,4 @@
-import { X, ExternalLink, Edit, Share2, Calendar, Upload } from "lucide-react";
+import { X, ExternalLink, Edit, Share2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -66,20 +66,16 @@ export function RecipeDetailModal({
         </DialogHeader>
         
         <div className="p-4">
-          {recipe.imagen && (
+          {recipe.imagen && recipe.imagen.startsWith('http') && (
             <div className="mb-6">
-              {recipe.imagen.startsWith('data:image/') || recipe.imagen.startsWith('http') ? (
-                <img 
-                  src={recipe.imagen} 
-                  alt={recipe.nombre}
-                  className="w-full h-48 object-cover rounded-xl"
-                />
-              ) : (
-                <div className="flex items-center justify-center space-x-2 p-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                  <Upload className="w-6 h-6 text-gray-500" />
-                  <span className="text-gray-700 font-medium">Documento adjunto</span>
-                </div>
-              )}
+              <img 
+                src={recipe.imagen} 
+                alt={recipe.nombre}
+                className="w-full h-48 object-cover rounded-xl"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
             </div>
           )}
 

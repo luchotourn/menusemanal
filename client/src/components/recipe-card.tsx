@@ -1,4 +1,4 @@
-import { ChevronRight, Upload } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Recipe } from "@shared/schema";
@@ -20,18 +20,15 @@ export function RecipeCard({ recipe, onClick }: RecipeCardProps) {
   return (
     <Card className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
       <div className="flex items-center space-x-3">
-        {recipe.imagen && (
-          recipe.imagen.startsWith('data:image/') || recipe.imagen.startsWith('http') ? (
-            <img 
-              src={recipe.imagen} 
-              alt={recipe.nombre}
-              className="w-12 h-12 rounded-lg object-cover"
-            />
-          ) : (
-            <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
-              <Upload className="w-5 h-5 text-gray-400" />
-            </div>
-          )
+        {recipe.imagen && recipe.imagen.startsWith('http') && (
+          <img 
+            src={recipe.imagen} 
+            alt={recipe.nombre}
+            className="w-12 h-12 rounded-lg object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
         )}
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-app-neutral truncate">{recipe.nombre}</h4>

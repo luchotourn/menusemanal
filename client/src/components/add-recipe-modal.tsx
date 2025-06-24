@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Upload, Star } from "lucide-react";
+import { X, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -151,20 +151,6 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
     }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData(prev => ({
-          ...prev,
-          imagen: event.target?.result as string
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const renderStarRating = () => {
     return (
       <div className="flex items-center space-x-1">
@@ -242,49 +228,26 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
           </div>
 
           <div>
-            <Label htmlFor="imagen">Archivo (imagen, PDF, documento)</Label>
-            <div className="space-y-2">
-              <Input
-                id="imagen-url"
-                value={formData.imagen}
-                onChange={(e) => setFormData(prev => ({ ...prev, imagen: e.target.value }))}
-                placeholder="URL del archivo"
-              />
-              <div className="flex items-center space-x-2">
-                <Input
-                  id="imagen-file"
-                  type="file"
-                  accept="image/*,application/pdf,.doc,.docx,.txt"
-                  onChange={handleFileUpload}
-                  className="hidden"
+            <Label htmlFor="imagen">URL de Imagen (opcional)</Label>
+            <Input
+              id="imagen"
+              value={formData.imagen}
+              onChange={(e) => setFormData(prev => ({ ...prev, imagen: e.target.value }))}
+              placeholder="https://ejemplo.com/imagen.jpg"
+              type="url"
+            />
+            {formData.imagen && formData.imagen.startsWith('http') && (
+              <div className="mt-2">
+                <img 
+                  src={formData.imagen} 
+                  alt="Preview" 
+                  className="w-24 h-24 object-cover rounded-lg"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('imagen-file')?.click()}
-                  className="flex items-center space-x-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Subir Archivo</span>
-                </Button>
               </div>
-              {formData.imagen && (
-                <div className="mt-2">
-                  {formData.imagen.startsWith('data:image/') ? (
-                    <img 
-                      src={formData.imagen} 
-                      alt="Preview" 
-                      className="w-24 h-24 object-cover rounded-lg"
-                    />
-                  ) : (
-                    <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
-                      <Upload className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-700">Archivo adjunto</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           <div>
