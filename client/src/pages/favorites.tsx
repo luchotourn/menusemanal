@@ -32,11 +32,11 @@ export default function Favorites() {
   });
 
   const addToWeekMutation = useMutation({
-    mutationFn: async ({ recipeId, date }: { recipeId: number; date: string }) => {
+    mutationFn: async ({ recipeId, date, mealType }: { recipeId: number; date: string; mealType: string }) => {
       const response = await apiRequest("POST", "/api/meal-plans", {
         fecha: date,
         recetaId: recipeId,
-        tipoComida: "almuerzo"
+        tipoComida: mealType
       });
       return response.json();
     },

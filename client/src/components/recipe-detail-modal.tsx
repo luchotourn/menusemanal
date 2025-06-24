@@ -1,4 +1,4 @@
-import { X, ExternalLink, Edit, Share2, Calendar } from "lucide-react";
+import { X, ExternalLink, Edit, Share2, Calendar, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
