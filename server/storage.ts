@@ -164,7 +164,12 @@ export class MemStorage implements IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getAllRecipes(): Promise<Recipe[]> {
-    return await db.select().from(recipes);
+    try {
+      return await db.select().from(recipes);
+    } catch (error) {
+      console.error('Database error in getAllRecipes:', error);
+      throw new Error('Error al obtener las recetas de la base de datos');
+    }
   }
 
   async getRecipeById(id: number): Promise<Recipe | undefined> {
