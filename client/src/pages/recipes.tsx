@@ -4,6 +4,7 @@ import { Header } from "@/components/header";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
+import { WeekSelectionModal } from "@/components/week-selection-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -35,6 +36,8 @@ export default function Recipes() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showWeekSelection, setShowWeekSelection] = useState(false);
+  const [recipeForWeek, setRecipeForWeek] = useState<Recipe | null>(null);
 
   const { data: recipes, isLoading } = useQuery({
     queryKey: ["/api/recipes", { category: selectedCategory, search: searchQuery }],
@@ -54,11 +57,11 @@ export default function Recipes() {
   });
 
   const addToWeekMutation = useMutation({
-    mutationFn: async ({ recipeId, date }: { recipeId: number; date: string }) => {
+    mutationFn: async ({ recipeId, date, mealType }: { recipeId: number; date: string; mealType: string }) => {
       const response = await apiRequest("POST", "/api/meal-plans", {
         fecha: date,
         recetaId: recipeId,
-        tipoComida: "almuerzo"
+        tipoComida: mealType
       });
       return response.json();
     },
@@ -84,9 +87,12 @@ export default function Recipes() {
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
-    // For now, add to today's date. In a real app, you might want to show a date picker
-    const today = new Date().toISOString().split('T')[0];
-    addToWeekMutation.mutate({ recipeId: recipe.id, date: today });
+    setRecipeForWeek(recipe);
+    setShowWeekSelection(true);
+  };
+
+  const handleWeekSelectionConfirm = (recipe: Recipe, date: string, mealType: string) => {
+    addToWeekMutation.mutate({ recipeId: recipe.id, date, mealType });
   };
 
   const filteredRecipes = recipes || [];
@@ -206,6 +212,16 @@ export default function Recipes() {
           setEditingRecipe(null);
         }}
         recipe={editingRecipe}
+      />
+
+      <WeekSelectionModal
+        isOpen={showWeekSelection}
+        onClose={() => {
+          setShowWeekSelection(false);
+          setRecipeForWeek(null);
+        }}
+        recipe={recipeForWeek}
+        onConfirm={handleWeekSelectionConfirm}
       />
     </div>
   );

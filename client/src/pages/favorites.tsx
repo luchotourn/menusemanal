@@ -19,6 +19,8 @@ export default function Favorites() {
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [showAddRecipe, setShowAddRecipe] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showWeekSelection, setShowWeekSelection] = useState(false);
+  const [recipeForWeek, setRecipeForWeek] = useState<Recipe | null>(null);
 
   const { data: favoriteRecipes, isLoading } = useQuery({
     queryKey: ["/api/recipes", { favorites: true }],
@@ -60,9 +62,12 @@ export default function Favorites() {
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
-    // For now, add to today's date. In a real app, you might want to show a date picker
-    const today = new Date().toISOString().split('T')[0];
-    addToWeekMutation.mutate({ recipeId: recipe.id, date: today });
+    setRecipeForWeek(recipe);
+    setShowWeekSelection(true);
+  };
+
+  const handleWeekSelectionConfirm = (recipe: Recipe, date: string, mealType: string) => {
+    addToWeekMutation.mutate({ recipeId: recipe.id, date, mealType });
   };
 
   // Group recipes by rating
@@ -190,6 +195,16 @@ export default function Favorites() {
           setEditingRecipe(null);
         }}
         recipe={editingRecipe}
+      />
+
+      <WeekSelectionModal
+        isOpen={showWeekSelection}
+        onClose={() => {
+          setShowWeekSelection(false);
+          setRecipeForWeek(null);
+        }}
+        recipe={recipeForWeek}
+        onConfirm={handleWeekSelectionConfirm}
       />
     </div>
   );

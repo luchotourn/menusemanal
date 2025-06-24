@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Upload, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,18 +34,39 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
   const isEditing = !!recipe;
 
   const [formData, setFormData] = useState<InsertRecipe>({
-    nombre: recipe?.nombre || "",
-    descripcion: recipe?.descripcion || "",
-    imagen: recipe?.imagen || "",
-    enlaceExterno: recipe?.enlaceExterno || "",
-    categoria: recipe?.categoria || "",
-    calificacionNinos: recipe?.calificacionNinos || 0,
-    ingredientes: recipe?.ingredientes || [],
-    instrucciones: recipe?.instrucciones || "",
-    tiempoPreparacion: recipe?.tiempoPreparacion || 0,
-    porciones: recipe?.porciones || 0,
-    esFavorita: recipe?.esFavorita || 0,
+    nombre: "",
+    descripcion: "",
+    imagen: "",
+    enlaceExterno: "",
+    categoria: "",
+    calificacionNinos: 0,
+    ingredientes: [],
+    instrucciones: "",
+    tiempoPreparacion: 0,
+    porciones: 0,
+    esFavorita: 0,
   });
+
+  // Update form data when recipe changes
+  useEffect(() => {
+    if (recipe) {
+      setFormData({
+        nombre: recipe.nombre || "",
+        descripcion: recipe.descripcion || "",
+        imagen: recipe.imagen || "",
+        enlaceExterno: recipe.enlaceExterno || "",
+        categoria: recipe.categoria || "",
+        calificacionNinos: recipe.calificacionNinos || 0,
+        ingredientes: recipe.ingredientes || [],
+        instrucciones: recipe.instrucciones || "",
+        tiempoPreparacion: recipe.tiempoPreparacion || 0,
+        porciones: recipe.porciones || 0,
+        esFavorita: recipe.esFavorita || 0,
+      });
+    } else {
+      resetForm();
+    }
+  }, [recipe, isOpen]);
 
   const [ingredientInput, setIngredientInput] = useState("");
 
