@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Updated PWA icon and app name to "Menu Familiar" with custom fork/knife icon
 - June 24, 2025: Added mobile app icons and PWA manifest for proper mobile installation
 - June 24, 2025: Fixed duplicate close buttons in edit recipe modal
 - June 24, 2025: Added delete recipe functionality with validation to prevent deletion of recipes assigned to meal plans

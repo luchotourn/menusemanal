@@ -8,7 +8,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Utensils className="text-app-primary text-xl w-6 h-6" />
-            <h1 className="text-lg font-semibold text-app-neutral">Comidas Familiares</h1>
+            <h1 className="text-lg font-semibold text-app-neutral">Menu Familiar</h1>
           </div>
           <Button variant="ghost" size="sm" className="p-2 rounded-full hover:bg-gray-100">
             <Menu className="text-app-neutral w-5 h-5" />

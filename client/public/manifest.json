@@ -1,6 +1,6 @@
 {
-  "name": "Planificador de Comidas Familiar",
-  "short_name": "Meal Planner",
+  "name": "Menu Familiar",
+  "short_name": "Menu Familiar",
   "description": "Organiza las comidas de tu familia con recetas y planificación semanal",
   "start_url": "/",
   "display": "standalone",
