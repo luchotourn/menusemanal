@@ -1,4 +1,6 @@
 import { recipes, mealPlans, type Recipe, type InsertRecipe, type MealPlan, type InsertMealPlan } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gte, lte, like, or } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
@@ -160,4 +162,105 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getAllRecipes(): Promise<Recipe[]> {
+    return await db.select().from(recipes);
+  }
+
+  async getRecipeById(id: number): Promise<Recipe | undefined> {
+    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
+    return recipe || undefined;
+  }
+
+  async getRecipesByCategory(categoria: string): Promise<Recipe[]> {
+    return await db.select().from(recipes).where(eq(recipes.categoria, categoria));
+  }
+
+  async getFavoriteRecipes(): Promise<Recipe[]> {
+    return await db.select().from(recipes).where(eq(recipes.esFavorita, 1));
+  }
+
+  async searchRecipes(query: string): Promise<Recipe[]> {
+    const lowercaseQuery = `%${query.toLowerCase()}%`;
+    return await db.select().from(recipes).where(
+      or(
+        like(recipes.nombre, lowercaseQuery),
+        like(recipes.descripcion, lowercaseQuery),
+        like(recipes.categoria, lowercaseQuery)
+      )
+    );
+  }
+
+  async createRecipe(insertRecipe: InsertRecipe): Promise<Recipe> {
+    const [recipe] = await db
+      .insert(recipes)
+      .values(insertRecipe)
+      .returning();
+    return recipe;
+  }
+
+  async updateRecipe(id: number, updateData: Partial<InsertRecipe>): Promise<Recipe | undefined> {
+    const [recipe] = await db
+      .update(recipes)
+      .set(updateData)
+      .where(eq(recipes.id, id))
+      .returning();
+    return recipe || undefined;
+  }
+
+  async deleteRecipe(id: number): Promise<boolean> {
+    const result = await db.delete(recipes).where(eq(recipes.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getMealPlansForWeek(startDate: string): Promise<MealPlan[]> {
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    
+    return await db.select().from(mealPlans).where(
+      and(
+        gte(mealPlans.fecha, startDate),
+        lte(mealPlans.fecha, end.toISOString().split('T')[0])
+      )
+    );
+  }
+
+  async getMealPlanByDate(fecha: string): Promise<MealPlan[]> {
+    return await db.select().from(mealPlans).where(eq(mealPlans.fecha, fecha));
+  }
+
+  async getMealPlanByDateAndType(fecha: string, tipoComida: string): Promise<MealPlan | undefined> {
+    const [mealPlan] = await db.select().from(mealPlans).where(
+      and(
+        eq(mealPlans.fecha, fecha),
+        eq(mealPlans.tipoComida, tipoComida)
+      )
+    );
+    return mealPlan || undefined;
+  }
+
+  async createMealPlan(insertMealPlan: InsertMealPlan): Promise<MealPlan> {
+    const [mealPlan] = await db
+      .insert(mealPlans)
+      .values(insertMealPlan)
+      .returning();
+    return mealPlan;
+  }
+
+  async updateMealPlan(id: number, updateData: Partial<InsertMealPlan>): Promise<MealPlan | undefined> {
+    const [mealPlan] = await db
+      .update(mealPlans)
+      .set(updateData)
+      .where(eq(mealPlans.id, id))
+      .returning();
+    return mealPlan || undefined;
+  }
+
+  async deleteMealPlan(id: number): Promise<boolean> {
+    const result = await db.delete(mealPlans).where(eq(mealPlans.id, id));
+    return result.rowCount > 0;
+  }
+}
+
+export const storage = new DatabaseStorage();

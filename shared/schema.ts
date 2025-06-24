@@ -1,5 +1,6 @@
 import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
 export const recipes = pgTable("recipes", {
@@ -24,6 +25,17 @@ export const mealPlans = pgTable("meal_plans", {
   tipoComida: text("tipo_comida").notNull().default("almuerzo"), // "almuerzo", "cena"
   notas: text("notas"),
 });
+
+export const recipesRelations = relations(recipes, ({ many }) => ({
+  mealPlans: many(mealPlans),
+}));
+
+export const mealPlansRelations = relations(mealPlans, ({ one }) => ({
+  recipe: one(recipes, {
+    fields: [mealPlans.recetaId],
+    references: [recipes.id],
+  }),
+}));
 
 export const insertRecipeSchema = createInsertSchema(recipes).omit({
   id: true,
