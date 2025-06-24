@@ -91,6 +91,9 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Fixed deployment issues with production error handling and environment validation
+- June 24, 2025: Added process-level error handlers to prevent server crashes in production
+- June 24, 2025: Enhanced static file serving configuration for production deployment
 - June 24, 2025: Added PostgreSQL database integration with persistent data storage
 - June 24, 2025: Added "Current Week" navigation button to quickly return to the current week
 - June 23, 2025: Updated meal planning system to support separate lunch and dinner scheduling for each day
