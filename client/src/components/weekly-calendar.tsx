@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -47,6 +47,18 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
     setCurrentWeekStart(newDate);
   };
 
+  const goToCurrentWeek = () => {
+    const today = new Date();
+    const currentWeek = getMonday(today);
+    setCurrentWeekStart(currentWeek);
+  };
+
+  const isCurrentWeek = () => {
+    const today = new Date();
+    const currentWeek = getMonday(today);
+    return currentWeekStart.toDateString() === currentWeek.toDateString();
+  };
+
   const getMealForDate = (date: Date, mealType: string) => {
     const dateStr = formatDate(date);
     const mealPlan = mealPlans?.find(mp => mp.fecha === dateStr && mp.tipoComida === mealType);
@@ -72,7 +84,9 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
   return (
     <section className="mt-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-app-neutral">Esta Semana</h2>
+        <h2 className="text-xl font-semibold text-app-neutral">
+          {isCurrentWeek() ? "Esta Semana" : "Semana"}
+        </h2>
         <div className="flex items-center space-x-2">
           <Button
             variant="ghost"
@@ -82,7 +96,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
           >
             <ChevronLeft className="text-gray-600 w-4 h-4" />
           </Button>
-          <span className="text-sm font-medium text-gray-600">
+          <span className="text-sm font-medium text-gray-600 min-w-[100px] text-center">
             {formatWeekRange(currentWeekStart)}
           </span>
           <Button
@@ -93,6 +107,17 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
           >
             <ChevronRight className="text-gray-600 w-4 h-4" />
           </Button>
+          {!isCurrentWeek() && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2 text-xs px-2 py-1 h-8 text-app-primary border-app-primary hover:bg-app-primary hover:text-white"
+              onClick={goToCurrentWeek}
+            >
+              <Calendar className="w-3 h-3 mr-1" />
+              Hoy
+            </Button>
+          )}
         </div>
       </div>
 

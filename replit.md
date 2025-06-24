@@ -91,6 +91,8 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Added PostgreSQL database integration with persistent data storage
+- June 24, 2025: Added "Current Week" navigation button to quickly return to the current week
 - June 23, 2025: Updated meal planning system to support separate lunch and dinner scheduling for each day
 - June 23, 2025: Enhanced weekly calendar with dedicated lunch/dinner sections
 - June 23, 2025: Added meal selection modal for choosing recipes for specific meal types
