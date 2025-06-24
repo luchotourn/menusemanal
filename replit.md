@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Added meal deletion functionality with hover-to-show delete buttons in weekly calendar
 - June 24, 2025: Fixed deployment issues with production error handling and environment validation
 - June 24, 2025: Added process-level error handlers to prevent server crashes in production
 - June 24, 2025: Enhanced static file serving configuration for production deployment
