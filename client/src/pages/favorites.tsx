@@ -4,6 +4,7 @@ import { Header } from "@/components/header";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
+import { WeekSelectionModal } from "@/components/week-selection-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
