@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Changed "add image" to "add file" for general document support (images, PDFs, documents)
 - June 24, 2025: Fixed edit recipe functionality and added proper "Agregar a la semana" workflow with date/meal selection
 - June 24, 2025: Removed favorite recipes and all recipes sections from home tab, added favorites filter to "Recetas" tab
 - June 24, 2025: Removed "Acciones Rápidas" section from home tab and moved recipe creation to "Recetas" tab only

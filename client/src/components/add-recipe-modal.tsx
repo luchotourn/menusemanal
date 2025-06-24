@@ -151,7 +151,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
     }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
