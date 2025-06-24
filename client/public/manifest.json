@@ -1,0 +1,22 @@
+{
+  "name": "Planificador de Comidas Familiar",
+  "short_name": "Meal Planner",
+  "description": "Organiza las comidas de tu familia con recetas y planificación semanal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d4825a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

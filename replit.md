@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Added mobile app icons and PWA manifest for proper mobile installation
 - June 24, 2025: Fixed duplicate close buttons in edit recipe modal
 - June 24, 2025: Added delete recipe functionality with validation to prevent deletion of recipes assigned to meal plans
 - June 24, 2025: Removed file upload functionality from recipes - now only supports URL-based images
