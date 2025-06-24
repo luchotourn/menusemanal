@@ -68,11 +68,18 @@ export function RecipeDetailModal({
         <div className="p-4">
           {recipe.imagen && (
             <div className="mb-6">
-              <img 
-                src={recipe.imagen} 
-                alt={recipe.nombre}
-                className="w-full h-48 object-cover rounded-xl"
-              />
+              {recipe.imagen.startsWith('data:image/') || recipe.imagen.startsWith('http') ? (
+                <img 
+                  src={recipe.imagen} 
+                  alt={recipe.nombre}
+                  className="w-full h-48 object-cover rounded-xl"
+                />
+              ) : (
+                <div className="flex items-center justify-center space-x-2 p-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                  <Upload className="w-6 h-6 text-gray-500" />
+                  <span className="text-gray-700 font-medium">Documento adjunto</span>
+                </div>
+              )}
             </div>
           )}
 

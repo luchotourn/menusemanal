@@ -269,11 +269,20 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
                 </Button>
               </div>
               {formData.imagen && (
-                <img 
-                  src={formData.imagen} 
-                  alt="Preview" 
-                  className="w-24 h-24 object-cover rounded-lg"
-                />
+                <div className="mt-2">
+                  {formData.imagen.startsWith('data:image/') ? (
+                    <img 
+                      src={formData.imagen} 
+                      alt="Preview" 
+                      className="w-24 h-24 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+                      <Upload className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-700">Archivo adjunto</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
