@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Removed favorite recipes and all recipes sections from home tab, added favorites filter to "Recetas" tab
 - June 24, 2025: Removed "Acciones Rápidas" section from home tab and moved recipe creation to "Recetas" tab only
 - June 24, 2025: Fixed duplicate close buttons in meal selection modal
 - June 24, 2025: Added meal deletion functionality with hover-to-show delete buttons in weekly calendar

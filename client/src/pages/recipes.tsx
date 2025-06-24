@@ -14,6 +14,7 @@ import type { Recipe } from "@shared/schema";
 
 const categories = [
   { value: "all", label: "Todas" },
+  { value: "favorites", label: "Favoritas" },
   { value: "Plato Principal", label: "Platos Principales" },
   { value: "Postre", label: "Postres" },
   { value: "Merienda", label: "Meriendas" },
@@ -39,7 +40,11 @@ export default function Recipes() {
     queryKey: ["/api/recipes", { category: selectedCategory, search: searchQuery }],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (selectedCategory !== "all") params.append("category", selectedCategory);
+      if (selectedCategory === "favorites") {
+        params.append("favorites", "true");
+      } else if (selectedCategory !== "all") {
+        params.append("category", selectedCategory);
+      }
       if (searchQuery) params.append("search", searchQuery);
       
       const response = await fetch(`/api/recipes?${params}`);
