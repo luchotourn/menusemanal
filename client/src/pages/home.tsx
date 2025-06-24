@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import { Header } from "@/components/header";
 import { WeeklyCalendar } from "@/components/weekly-calendar";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
-import { AddRecipeModal } from "@/components/add-recipe-modal";
 import { MealSelectionModal } from "@/components/meal-selection-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,8 +18,6 @@ export default function Home() {
   
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
-  const [showAddRecipe, setShowAddRecipe] = useState(false);
-  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedMealType, setSelectedMealType] = useState<string>("almuerzo");
   const [showMealSelection, setShowMealSelection] = useState(false);
@@ -81,9 +77,8 @@ export default function Home() {
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
-    setEditingRecipe(recipe);
-    setShowRecipeModal(false);
-    setShowAddRecipe(true);
+    // Redirect to recipes page for editing
+    window.location.href = "/recipes";
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
@@ -105,25 +100,7 @@ export default function Home() {
       <main className="max-w-lg mx-auto px-4 pb-20">
         <WeeklyCalendar onAddMeal={handleAddMeal} onViewMeal={handleViewMeal} />
 
-        {/* Quick Actions */}
-        <section className="mt-8">
-          <h3 className="text-lg font-semibold text-app-neutral mb-4">Acciones Rápidas</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              className="bg-app-primary text-white p-4 rounded-xl shadow-sm hover:bg-app-primary/90 h-auto flex-col space-y-2"
-              onClick={() => setShowAddRecipe(true)}
-            >
-              <Plus className="w-5 h-5" />
-              <span className="text-sm font-medium">Agregar Receta</span>
-            </Button>
-            <Link href="/recipes">
-              <Button className="bg-app-secondary text-white p-4 rounded-xl shadow-sm hover:bg-app-secondary/90 h-auto flex-col space-y-2 w-full">
-                <i className="fas fa-book-open text-lg"></i>
-                <span className="text-sm font-medium">Ver Recetas</span>
-              </Button>
-            </Link>
-          </div>
-        </section>
+
 
         {/* Favorite Recipes */}
         <section className="mt-8">
@@ -151,12 +128,11 @@ export default function Home() {
               <div className="text-center">
                 <div className="text-4xl mb-3">⭐</div>
                 <p className="text-gray-500 mb-4">¡Aún no tienes recetas favoritas!</p>
-                <Button 
-                  className="bg-app-primary text-white hover:bg-app-primary/90"
-                  onClick={() => setShowAddRecipe(true)}
-                >
-                  Agregar Primera Receta
-                </Button>
+                <Link href="/recipes">
+                  <Button className="bg-app-primary text-white hover:bg-app-primary/90">
+                    Ver Recetas
+                  </Button>
+                </Link>
               </div>
             </Card>
           )}
@@ -190,27 +166,18 @@ export default function Home() {
               <div className="text-center py-8">
                 <div className="text-4xl text-gray-300 mb-3">🍽️</div>
                 <p className="text-gray-500 mb-4">¡Comienza agregando tu primera receta!</p>
-                <Button 
-                  className="bg-app-primary text-white hover:bg-app-primary/90"
-                  onClick={() => setShowAddRecipe(true)}
-                >
-                  Agregar Receta
-                </Button>
+                <Link href="/recipes">
+                  <Button className="bg-app-primary text-white hover:bg-app-primary/90">
+                    Ir a Recetas
+                  </Button>
+                </Link>
               </div>
             )}
           </Card>
         </section>
       </main>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-20 right-4 z-40">
-        <Button 
-          className="bg-app-primary text-white w-14 h-14 rounded-full shadow-lg hover:bg-app-primary/90 transform hover:scale-105 transition-all"
-          onClick={() => setShowAddRecipe(true)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      </div>
+
 
       {/* Modals */}
       <RecipeDetailModal
@@ -221,15 +188,7 @@ export default function Home() {
         onAddToWeek={handleAddToWeek}
       />
 
-      <AddRecipeModal
-        isOpen={showAddRecipe}
-        onClose={() => {
-          setShowAddRecipe(false);
-          setEditingRecipe(null);
-          setSelectedDate("");
-        }}
-        recipe={editingRecipe}
-      />
+
 
       <MealSelectionModal
         isOpen={showMealSelection}
