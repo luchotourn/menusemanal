@@ -242,20 +242,20 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
           </div>
 
           <div>
-            <Label htmlFor="imagen">Imagen</Label>
+            <Label htmlFor="imagen">Archivo (imagen, PDF, documento)</Label>
             <div className="space-y-2">
               <Input
                 id="imagen-url"
                 value={formData.imagen}
                 onChange={(e) => setFormData(prev => ({ ...prev, imagen: e.target.value }))}
-                placeholder="URL de la imagen o sube una foto"
+                placeholder="URL del archivo"
               />
               <div className="flex items-center space-x-2">
                 <Input
                   id="imagen-file"
                   type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
+                  accept="image/*,application/pdf,.doc,.docx,.txt"
+                  onChange={handleFileUpload}
                   className="hidden"
                 />
                 <Button
@@ -265,7 +265,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
                   className="flex items-center space-x-2"
                 >
                   <Upload className="w-4 h-4" />
-                  <span>Subir Foto</span>
+                  <span>Subir Archivo</span>
                 </Button>
               </div>
               {formData.imagen && (
