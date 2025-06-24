@@ -91,6 +91,8 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 24, 2025: Removed file upload functionality from recipes - now only supports URL-based images
+- June 24, 2025: Fixed broken image icons in home page weekly calendar by adding proper validation
 - June 24, 2025: Changed "add image" to "add file" for general document support (images, PDFs, documents)
 - June 24, 2025: Fixed edit recipe functionality and added proper "Agregar a la semana" workflow with date/meal selection
 - June 24, 2025: Removed favorite recipes and all recipes sections from home tab, added favorites filter to "Recetas" tab

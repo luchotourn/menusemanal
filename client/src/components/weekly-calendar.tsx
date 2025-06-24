@@ -190,11 +190,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                               className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer"
                               onClick={() => onViewMeal(lunchMeal)}
                             >
-                              {lunchMeal.recipe?.imagen && (
+                              {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
                                 <img 
                                   src={lunchMeal.recipe.imagen} 
                                   alt={lunchMeal.recipe.nombre}
                                   className="w-6 h-6 rounded object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
                                 />
                               )}
                               <div className="flex-1 min-w-0">
@@ -240,11 +243,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                               className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer"
                               onClick={() => onViewMeal(dinnerMeal)}
                             >
-                              {dinnerMeal.recipe?.imagen && (
+                              {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
                                 <img 
                                   src={dinnerMeal.recipe.imagen} 
                                   alt={dinnerMeal.recipe.nombre}
                                   className="w-6 h-6 rounded object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
                                 />
                               )}
                               <div className="flex-1 min-w-0">
@@ -298,11 +304,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                               className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer"
                               onClick={() => onViewMeal(sundayLunch)}
                             >
-                              {sundayLunch.recipe?.imagen && (
+                              {sundayLunch.recipe?.imagen && sundayLunch.recipe.imagen.startsWith('http') && (
                                 <img 
                                   src={sundayLunch.recipe.imagen} 
                                   alt={sundayLunch.recipe.nombre}
                                   className="w-6 h-6 rounded object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
                                 />
                               )}
                               <div className="flex-1 min-w-0">
@@ -348,11 +357,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                               className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer"
                               onClick={() => onViewMeal(sundayDinner)}
                             >
-                              {sundayDinner.recipe?.imagen && (
+                              {sundayDinner.recipe?.imagen && sundayDinner.recipe.imagen.startsWith('http') && (
                                 <img 
                                   src={sundayDinner.recipe.imagen} 
                                   alt={sundayDinner.recipe.nombre}
                                   className="w-6 h-6 rounded object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
                                 />
                               )}
                               <div className="flex-1 min-w-0">
@@ -417,11 +429,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                         className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer"
                         onClick={() => onViewMeal(lunchMeal)}
                       >
-                        {lunchMeal.recipe?.imagen && (
+                        {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
                           <img 
                             src={lunchMeal.recipe.imagen} 
                             alt={lunchMeal.recipe.nombre}
                             className="w-8 h-8 rounded-lg object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         )}
                         <div className="flex-1 min-w-0">
@@ -473,11 +488,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                         className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer"
                         onClick={() => onViewMeal(dinnerMeal)}
                       >
-                        {dinnerMeal.recipe?.imagen && (
+                        {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
                           <img 
                             src={dinnerMeal.recipe.imagen} 
                             alt={dinnerMeal.recipe.nombre}
                             className="w-8 h-8 rounded-lg object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         )}
                         <div className="flex-1 min-w-0">
