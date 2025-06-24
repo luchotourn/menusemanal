@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { X, Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { RecipeCard } from "@/components/recipe-card";
@@ -66,23 +64,13 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4 flex flex-row items-center justify-between">
-          <div>
-            <DialogTitle className="text-lg font-semibold text-app-neutral">
-              Elegir Receta para {mealTypeLabel}
-            </DialogTitle>
-            <p className="text-sm text-gray-600 capitalize">
-              {dateLabel}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 rounded-full hover:bg-gray-100"
-            onClick={onClose}
-          >
-            <X className="text-gray-600 w-4 h-4" />
-          </Button>
+        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4">
+          <DialogTitle className="text-lg font-semibold text-app-neutral">
+            Elegir Receta para {mealTypeLabel}
+          </DialogTitle>
+          <p className="text-sm text-gray-600 capitalize">
+            {dateLabel}
+          </p>
         </DialogHeader>
         
         <div className="p-4">
