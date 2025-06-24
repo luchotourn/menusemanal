@@ -201,18 +201,10 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4 flex flex-row items-center justify-between">
+        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4">
           <DialogTitle className="text-lg font-semibold text-app-neutral">
             {isEditing ? "Editar Receta" : "Agregar Nueva Receta"}
           </DialogTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 rounded-full hover:bg-gray-100"
-            onClick={onClose}
-          >
-            <X className="text-gray-600 w-4 h-4" />
-          </Button>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
