@@ -103,7 +103,7 @@ export default function Recipes() {
       
       <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
-          <h2 className="text-2xl font-bold text-app-neutral mb-6">Todas las Recetas</h2>
+          <h2 className="text-2xl font-bold text-app-neutral mb-6">Todas las Comidas</h2>
           
           {/* Search and Filter */}
           <Card className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
@@ -113,7 +113,7 @@ export default function Recipes() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar recetas..."
+                  placeholder="Buscar comidas..."
                   className="pl-10 bg-gray-50 border-0 focus:bg-white"
                 />
               </div>
