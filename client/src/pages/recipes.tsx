@@ -107,8 +107,8 @@ export default function Recipes() {
           
           {/* Search and Filter */}
           <Card className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="flex-1 relative">
+            <div className="mb-4">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   value={searchQuery}
@@ -117,9 +117,6 @@ export default function Recipes() {
                   className="pl-10 bg-gray-50 border-0 focus:bg-white"
                 />
               </div>
-              <Button variant="outline" size="sm" className="p-2 bg-gray-50 hover:bg-gray-100">
-                <Filter className="text-gray-600 w-4 h-4" />
-              </Button>
             </div>
 
             {/* Category Filters */}
