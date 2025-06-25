@@ -94,7 +94,10 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
     setMealToDelete(null);
   };
 
-  const handleLongPressStart = (mealPlan: MealPlan) => {
+  const handleLongPressStart = (mealPlan: MealPlan, event: React.TouchEvent | React.MouseEvent) => {
+    // Prevent text selection and context menu
+    event.preventDefault();
+    
     const timer = setTimeout(() => {
       // Show delete confirmation after long press
       setMealToDelete(mealPlan);
@@ -102,11 +105,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
       }
-    }, 500); // 500ms long press
+    }, 400); // Reduced to 400ms for better responsiveness
     setLongPressTimer(timer);
   };
 
-  const handleLongPressEnd = () => {
+  const handleLongPressEnd = (event?: React.TouchEvent | React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+    }
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
@@ -218,14 +224,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                         </div>
                         {lunchMeal ? (
                           <div 
-                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors"
+                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
+                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
                             onClick={() => onViewMeal(lunchMeal)}
-                            onTouchStart={() => handleLongPressStart(lunchMeal)}
-                            onTouchEnd={handleLongPressEnd}
-                            onTouchCancel={handleLongPressEnd}
-                            onMouseDown={() => handleLongPressStart(lunchMeal)}
-                            onMouseUp={handleLongPressEnd}
-                            onMouseLeave={handleLongPressEnd}
+                            onTouchStart={(e) => handleLongPressStart(lunchMeal, e)}
+                            onTouchEnd={(e) => handleLongPressEnd(e)}
+                            onTouchCancel={(e) => handleLongPressEnd(e)}
+                            onMouseDown={(e) => handleLongPressStart(lunchMeal, e)}
+                            onMouseUp={(e) => handleLongPressEnd(e)}
+                            onMouseLeave={(e) => handleLongPressEnd(e)}
+                            onContextMenu={(e) => e.preventDefault()}
                           >
                             {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
                               <img 
@@ -265,14 +273,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                         </div>
                         {dinnerMeal ? (
                           <div 
-                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors"
+                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
+                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
                             onClick={() => onViewMeal(dinnerMeal)}
-                            onTouchStart={() => handleLongPressStart(dinnerMeal)}
-                            onTouchEnd={handleLongPressEnd}
-                            onTouchCancel={handleLongPressEnd}
-                            onMouseDown={() => handleLongPressStart(dinnerMeal)}
-                            onMouseUp={handleLongPressEnd}
-                            onMouseLeave={handleLongPressEnd}
+                            onTouchStart={(e) => handleLongPressStart(dinnerMeal, e)}
+                            onTouchEnd={(e) => handleLongPressEnd(e)}
+                            onTouchCancel={(e) => handleLongPressEnd(e)}
+                            onMouseDown={(e) => handleLongPressStart(dinnerMeal, e)}
+                            onMouseUp={(e) => handleLongPressEnd(e)}
+                            onMouseLeave={(e) => handleLongPressEnd(e)}
+                            onContextMenu={(e) => e.preventDefault()}
                           >
                             {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
                               <img 
@@ -320,14 +330,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                         </div>
                         {sundayLunch ? (
                           <div 
-                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors"
+                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
+                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
                             onClick={() => onViewMeal(sundayLunch)}
-                            onTouchStart={() => handleLongPressStart(sundayLunch)}
-                            onTouchEnd={handleLongPressEnd}
-                            onTouchCancel={handleLongPressEnd}
-                            onMouseDown={() => handleLongPressStart(sundayLunch)}
-                            onMouseUp={handleLongPressEnd}
-                            onMouseLeave={handleLongPressEnd}
+                            onTouchStart={(e) => handleLongPressStart(sundayLunch, e)}
+                            onTouchEnd={(e) => handleLongPressEnd(e)}
+                            onTouchCancel={(e) => handleLongPressEnd(e)}
+                            onMouseDown={(e) => handleLongPressStart(sundayLunch, e)}
+                            onMouseUp={(e) => handleLongPressEnd(e)}
+                            onMouseLeave={(e) => handleLongPressEnd(e)}
+                            onContextMenu={(e) => e.preventDefault()}
                           >
                             {sundayLunch.recipe?.imagen && sundayLunch.recipe.imagen.startsWith('http') && (
                               <img 
@@ -367,14 +379,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                         </div>
                         {sundayDinner ? (
                           <div 
-                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors"
+                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
+                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
                             onClick={() => onViewMeal(sundayDinner)}
-                            onTouchStart={() => handleLongPressStart(sundayDinner)}
-                            onTouchEnd={handleLongPressEnd}
-                            onTouchCancel={handleLongPressEnd}
-                            onMouseDown={() => handleLongPressStart(sundayDinner)}
-                            onMouseUp={handleLongPressEnd}
-                            onMouseLeave={handleLongPressEnd}
+                            onTouchStart={(e) => handleLongPressStart(sundayDinner, e)}
+                            onTouchEnd={(e) => handleLongPressEnd(e)}
+                            onTouchCancel={(e) => handleLongPressEnd(e)}
+                            onMouseDown={(e) => handleLongPressStart(sundayDinner, e)}
+                            onMouseUp={(e) => handleLongPressEnd(e)}
+                            onMouseLeave={(e) => handleLongPressEnd(e)}
+                            onContextMenu={(e) => e.preventDefault()}
                           >
                             {sundayDinner.recipe?.imagen && sundayDinner.recipe.imagen.startsWith('http') && (
                               <img 
@@ -433,14 +447,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                   </div>
                   {lunchMeal ? (
                     <div 
-                      className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors"
+                      className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
+                      style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
                       onClick={() => onViewMeal(lunchMeal)}
-                      onTouchStart={() => handleLongPressStart(lunchMeal)}
-                      onTouchEnd={handleLongPressEnd}
-                      onTouchCancel={handleLongPressEnd}
-                      onMouseDown={() => handleLongPressStart(lunchMeal)}
-                      onMouseUp={handleLongPressEnd}
-                      onMouseLeave={handleLongPressEnd}
+                      onTouchStart={(e) => handleLongPressStart(lunchMeal, e)}
+                      onTouchEnd={(e) => handleLongPressEnd(e)}
+                      onTouchCancel={(e) => handleLongPressEnd(e)}
+                      onMouseDown={(e) => handleLongPressStart(lunchMeal, e)}
+                      onMouseUp={(e) => handleLongPressEnd(e)}
+                      onMouseLeave={(e) => handleLongPressEnd(e)}
+                      onContextMenu={(e) => e.preventDefault()}
                     >
                       {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
                         <img 
@@ -486,14 +502,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                   </div>
                   {dinnerMeal ? (
                     <div 
-                      className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors"
+                      className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
+                      style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
                       onClick={() => onViewMeal(dinnerMeal)}
-                      onTouchStart={() => handleLongPressStart(dinnerMeal)}
-                      onTouchEnd={handleLongPressEnd}
-                      onTouchCancel={handleLongPressEnd}
-                      onMouseDown={() => handleLongPressStart(dinnerMeal)}
-                      onMouseUp={handleLongPressEnd}
-                      onMouseLeave={handleLongPressEnd}
+                      onTouchStart={(e) => handleLongPressStart(dinnerMeal, e)}
+                      onTouchEnd={(e) => handleLongPressEnd(e)}
+                      onTouchCancel={(e) => handleLongPressEnd(e)}
+                      onMouseDown={(e) => handleLongPressStart(dinnerMeal, e)}
+                      onMouseUp={(e) => handleLongPressEnd(e)}
+                      onMouseLeave={(e) => handleLongPressEnd(e)}
+                      onContextMenu={(e) => e.preventDefault()}
                     >
                       {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
                         <img 

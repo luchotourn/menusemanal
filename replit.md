@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 25, 2025: Improved long press gesture by preventing text selection and context menus for better mobile experience
 - June 24, 2025: Updated PWA icon to new transparent centered fork/knife design
 - June 24, 2025: Fixed mobile deletion UI with long press gestures and confirmation dialog for meal plan items
 - June 24, 2025: Updated PWA icon and app name to "Menu Familiar" with custom fork/knife icon
