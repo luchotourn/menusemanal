@@ -51,6 +51,8 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
   });
 
   const handleSelectRecipe = (recipe: Recipe) => {
+    // Prevent double submission if already pending
+    if (addToWeekMutation.isPending) return;
     addToWeekMutation.mutate({ recipeId: recipe.id });
   };
 
@@ -92,12 +94,11 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
           ) : recipes && recipes.length > 0 ? (
             <div className="space-y-3">
               {recipes.map((recipe) => (
-                <div key={recipe.id} onClick={() => handleSelectRecipe(recipe)}>
-                  <RecipeCard 
-                    recipe={recipe} 
-                    onClick={() => handleSelectRecipe(recipe)}
-                  />
-                </div>
+                <RecipeCard 
+                  key={recipe.id}
+                  recipe={recipe} 
+                  onClick={() => handleSelectRecipe(recipe)}
+                />
               ))}
             </div>
           ) : (

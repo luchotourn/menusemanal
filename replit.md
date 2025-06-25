@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 25, 2025: Fixed duplicate meal addition bug caused by double click handlers in meal selection modal
 - June 25, 2025: Added support for multiple meals per day/time slot - users can now add multiple dishes for the same meal
 - June 25, 2025: Improved long press gesture by preventing text selection and context menus for better mobile experience
 - June 24, 2025: Updated PWA icon to new transparent centered fork/knife design
