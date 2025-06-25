@@ -7,7 +7,7 @@ export function BottomNavigation() {
 
   const navItems = [
     { path: "/", icon: Calendar, label: "Semana", id: "home" },
-    { path: "/recipes", icon: Book, label: "Recetas", id: "recipes" },
+    { path: "/recipes", icon: Book, label: "Comidas", id: "recipes" },
     { path: "/favorites", icon: Heart, label: "Favoritas", id: "favorites" },
     { path: "/settings", icon: Settings, label: "Ajustes", id: "settings" },
   ];
