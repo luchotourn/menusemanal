@@ -65,14 +65,22 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
     return currentWeekStart.toDateString() === currentWeek.toDateString();
   };
 
-  const getMealForDate = (date: Date, mealType: string) => {
+  const getMealsForDate = (date: Date, mealType: string) => {
     const dateStr = formatDate(date);
-    const mealPlan = mealPlans?.find(mp => mp.fecha === dateStr && mp.tipoComida === mealType);
-    if (mealPlan && recipes) {
-      const recipe = recipes.find(r => r.id === mealPlan.recetaId);
-      return { ...mealPlan, recipe };
+    const mealsForDate = mealPlans?.filter(mp => mp.fecha === dateStr && mp.tipoComida === mealType) || [];
+    if (recipes) {
+      return mealsForDate.map(mealPlan => {
+        const recipe = recipes.find(r => r.id === mealPlan.recetaId);
+        return { ...mealPlan, recipe };
+      });
     }
-    return null;
+    return [];
+  };
+
+  // Keep this for backward compatibility where only one meal is expected
+  const getMealForDate = (date: Date, mealType: string) => {
+    const meals = getMealsForDate(date, mealType);
+    return meals.length > 0 ? meals[0] : null;
   };
 
   const deleteMealMutation = useMutation({
@@ -183,14 +191,14 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
 
       <div className="space-y-3">
         {weekDates.map((date, index) => {
-          const lunchMeal = getMealForDate(date, "almuerzo");
-          const dinnerMeal = getMealForDate(date, "cena");
+          const lunchMeals = getMealsForDate(date, "almuerzo");
+          const dinnerMeals = getMealsForDate(date, "cena");
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
           if (isWeekend && index === 5) {
             // Combine weekend days
-            const sundayLunch = getMealForDate(weekDates[6], "almuerzo");
-            const sundayDinner = getMealForDate(weekDates[6], "cena");
+            const sundayLunchMeals = getMealsForDate(weekDates[6], "almuerzo");
+            const sundayDinnerMeals = getMealsForDate(weekDates[6], "cena");
             
             return (
               <Card key="weekend" className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -222,35 +230,52 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                             <Plus className="text-gray-400 w-3 h-3" />
                           </Button>
                         </div>
-                        {lunchMeal ? (
-                          <div 
-                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
-                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-                            onClick={() => onViewMeal(lunchMeal)}
-                            onTouchStart={(e) => handleLongPressStart(lunchMeal, e)}
-                            onTouchEnd={(e) => handleLongPressEnd(e)}
-                            onTouchCancel={(e) => handleLongPressEnd(e)}
-                            onMouseDown={(e) => handleLongPressStart(lunchMeal, e)}
-                            onMouseUp={(e) => handleLongPressEnd(e)}
-                            onMouseLeave={(e) => handleLongPressEnd(e)}
-                            onContextMenu={(e) => e.preventDefault()}
-                          >
-                            {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
-                              <img 
-                                src={lunchMeal.recipe.imagen} 
-                                alt={lunchMeal.recipe.nombre}
-                                className="w-6 h-6 rounded object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-app-neutral truncate">
-                                {lunchMeal.recipe?.nombre || 'Planificado'}
+                        {lunchMeals.length > 0 ? (
+                          <div className="space-y-1">
+                            {lunchMeals.map((lunchMeal, mealIndex) => (
+                              <div 
+                                key={`${lunchMeal.id}-${mealIndex}`}
+                                className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
+                                style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                                onClick={() => onViewMeal(lunchMeal)}
+                                onTouchStart={(e) => handleLongPressStart(lunchMeal, e)}
+                                onTouchEnd={(e) => handleLongPressEnd(e)}
+                                onTouchCancel={(e) => handleLongPressEnd(e)}
+                                onMouseDown={(e) => handleLongPressStart(lunchMeal, e)}
+                                onMouseUp={(e) => handleLongPressEnd(e)}
+                                onMouseLeave={(e) => handleLongPressEnd(e)}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
+                                {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
+                                  <img 
+                                    src={lunchMeal.recipe.imagen} 
+                                    alt={lunchMeal.recipe.nombre}
+                                    className="w-6 h-6 rounded object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-app-neutral truncate">
+                                    {lunchMeal.recipe?.nombre || 'Planificado'}
+                                  </p>
+                                  {lunchMeals.length === 1 && (
+                                    <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
+                                  )}
+                                </div>
+                                {lunchMeals.length > 1 && (
+                                  <span className="text-xs text-gray-500 bg-white rounded-full px-2 py-0.5">
+                                    {mealIndex + 1}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {lunchMeals.length > 1 && (
+                              <p className="text-xs text-gray-400 text-center mt-1">
+                                Mantén presionado cualquier plato para eliminar
                               </p>
-                              <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
-                            </div>
+                            )}
                           </div>
                         ) : (
                           <div className="p-2 bg-gray-50 rounded-lg text-center">
@@ -271,35 +296,52 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                             <Plus className="text-gray-400 w-3 h-3" />
                           </Button>
                         </div>
-                        {dinnerMeal ? (
-                          <div 
-                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
-                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-                            onClick={() => onViewMeal(dinnerMeal)}
-                            onTouchStart={(e) => handleLongPressStart(dinnerMeal, e)}
-                            onTouchEnd={(e) => handleLongPressEnd(e)}
-                            onTouchCancel={(e) => handleLongPressEnd(e)}
-                            onMouseDown={(e) => handleLongPressStart(dinnerMeal, e)}
-                            onMouseUp={(e) => handleLongPressEnd(e)}
-                            onMouseLeave={(e) => handleLongPressEnd(e)}
-                            onContextMenu={(e) => e.preventDefault()}
-                          >
-                            {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
-                              <img 
-                                src={dinnerMeal.recipe.imagen} 
-                                alt={dinnerMeal.recipe.nombre}
-                                className="w-6 h-6 rounded object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-app-neutral truncate">
-                                {dinnerMeal.recipe?.nombre || 'Planificado'}
+                        {dinnerMeals.length > 0 ? (
+                          <div className="space-y-1">
+                            {dinnerMeals.map((dinnerMeal, mealIndex) => (
+                              <div 
+                                key={`${dinnerMeal.id}-${mealIndex}`}
+                                className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
+                                style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                                onClick={() => onViewMeal(dinnerMeal)}
+                                onTouchStart={(e) => handleLongPressStart(dinnerMeal, e)}
+                                onTouchEnd={(e) => handleLongPressEnd(e)}
+                                onTouchCancel={(e) => handleLongPressEnd(e)}
+                                onMouseDown={(e) => handleLongPressStart(dinnerMeal, e)}
+                                onMouseUp={(e) => handleLongPressEnd(e)}
+                                onMouseLeave={(e) => handleLongPressEnd(e)}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
+                                {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
+                                  <img 
+                                    src={dinnerMeal.recipe.imagen} 
+                                    alt={dinnerMeal.recipe.nombre}
+                                    className="w-6 h-6 rounded object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-app-neutral truncate">
+                                    {dinnerMeal.recipe?.nombre || 'Planificado'}
+                                  </p>
+                                  {dinnerMeals.length === 1 && (
+                                    <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
+                                  )}
+                                </div>
+                                {dinnerMeals.length > 1 && (
+                                  <span className="text-xs text-gray-500 bg-white rounded-full px-2 py-0.5">
+                                    {mealIndex + 1}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {dinnerMeals.length > 1 && (
+                              <p className="text-xs text-gray-400 text-center mt-1">
+                                Mantén presionado cualquier plato para eliminar
                               </p>
-                              <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
-                            </div>
+                            )}
                           </div>
                         ) : (
                           <div className="p-2 bg-gray-50 rounded-lg text-center">
@@ -328,35 +370,47 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                             <Plus className="text-gray-400 w-3 h-3" />
                           </Button>
                         </div>
-                        {sundayLunch ? (
-                          <div 
-                            className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
-                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-                            onClick={() => onViewMeal(sundayLunch)}
-                            onTouchStart={(e) => handleLongPressStart(sundayLunch, e)}
-                            onTouchEnd={(e) => handleLongPressEnd(e)}
-                            onTouchCancel={(e) => handleLongPressEnd(e)}
-                            onMouseDown={(e) => handleLongPressStart(sundayLunch, e)}
-                            onMouseUp={(e) => handleLongPressEnd(e)}
-                            onMouseLeave={(e) => handleLongPressEnd(e)}
-                            onContextMenu={(e) => e.preventDefault()}
-                          >
-                            {sundayLunch.recipe?.imagen && sundayLunch.recipe.imagen.startsWith('http') && (
-                              <img 
-                                src={sundayLunch.recipe.imagen} 
-                                alt={sundayLunch.recipe.nombre}
-                                className="w-6 h-6 rounded object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-app-neutral truncate">
-                                {sundayLunch.recipe?.nombre || 'Planificado'}
-                              </p>
-                              <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
-                            </div>
+                        {sundayLunchMeals.length > 0 ? (
+                          <div className="space-y-1">
+                            {sundayLunchMeals.map((sundayLunch, mealIndex) => (
+                              <div 
+                                key={`${sundayLunch.id}-${mealIndex}`}
+                                className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
+                                style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                                onClick={() => onViewMeal(sundayLunch)}
+                                onTouchStart={(e) => handleLongPressStart(sundayLunch, e)}
+                                onTouchEnd={(e) => handleLongPressEnd(e)}
+                                onTouchCancel={(e) => handleLongPressEnd(e)}
+                                onMouseDown={(e) => handleLongPressStart(sundayLunch, e)}
+                                onMouseUp={(e) => handleLongPressEnd(e)}
+                                onMouseLeave={(e) => handleLongPressEnd(e)}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
+                                {sundayLunch.recipe?.imagen && sundayLunch.recipe.imagen.startsWith('http') && (
+                                  <img 
+                                    src={sundayLunch.recipe.imagen} 
+                                    alt={sundayLunch.recipe.nombre}
+                                    className="w-6 h-6 rounded object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-app-neutral truncate">
+                                    {sundayLunch.recipe?.nombre || 'Planificado'}
+                                  </p>
+                                  {sundayLunchMeals.length === 1 && (
+                                    <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
+                                  )}
+                                </div>
+                                {sundayLunchMeals.length > 1 && (
+                                  <span className="text-xs text-gray-500 bg-white rounded-full px-2 py-0.5">
+                                    {mealIndex + 1}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <div className="p-2 bg-gray-50 rounded-lg text-center">
@@ -377,35 +431,47 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                             <Plus className="text-gray-400 w-3 h-3" />
                           </Button>
                         </div>
-                        {sundayDinner ? (
-                          <div 
-                            className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
-                            style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-                            onClick={() => onViewMeal(sundayDinner)}
-                            onTouchStart={(e) => handleLongPressStart(sundayDinner, e)}
-                            onTouchEnd={(e) => handleLongPressEnd(e)}
-                            onTouchCancel={(e) => handleLongPressEnd(e)}
-                            onMouseDown={(e) => handleLongPressStart(sundayDinner, e)}
-                            onMouseUp={(e) => handleLongPressEnd(e)}
-                            onMouseLeave={(e) => handleLongPressEnd(e)}
-                            onContextMenu={(e) => e.preventDefault()}
-                          >
-                            {sundayDinner.recipe?.imagen && sundayDinner.recipe.imagen.startsWith('http') && (
-                              <img 
-                                src={sundayDinner.recipe.imagen} 
-                                alt={sundayDinner.recipe.nombre}
-                                className="w-6 h-6 rounded object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-app-neutral truncate">
-                                {sundayDinner.recipe?.nombre || 'Planificado'}
-                              </p>
-                              <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
-                            </div>
+                        {sundayDinnerMeals.length > 0 ? (
+                          <div className="space-y-1">
+                            {sundayDinnerMeals.map((sundayDinner, mealIndex) => (
+                              <div 
+                                key={`${sundayDinner.id}-${mealIndex}`}
+                                className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
+                                style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                                onClick={() => onViewMeal(sundayDinner)}
+                                onTouchStart={(e) => handleLongPressStart(sundayDinner, e)}
+                                onTouchEnd={(e) => handleLongPressEnd(e)}
+                                onTouchCancel={(e) => handleLongPressEnd(e)}
+                                onMouseDown={(e) => handleLongPressStart(sundayDinner, e)}
+                                onMouseUp={(e) => handleLongPressEnd(e)}
+                                onMouseLeave={(e) => handleLongPressEnd(e)}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
+                                {sundayDinner.recipe?.imagen && sundayDinner.recipe.imagen.startsWith('http') && (
+                                  <img 
+                                    src={sundayDinner.recipe.imagen} 
+                                    alt={sundayDinner.recipe.nombre}
+                                    className="w-6 h-6 rounded object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-app-neutral truncate">
+                                    {sundayDinner.recipe?.nombre || 'Planificado'}
+                                  </p>
+                                  {sundayDinnerMeals.length === 1 && (
+                                    <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
+                                  )}
+                                </div>
+                                {sundayDinnerMeals.length > 1 && (
+                                  <span className="text-xs text-gray-500 bg-white rounded-full px-2 py-0.5">
+                                    {mealIndex + 1}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ) : (
                           <div className="p-2 bg-gray-50 rounded-lg text-center">
@@ -445,40 +511,57 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                       <Plus className="text-gray-400 w-3 h-3" />
                     </Button>
                   </div>
-                  {lunchMeal ? (
-                    <div 
-                      className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
-                      style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-                      onClick={() => onViewMeal(lunchMeal)}
-                      onTouchStart={(e) => handleLongPressStart(lunchMeal, e)}
-                      onTouchEnd={(e) => handleLongPressEnd(e)}
-                      onTouchCancel={(e) => handleLongPressEnd(e)}
-                      onMouseDown={(e) => handleLongPressStart(lunchMeal, e)}
-                      onMouseUp={(e) => handleLongPressEnd(e)}
-                      onMouseLeave={(e) => handleLongPressEnd(e)}
-                      onContextMenu={(e) => e.preventDefault()}
-                    >
-                      {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
-                        <img 
-                          src={lunchMeal.recipe.imagen} 
-                          alt={lunchMeal.recipe.nombre}
-                          className="w-8 h-8 rounded-lg object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-app-neutral truncate">
-                          {lunchMeal.recipe?.nombre || 'Planificado'}
-                        </p>
-                        {lunchMeal.recipe && (
-                          <div className="flex items-center space-x-1">
-                            {renderStars(lunchMeal.recipe.calificacionNinos || 0)}
+                  {lunchMeals.length > 0 ? (
+                    <div className="space-y-2">
+                      {lunchMeals.map((lunchMeal, mealIndex) => (
+                        <div 
+                          key={`${lunchMeal.id}-${mealIndex}`}
+                          className="flex items-center space-x-2 p-2 bg-orange-50 rounded-lg cursor-pointer active:bg-orange-100 transition-colors select-none"
+                          style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                          onClick={() => onViewMeal(lunchMeal)}
+                          onTouchStart={(e) => handleLongPressStart(lunchMeal, e)}
+                          onTouchEnd={(e) => handleLongPressEnd(e)}
+                          onTouchCancel={(e) => handleLongPressEnd(e)}
+                          onMouseDown={(e) => handleLongPressStart(lunchMeal, e)}
+                          onMouseUp={(e) => handleLongPressEnd(e)}
+                          onMouseLeave={(e) => handleLongPressEnd(e)}
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
+                          {lunchMeal.recipe?.imagen && lunchMeal.recipe.imagen.startsWith('http') && (
+                            <img 
+                              src={lunchMeal.recipe.imagen} 
+                              alt={lunchMeal.recipe.nombre}
+                              className="w-8 h-8 rounded-lg object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-app-neutral truncate">
+                              {lunchMeal.recipe?.nombre || 'Planificado'}
+                            </p>
+                            {lunchMeal.recipe && (
+                              <div className="flex items-center space-x-1">
+                                {renderStars(lunchMeal.recipe.calificacionNinos || 0)}
+                              </div>
+                            )}
+                            {lunchMeals.length === 1 && (
+                              <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
+                            )}
                           </div>
-                        )}
-                        <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
-                      </div>
+                          {lunchMeals.length > 1 && (
+                            <span className="text-xs text-gray-500 bg-white rounded-full px-2 py-0.5">
+                              {mealIndex + 1}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {lunchMeals.length > 1 && (
+                        <p className="text-xs text-gray-400 text-center">
+                          Mantén presionado cualquier plato para eliminar
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="p-3 bg-gray-50 rounded-lg text-center">
@@ -500,40 +583,57 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
                       <Plus className="text-gray-400 w-3 h-3" />
                     </Button>
                   </div>
-                  {dinnerMeal ? (
-                    <div 
-                      className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
-                      style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
-                      onClick={() => onViewMeal(dinnerMeal)}
-                      onTouchStart={(e) => handleLongPressStart(dinnerMeal, e)}
-                      onTouchEnd={(e) => handleLongPressEnd(e)}
-                      onTouchCancel={(e) => handleLongPressEnd(e)}
-                      onMouseDown={(e) => handleLongPressStart(dinnerMeal, e)}
-                      onMouseUp={(e) => handleLongPressEnd(e)}
-                      onMouseLeave={(e) => handleLongPressEnd(e)}
-                      onContextMenu={(e) => e.preventDefault()}
-                    >
-                      {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
-                        <img 
-                          src={dinnerMeal.recipe.imagen} 
-                          alt={dinnerMeal.recipe.nombre}
-                          className="w-8 h-8 rounded-lg object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-app-neutral truncate">
-                          {dinnerMeal.recipe?.nombre || 'Planificado'}
-                        </p>
-                        {dinnerMeal.recipe && (
-                          <div className="flex items-center space-x-1">
-                            {renderStars(dinnerMeal.recipe.calificacionNinos || 0)}
+                  {dinnerMeals.length > 0 ? (
+                    <div className="space-y-2">
+                      {dinnerMeals.map((dinnerMeal, mealIndex) => (
+                        <div 
+                          key={`${dinnerMeal.id}-${mealIndex}`}
+                          className="flex items-center space-x-2 p-2 bg-blue-50 rounded-lg cursor-pointer active:bg-blue-100 transition-colors select-none"
+                          style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation' }}
+                          onClick={() => onViewMeal(dinnerMeal)}
+                          onTouchStart={(e) => handleLongPressStart(dinnerMeal, e)}
+                          onTouchEnd={(e) => handleLongPressEnd(e)}
+                          onTouchCancel={(e) => handleLongPressEnd(e)}
+                          onMouseDown={(e) => handleLongPressStart(dinnerMeal, e)}
+                          onMouseUp={(e) => handleLongPressEnd(e)}
+                          onMouseLeave={(e) => handleLongPressEnd(e)}
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
+                          {dinnerMeal.recipe?.imagen && dinnerMeal.recipe.imagen.startsWith('http') && (
+                            <img 
+                              src={dinnerMeal.recipe.imagen} 
+                              alt={dinnerMeal.recipe.nombre}
+                              className="w-8 h-8 rounded-lg object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-app-neutral truncate">
+                              {dinnerMeal.recipe?.nombre || 'Planificado'}
+                            </p>
+                            {dinnerMeal.recipe && (
+                              <div className="flex items-center space-x-1">
+                                {renderStars(dinnerMeal.recipe.calificacionNinos || 0)}
+                              </div>
+                            )}
+                            {dinnerMeals.length === 1 && (
+                              <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
+                            )}
                           </div>
-                        )}
-                        <p className="text-xs text-gray-400">Mantén presionado para eliminar</p>
-                      </div>
+                          {dinnerMeals.length > 1 && (
+                            <span className="text-xs text-gray-500 bg-white rounded-full px-2 py-0.5">
+                              {mealIndex + 1}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {dinnerMeals.length > 1 && (
+                        <p className="text-xs text-gray-400 text-center">
+                          Mantén presionado cualquier plato para eliminar
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="p-3 bg-gray-50 rounded-lg text-center">
