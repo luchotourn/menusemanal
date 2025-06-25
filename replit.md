@@ -91,6 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
+- June 25, 2025: Changed "Recetas" to "Comidas" throughout the interface for better terminology
 - June 25, 2025: Moved "Hoy" button to the left of week selector for consistent navigation positioning
 - June 25, 2025: Fixed duplicate meal addition bug caused by double click handlers in meal selection modal
 - June 25, 2025: Added support for multiple meals per day/time slot - users can now add multiple dishes for the same meal

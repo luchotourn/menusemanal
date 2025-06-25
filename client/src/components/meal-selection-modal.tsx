@@ -68,7 +68,7 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
       <DialogContent className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
         <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4">
           <DialogTitle className="text-lg font-semibold text-app-neutral">
-            Elegir Receta para {mealTypeLabel}
+            Elegir Comida para {mealTypeLabel}
           </DialogTitle>
           <p className="text-sm text-gray-600 capitalize">
             {dateLabel}
@@ -81,7 +81,7 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar recetas..."
+              placeholder="Buscar comidas..."
               className="bg-gray-50 border-0 focus:bg-white"
             />
           </div>
@@ -89,7 +89,7 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
           {/* Recipes List */}
           {isLoading ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">Cargando recetas...</p>
+              <p className="text-gray-500">Cargando comidas...</p>
             </div>
           ) : recipes && recipes.length > 0 ? (
             <div className="space-y-3">
@@ -105,7 +105,7 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
             <div className="text-center py-8">
               <div className="text-4xl mb-4">🔍</div>
               <h3 className="text-lg font-semibold text-app-neutral mb-2">
-                No se encontraron recetas
+                No se encontraron comidas
               </h3>
               <p className="text-gray-500 mb-4">
                 Intenta con otros términos de búsqueda
