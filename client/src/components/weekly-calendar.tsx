@@ -156,6 +156,17 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
           {isCurrentWeek() ? "Esta Semana" : "Semana"}
         </h2>
         <div className="flex items-center space-x-2">
+          {!isCurrentWeek() && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mr-2 text-xs px-2 py-1 h-8 text-app-primary border-app-primary hover:bg-app-primary hover:text-white"
+              onClick={goToCurrentWeek}
+            >
+              <Calendar className="w-3 h-3 mr-1" />
+              Hoy
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -175,17 +186,6 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
           >
             <ChevronRight className="text-gray-600 w-4 h-4" />
           </Button>
-          {!isCurrentWeek() && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-2 text-xs px-2 py-1 h-8 text-app-primary border-app-primary hover:bg-app-primary hover:text-white"
-              onClick={goToCurrentWeek}
-            >
-              <Calendar className="w-3 h-3 mr-1" />
-              Hoy
-            </Button>
-          )}
         </div>
       </div>
 
