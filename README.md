@@ -40,13 +40,6 @@ npm run dev
 
 **Producción:** `npm run build && npm start`
 
-## Arquitectura
-
-```
-client/          → SPA React con componentes shadcn/ui
-server/          → API Express con Drizzle ORM
-shared/          → Schemas TypeScript compartidos
-```
 
 **Schema de Base de Datos:**
 - `recipes` - Nombre, ingredientes, instrucciones, categorías, rating_chicos
@@ -56,23 +49,9 @@ shared/          → Schemas TypeScript compartidos
 - `GET/POST /api/recipes` - CRUD recetas + búsqueda/filtros
 - `GET/POST /api/meal-plans` - Planificación semanal
 
-## Decisiones Técnicas
-
-- **Wouter** en lugar de React Router (el tamaño del bundle importa)
-- **Drizzle** en lugar de Prisma (type safety sin el bloat)  
-- **TanStack Query** para estado del servidor (porque useEffect es code smell)
-- **Neon** en lugar de PostgreSQL tradicional (scaling serverless)
-- **PWA** en lugar de app nativa (un codebase, infinitas plataformas)
-
 ## Contribuir
 
 ¿Encontraste un bug? Abrí un issue. ¿Querés contribuir? Fork y PR.
-
-**Desarrollo:**
-- TypeScript modo strict habilitado
-- Tailwind + shadcn/ui para consistencia
-- Diseño responsive mobile-first
-- Localización en español preferida
 
 ---
 
