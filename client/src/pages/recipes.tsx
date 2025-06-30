@@ -139,6 +139,17 @@ export default function Recipes() {
             </div>
           </Card>
 
+          {/* Add Recipe Button */}
+          <div className="mb-6">
+            <Button
+              onClick={() => setShowAddRecipe(true)}
+              className="w-full bg-app-primary hover:bg-app-primary/90 text-white py-3 rounded-xl font-medium"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Agregar Receta
+            </Button>
+          </div>
+
           {/* Recipes List */}
           {isLoading ? (
             <div className="text-center py-8">
