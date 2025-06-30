@@ -101,7 +101,7 @@ export default function Recipes() {
     <div className="min-h-screen bg-app-background">
       <Header />
       
-      <main className="max-w-lg mx-auto px-4 pb-32">
+      <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
           <h2 className="text-2xl font-bold text-app-neutral mb-6">Todas las Comidas</h2>
           
@@ -138,6 +138,17 @@ export default function Recipes() {
               ))}
             </div>
           </Card>
+
+          {/* Add Recipe Button */}
+          <div className="mb-6">
+            <Button 
+              className="w-full bg-app-primary text-white hover:bg-app-primary/90 rounded-xl py-3"
+              onClick={() => setShowAddRecipe(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Comida
+            </Button>
+          </div>
 
           {/* Recipes List */}
           {isLoading ? (
@@ -183,15 +194,7 @@ export default function Recipes() {
         </div>
       </main>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-36 right-4 z-40">
-        <Button 
-          className="bg-app-primary text-white w-14 h-14 rounded-full shadow-lg hover:bg-app-primary/90 transform hover:scale-105 transition-all"
-          onClick={() => setShowAddRecipe(true)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      </div>
+
 
       {/* Modals */}
       <RecipeDetailModal

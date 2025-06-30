@@ -91,7 +91,7 @@ export default function Favorites() {
     <div className="min-h-screen bg-app-background">
       <Header />
       
-      <main className="max-w-lg mx-auto px-4 pb-32">
+      <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
           <div className="flex items-center space-x-2 mb-6">
             <Heart className="text-app-primary w-6 h-6 fill-current" />
@@ -170,15 +170,7 @@ export default function Favorites() {
         </div>
       </main>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-36 right-4 z-40">
-        <Button 
-          className="bg-app-primary text-white w-14 h-14 rounded-full shadow-lg hover:bg-app-primary/90 transform hover:scale-105 transition-all"
-          onClick={() => setShowAddRecipe(true)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      </div>
+
 
       {/* Modals */}
       <RecipeDetailModal
