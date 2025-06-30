@@ -139,17 +139,6 @@ export default function Recipes() {
             </div>
           </Card>
 
-          {/* Add Recipe Button */}
-          <div className="mb-6">
-            <Button 
-              className="w-full bg-app-primary text-white hover:bg-app-primary/90 rounded-xl py-3"
-              onClick={() => setShowAddRecipe(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Agregar Comida
-            </Button>
-          </div>
-
           {/* Recipes List */}
           {isLoading ? (
             <div className="text-center py-8">
@@ -194,7 +183,15 @@ export default function Recipes() {
         </div>
       </main>
 
-
+      {/* Floating Action Button */}
+      <div className="fixed bottom-28 right-4 z-40">
+        <Button 
+          className="bg-app-primary text-white w-14 h-14 rounded-full shadow-lg hover:bg-app-primary/90 transform hover:scale-105 transition-all"
+          onClick={() => setShowAddRecipe(true)}
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+      </div>
 
       {/* Modals */}
       <RecipeDetailModal
