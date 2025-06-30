@@ -171,7 +171,7 @@ export default function Favorites() {
       </main>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-28 right-4 z-40">
+      <div className="fixed bottom-20 right-4 z-40">
         <Button 
           className="bg-app-primary text-white w-14 h-14 rounded-full shadow-lg hover:bg-app-primary/90 transform hover:scale-105 transition-all"
           onClick={() => setShowAddRecipe(true)}
