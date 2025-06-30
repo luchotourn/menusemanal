@@ -101,7 +101,7 @@ export default function Recipes() {
     <div className="min-h-screen bg-app-background">
       <Header />
       
-      <main className="max-w-lg mx-auto px-4 pb-20">
+      <main className="max-w-lg mx-auto px-4 pb-32">
         <div className="mt-6">
           <h2 className="text-2xl font-bold text-app-neutral mb-6">Todas las Comidas</h2>
           

@@ -91,7 +91,7 @@ export default function Favorites() {
     <div className="min-h-screen bg-app-background">
       <Header />
       
-      <main className="max-w-lg mx-auto px-4 pb-20">
+      <main className="max-w-lg mx-auto px-4 pb-32">
         <div className="mt-6">
           <div className="flex items-center space-x-2 mb-6">
             <Heart className="text-app-primary w-6 h-6 fill-current" />
