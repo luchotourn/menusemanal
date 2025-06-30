@@ -91,7 +91,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
-- June 30, 2025: Fixed floating action button positioning - moved from bottom-20 to bottom-28 to prevent overlap with recipe cards and bottom navigation
+- June 30, 2025: Fixed floating action button positioning - moved to bottom-36 and increased content padding to prevent overlap with recipe card arrow buttons
 - June 25, 2025: Removed non-functional hamburger/filter button from recipes page
 - June 25, 2025: Changed "Recetas" to "Comidas" throughout the interface for better terminology
 - June 25, 2025: Moved "Hoy" button to the left of week selector for consistent navigation positioning
