@@ -49,8 +49,13 @@ This is a family meal planning application built with React (frontend) and Expre
 1. **Recipe Management**: Users can create, edit, and delete recipes through modal interfaces
 2. **Meal Planning**: Recipes are assigned to specific dates and meal types via the weekly calendar
 3. **Favorites System**: Recipes can be marked as favorites and filtered accordingly
-4. **Search and Filter**: Real-time search and category filtering for recipe discovery
+4. **Search and Filter**: Real-time search and category filtering for recipe discovery - supports combined filters (search + category)
 5. **Kid Ratings**: 5-star rating system specifically for tracking how much kids like each recipe
+
+## Recent Changes
+
+### January 2025
+- **Fixed Search Functionality**: Resolved issue where search box in "Comidas" tab wasn't returning results. Updated server-side API to handle combined category and search filters simultaneously instead of exclusive filtering.
 
 ## External Dependencies
 
