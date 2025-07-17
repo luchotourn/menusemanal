@@ -11,14 +11,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { category, search, favorites } = req.query;
       
       let recipes;
+      
+      // Start with all recipes or favorites
       if (favorites === 'true') {
         recipes = await storage.getFavoriteRecipes();
-      } else if (category && category !== 'all') {
-        recipes = await storage.getRecipesByCategory(category as string);
-      } else if (search) {
-        recipes = await storage.searchRecipes(search as string);
       } else {
         recipes = await storage.getAllRecipes();
+      }
+      
+      // Apply category filter
+      if (category && category !== 'all') {
+        recipes = recipes.filter(recipe => recipe.categoria === category);
+      }
+      
+      // Apply search filter
+      if (search && search.trim() !== '') {
+        const searchTerm = (search as string).toLowerCase().trim();
+        recipes = recipes.filter(recipe => 
+          recipe.nombre.toLowerCase().includes(searchTerm) ||
+          recipe.descripcion?.toLowerCase().includes(searchTerm) ||
+          recipe.categoria.toLowerCase().includes(searchTerm) ||
+          recipe.ingredientes?.some(ing => ing.toLowerCase().includes(searchTerm))
+        );
       }
       
       res.json(recipes);
