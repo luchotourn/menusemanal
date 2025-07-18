@@ -109,4 +109,49 @@
   .hover\:bg-app-secondary:hover {
     background-color: var(--app-secondary);
   }
+
+  /* Mobile-specific keyboard optimizations */
+  @media (max-width: 768px) {
+    /* Prevent horizontal scrolling when keyboard appears */
+    .mobile-search-container {
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Smooth scrolling for mobile */
+    html {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Better touch targets on mobile */
+    input[type="text"], input[type="search"] {
+      min-height: 44px; /* iOS recommendation for touch targets */
+      -webkit-appearance: none;
+      border-radius: 8px;
+    }
+
+    /* Prevent zoom on input focus for iOS */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+
+    /* Sticky search optimization */
+    .sticky-search {
+      backdrop-filter: blur(10px);
+      background-color: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Results container when keyboard is open */
+    .keyboard-open-results {
+      padding-bottom: 20px;
+    }
+  }
+
+  /* Visual Viewport API support */
+  @supports (height: 100dvh) {
+    .mobile-viewport {
+      min-height: 100dvh;
+    }
+  }
 }
