@@ -56,6 +56,7 @@ This is a family meal planning application built with React (frontend) and Expre
 
 ### January 2025
 - **Fixed Search Functionality**: Resolved issue where search box in "Comidas" tab wasn't returning results. Updated server-side API to handle combined category and search filters simultaneously instead of exclusive filtering.
+- **Mobile Keyboard Optimization**: Implemented comprehensive mobile UX improvements for search interfaces using Visual Viewport API. Added dynamic viewport height detection, sticky search headers, auto-scroll to results, and optimized touch targets. Applied to both main recipes page and meal selection modal.
 
 ## External Dependencies
 
