@@ -109,10 +109,11 @@ export default function Recipes() {
         
         setKeyboardHeight(keyboardHeight);
         
-        // Scroll search results into view when keyboard appears
-        if (keyboardHeight > 0 && isSearchFocused && resultsRef.current) {
+        // Scroll to ensure search box is visible when keyboard appears
+        if (keyboardHeight > 0 && isSearchFocused && searchInputRef.current) {
           setTimeout(() => {
-            resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Scroll to top to ensure search box is fully visible
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           }, 100);
         }
       }
@@ -170,10 +171,12 @@ export default function Recipes() {
       
       <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
-          <h2 className="text-2xl font-bold text-app-neutral mb-6">Todas las Comidas</h2>
+          <h2 className={`text-2xl font-bold text-app-neutral transition-all duration-200 ${
+            isSearchFocused && keyboardHeight > 0 ? 'mb-2 text-lg' : 'mb-6'
+          }`}>Todas las Comidas</h2>
           
           {/* Search and Filter - Sticky when focused on mobile */}
-          <div className={`mobile-search-container ${isSearchFocused ? 'sticky top-16 z-40 mb-4' : 'mb-6'} transition-all duration-200`}>
+          <div className={`mobile-search-container ${isSearchFocused ? 'sticky top-0 z-40 mb-4 pt-2' : 'mb-6'} transition-all duration-200`}>
             <Card className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 ${isSearchFocused ? 'sticky-search' : ''}`}>
               <div className="mb-4">
                 <div className="relative">
@@ -234,7 +237,7 @@ export default function Recipes() {
           <div 
             ref={resultsRef}
             className={`transition-all duration-200 ${
-              keyboardHeight > 0 ? `max-h-[calc(100vh-280px)] overflow-y-auto keyboard-open-results` : ''
+              keyboardHeight > 0 ? `max-h-[calc(100vh-180px)] overflow-y-auto keyboard-open-results` : ''
             }`}
           >
             {isLoading ? (
