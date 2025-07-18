@@ -132,7 +132,7 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
       <DialogContent 
         className="max-w-lg mx-auto overflow-hidden p-0"
         style={{
-          maxHeight: keyboardHeight > 0 ? `calc(100vh - ${keyboardHeight}px - 20px)` : '90vh'
+          maxHeight: keyboardHeight > 0 ? `calc(100vh - ${keyboardHeight}px)` : '90vh'
         }}
       >
         {/* Sticky Header */}
@@ -176,7 +176,7 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
               keyboardHeight > 0 ? 'overflow-y-auto keyboard-open-results pb-4' : 'pb-4'
             }`}
             style={{
-              maxHeight: keyboardHeight > 0 ? `calc(100vh - 220px - ${keyboardHeight}px)` : 'auto'
+              maxHeight: keyboardHeight > 0 ? `calc(100vh - 180px - ${keyboardHeight}px)` : 'auto'
             }}
           >
             {isLoading ? (
