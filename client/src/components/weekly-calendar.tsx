@@ -187,7 +187,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3 text-xs text-gray-500">
-                  {recipe.esFavorita && (
+                  {recipe.esFavorita === 1 && (
                     <span className="flex items-center">
                       <span className="text-red-500 mr-1">♥</span>
                       Favorita
