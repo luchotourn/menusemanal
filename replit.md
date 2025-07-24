@@ -57,6 +57,7 @@ This is a family meal planning application built with React (frontend) and Expre
 ### January 2025
 - **Fixed Search Functionality**: Resolved issue where search box in "Comidas" tab wasn't returning results. Updated server-side API to handle combined category and search filters simultaneously instead of exclusive filtering.
 - **Mobile Keyboard Optimization**: Implemented comprehensive mobile UX improvements for search interfaces using Visual Viewport API. Added dynamic viewport height detection, sticky search headers, auto-scroll to results, and optimized touch targets. Applied to both main recipes page and meal selection modal.
+- **Enhanced Weekly Calendar UI**: Completely redesigned meal display in the Semana tab with expandable meal cards. Replaced problematic long-press gesture with dedicated delete buttons. Added expandable details showing recipe information, category, favorite status, and direct "Ver Receta" button for accessing full recipe details.
 
 ## External Dependencies
 
