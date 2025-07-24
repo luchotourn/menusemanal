@@ -184,13 +184,6 @@ export function WeeklyCalendar({ onAddMeal, onViewMeal }: WeeklyCalendarProps) {
               {recipe.descripcion && (
                 <p className="text-sm text-gray-600 mb-2">{recipe.descripcion}</p>
               )}
-              
-              {recipe.categoria && (
-                <div className="flex items-center mb-2">
-                  <span className="text-xs font-medium text-gray-500 mr-2">Categoría:</span>
-                  <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">{recipe.categoria}</span>
-                </div>
-              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3 text-xs text-gray-500">
