@@ -94,11 +94,6 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           <p className="text-sm font-medium text-gray-900 truncate">
             {recipe?.nombre || "Receta no encontrada"}
           </p>
-          {recipe?.calificacionNinos && recipe.calificacionNinos > 0 && (
-            <div className="flex items-center mt-1">
-              {renderStars(recipe.calificacionNinos)}
-            </div>
-          )}
         </div>
       </div>
     );

@@ -88,7 +88,7 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
           <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="space-y-4">
               {/* Recipe Image */}
-              {recipe.imagen && (
+              {recipe.imagen && recipe.imagen.startsWith('http') && (
                 <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
                   <img
                     src={recipe.imagen}
@@ -109,21 +109,10 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
               </div>
 
               {/* Description */}
-              {recipe.descripcion && (
+              {recipe.descripcion && recipe.descripcion.trim().length > 0 && (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Descripción</h3>
                   <p className="text-gray-700">{recipe.descripcion}</p>
-                </div>
-              )}
-
-              {/* Rating */}
-              {recipe.calificacionNinos && recipe.calificacionNinos > 0 && (
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Calificación Kids</h3>
-                  <div className="flex items-center">
-                    {renderStars(recipe.calificacionNinos)}
-                    <span className="ml-2 text-sm text-gray-600">({recipe.calificacionNinos}/5)</span>
-                  </div>
                 </div>
               )}
 

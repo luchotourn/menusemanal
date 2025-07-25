@@ -63,10 +63,10 @@ export default function Home() {
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
-    // Close meal plan modal and redirect directly to recipes page
+    // Close meal plan modal and redirect directly to recipe editing
     setShowMealPlanModal(false);
-    // Use Wouter's navigation
-    window.location.href = "/recipes";
+    setSelectedRecipe(recipe);
+    setShowRecipeModal(true);
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
