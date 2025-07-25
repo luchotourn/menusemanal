@@ -6,9 +6,15 @@ import { z } from "zod";
 import { checkDatabaseHealth } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Root health check specifically for Replit deployment (only in production)
-  if (process.env.NODE_ENV === 'production') {
-    app.get("/", async (req, res) => {
+  // Smart health check at root - serves health check for deployment systems, React app for browsers
+  app.get("/", async (req, res, next) => {
+    // Check if this is a health check request from deployment system
+    const isHealthCheck = req.headers['user-agent']?.includes('curl') || 
+                         req.headers['user-agent']?.includes('health') ||
+                         req.headers['accept']?.includes('application/json') ||
+                         req.query.health === 'check';
+    
+    if (isHealthCheck && process.env.NODE_ENV === 'production') {
       try {
         const dbHealth = await checkDatabaseHealth();
         
@@ -22,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        res.status(200).json({ 
+        return res.status(200).json({ 
           status: "ok", 
           message: "Menu Familiar API is running",
           database: { healthy: true },
@@ -31,17 +37,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           environment: process.env.NODE_ENV || "development"
         });
       } catch (error) {
-        res.status(503).json({ 
+        return res.status(503).json({ 
           status: "error", 
           message: "Health check failed",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString()
         });
       }
-    });
-  }
+    }
+    
+    // For all other requests, continue to static file serving
+    next();
+  });
 
-  // Health check route for deployment (with database check) - moved to /api/health-check to avoid conflicts
+  // Main health check route for deployment systems
   app.get("/api/health-check", async (req, res) => {
     try {
       const dbHealth = await checkDatabaseHealth();
