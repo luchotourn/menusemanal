@@ -108,7 +108,8 @@ export class MemStorage implements IStorage {
   }
 
   async isRecipeUsedInMealPlans(recipeId: number): Promise<boolean> {
-    for (const mealPlan of this.mealPlans.values()) {
+    const mealPlansArray = Array.from(this.mealPlans.values());
+    for (const mealPlan of mealPlansArray) {
       if (mealPlan.recetaId === recipeId) {
         return true;
       }
@@ -226,7 +227,7 @@ export class DatabaseStorage implements IStorage {
   async deleteRecipe(id: number): Promise<boolean> {
     try {
       const result = await db.delete(recipes).where(eq(recipes.id, id));
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       console.error('Database error in deleteRecipe:', error);
       throw new Error('Error al eliminar la receta de la base de datos');
@@ -289,7 +290,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMealPlan(id: number): Promise<boolean> {
     const result = await db.delete(mealPlans).where(eq(mealPlans.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

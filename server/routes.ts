@@ -3,8 +3,65 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertRecipeSchema, insertMealPlanSchema } from "@shared/schema";
 import { z } from "zod";
+import { checkDatabaseHealth } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check route for deployment (with database check)
+  app.get("/", async (req, res) => {
+    try {
+      const dbHealth = await checkDatabaseHealth();
+      
+      if (!dbHealth.healthy) {
+        return res.status(503).json({ 
+          status: "unhealthy", 
+          message: "Database connection failed",
+          database: dbHealth,
+          timestamp: new Date().toISOString(),
+          environment: process.env.NODE_ENV || "development"
+        });
+      }
+
+      res.status(200).json({ 
+        status: "ok", 
+        message: "Menu Familiar API is running",
+        database: { healthy: true },
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "development"
+      });
+    } catch (error) {
+      res.status(503).json({ 
+        status: "error", 
+        message: "Health check failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Health check endpoint (alternative path)
+  app.get("/health", async (req, res) => {
+    try {
+      const dbHealth = await checkDatabaseHealth();
+      res.status(dbHealth.healthy ? 200 : 503).json({ 
+        status: dbHealth.healthy ? "healthy" : "unhealthy", 
+        database: dbHealth,
+        uptime: process.uptime(),
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(503).json({ 
+        status: "error", 
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Recipe routes
   app.get("/api/recipes", async (req, res) => {
     try {
@@ -25,8 +82,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Apply search filter
-      if (search && search.trim() !== '') {
-        const searchTerm = (search as string).toLowerCase().trim();
+      if (search && typeof search === 'string' && search.trim() !== '') {
+        const searchTerm = search.toLowerCase().trim();
         recipes = recipes.filter(recipe => 
           recipe.nombre.toLowerCase().includes(searchTerm) ||
           recipe.descripcion?.toLowerCase().includes(searchTerm) ||

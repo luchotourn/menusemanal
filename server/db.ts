@@ -26,3 +26,20 @@ pool.on('error', (err) => {
 });
 
 export const db = drizzle({ client: pool, schema });
+
+// Database health check function
+export async function checkDatabaseHealth(): Promise<{ healthy: boolean; error?: string }> {
+  try {
+    // Simple query to test database connectivity
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    return { healthy: true };
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    return { 
+      healthy: false, 
+      error: error instanceof Error ? error.message : 'Unknown database error' 
+    };
+  }
+}

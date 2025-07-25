@@ -4,19 +4,30 @@ import { setupVite, serveStatic, log } from "./vite";
 
 // Validate critical environment variables in production
 function validateEnvironment() {
+  console.log('🔧 Validating environment variables...');
   const requiredEnvVars = ['DATABASE_URL'];
   const missing = requiredEnvVars.filter(env => !process.env[env]);
   
   if (missing.length > 0) {
-    console.error('Missing required environment variables:', missing.join(', '));
+    console.error('❌ Missing required environment variables:', missing.join(', '));
     console.error('Please set these environment variables and restart the application.');
     process.exit(1);
   }
+  
+  console.log('✅ All required environment variables are present');
 }
+
+// Add startup logging
+console.log('🚀 Starting Menu Familiar application...');
+console.log('📍 Environment:', process.env.NODE_ENV || 'development');
+console.log('📊 Node version:', process.version);
+console.log('💾 Memory usage:', Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB');
 
 // Validate environment in production
 if (process.env.NODE_ENV === 'production') {
   validateEnvironment();
+} else {
+  console.log('⚠️  Running in development mode, skipping environment validation');
 }
 
 const app = express();
@@ -74,6 +85,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 (async () => {
   try {
+    console.log('🔗 Setting up routes and database connections...');
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -106,8 +118,10 @@ process.on('unhandledRejection', (reason, promise) => {
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
     if (app.get("env") === "development") {
+      console.log('🔧 Setting up Vite development server...');
       await setupVite(app, server);
     } else {
+      console.log('📦 Setting up static file serving for production...');
       serveStatic(app);
     }
 
@@ -120,7 +134,14 @@ process.on('unhandledRejection', (reason, promise) => {
       host: "0.0.0.0",
       reusePort: true,
     }, () => {
+      console.log('🎉 Server successfully started!');
       log(`serving on port ${port}`);
+      console.log('🌐 Health check endpoints:');
+      console.log(`   • Root: http://0.0.0.0:${port}/`);
+      console.log(`   • Health: http://0.0.0.0:${port}/health`);
+      if (process.env.NODE_ENV === 'production') {
+        console.log('✅ Production deployment ready for health checks');
+      }
     });
 
   } catch (error) {
