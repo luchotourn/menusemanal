@@ -1,0 +1,43 @@
+  Implement a new meal plan interaction workflow for the weekly calendar. Currently users must expand cards and click small trash icons to
+  delete meals. Replace this with a tap-to-open-modal pattern.
+
+  ## Required Changes:
+
+  ### 1. Create MealPlanDetailModal Component
+  - New modal specifically for viewing planned meals (different from RecipeDetailModal)
+  - Shows full recipe details: name, description, ingredients, instructions, rating, etc.
+  - Prominent "Eliminar del [día] [tipo de comida]" button (red, at bottom)
+  - "Editar Receta" button that redirects to recipes page
+  - Keep existing AlertDialog confirmation for delete action
+
+  ### 2. Simplify MealCard Component
+  - Remove expandable behavior (no more ChevronUp/ChevronDown)
+  - Remove trash icon from card
+  - Single tap interaction: opens MealPlanDetailModal
+  - Clean visual design: just recipe name and rating stars
+  - Ensure 44px+ touch target for accessibility
+
+  ### 3. Update Weekly Calendar Logic
+  - Remove expandedMeal state and related functions
+  - Replace onViewMeal callback to open MealPlanDetailModal instead of RecipeDetailModal
+  - Keep existing delete mutation and confirmation logic
+  - Remove "Ver Receta" button from expanded view (no longer needed)
+
+  ### 4. Context-Aware Modal Behavior
+  - MealPlanDetailModal: Used when viewing planned meals (has delete option)
+  - RecipeDetailModal: Used when browsing recipes (has "Agregar a la Semana" option)
+  - Remove "Agregar a la Semana" button from MealPlanDetailModal (it's contextually incorrect)
+
+  ## Key UX Requirements:
+  - Touch targets must be 44px+ for accessibility
+  - Smooth modal transitions
+  - Keep confirmation dialog for destructive delete actions
+  - Clear visual hierarchy (remove visual clutter from cards)
+  - Single-tap interaction pattern (tap card → see details)
+
+  ## Files to Modify:
+  - Create: /client/src/components/meal-plan-detail-modal.tsx
+  - Update: /client/src/components/weekly-calendar.tsx
+  - Update: /client/src/pages/home.tsx (modal handling)
+
+  Maintain Spanish language throughout and follow existing code patterns.
