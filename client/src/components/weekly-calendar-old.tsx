@@ -55,20 +55,58 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
 
   const isCurrentWeek = () => {
     const today = new Date();
-    const todayMonday = getMonday(today);
-    return formatDate(todayMonday) === formatDate(currentWeekStart);
+    const currentWeek = getMonday(today);
+    return currentWeekStart.toDateString() === currentWeek.toDateString();
   };
 
   const getMealsForDate = (date: Date, mealType: string) => {
     const dateStr = formatDate(date);
-    const dailyMeals = (mealPlans || []).filter(
-      (plan) => plan.fecha === dateStr && plan.tipoComida === mealType
-    );
+    const mealsForDate = mealPlans?.filter(mp => mp.fecha === dateStr && mp.tipoComida === mealType) || [];
+    if (recipes) {
+      return mealsForDate.map(mealPlan => {
+        const recipe = recipes.find(r => r.id === mealPlan.recetaId);
+        return { ...mealPlan, recipe };
+      });
+    }
+    return [];
+  };
 
-    return dailyMeals.map((mealPlan) => {
-      const recipe = recipes?.find((r) => r.id === mealPlan.recetaId);
-      return { ...mealPlan, recipe };
-    });
+  const deleteMealMutation = useMutation({
+    mutationFn: async (mealPlanId: number) => {
+      const response = await apiRequest("DELETE", `/api/meal-plans/${mealPlanId}`, null);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
+      toast({ title: "Comida eliminada del plan" });
+    },
+    onError: () => {
+      toast({ title: "Error al eliminar la comida", variant: "destructive" });
+    },
+  });
+
+  const handleDeleteMeal = (mealPlan: MealPlan) => {
+    deleteMealMutation.mutate(mealPlan.id);
+    setMealToDelete(null);
+  };
+
+  const handleToggleMealExpansion = (mealId: number) => {
+    setExpandedMeal(expandedMeal === mealId ? null : mealId);
+  };
+
+  const handleDeleteClick = (mealPlan: MealPlan, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent meal expansion when clicking delete
+    setMealToDelete(mealPlan);
+  };
+
+  const confirmDelete = () => {
+    if (mealToDelete) {
+      handleDeleteMeal(mealToDelete);
+    }
+  };
+
+  const cancelDelete = () => {
+    setMealToDelete(null);
   };
 
   const renderStars = (rating: number) => {
@@ -79,27 +117,84 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     ));
   };
 
-  // Simplified MealCard Component - just tap to open modal
-  const MealCard = ({ meal }: {
+  // Component for expandable meal card
+  const MealCard = ({ meal, isExpanded, onToggle, onDelete, onViewRecipe }: {
     meal: MealPlan & { recipe?: Recipe };
+    isExpanded: boolean;
+    onToggle: () => void;
+    onDelete: (event: React.MouseEvent) => void;
+    onViewRecipe: () => void;
   }) => {
     const recipe = meal.recipe;
     
     return (
-      <div 
-        className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors min-h-[44px] flex items-center"
-        onClick={() => onViewMealPlan(meal)}
-      >
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {recipe?.nombre || "Receta no encontrada"}
-          </p>
-          {recipe?.calificacionNinos && recipe.calificacionNinos > 0 && (
-            <div className="flex items-center mt-1">
-              {renderStars(recipe.calificacionNinos)}
+      <div className="bg-orange-50 rounded-lg overflow-hidden transition-all duration-200">
+        {/* Main meal row - always visible */}
+        <div 
+          className="flex items-center justify-between p-2 cursor-pointer hover:bg-orange-100 transition-colors"
+          onClick={onToggle}
+        >
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {recipe?.nombre || "Receta no encontrada"}
+              </p>
             </div>
-          )}
+          </div>
+          
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1 h-6 w-6 text-red-500 hover:bg-red-100"
+              onClick={onDelete}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+            <div className="p-1">
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Expanded details */}
+        {isExpanded && recipe && (
+          <div className="px-2 pb-2 border-t border-orange-100">
+            <div className="bg-white rounded-lg p-3 mt-2">
+              {recipe.descripcion && (
+                <p className="text-sm text-gray-600 mb-2">{recipe.descripcion}</p>
+              )}
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3 text-xs text-gray-500">
+                  {recipe.esFavorita === 1 && (
+                    <span className="flex items-center">
+                      <span className="text-red-500 mr-1">♥</span>
+                      Favorita
+                    </span>
+                  )}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7 px-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewRecipe();
+                  }}
+                >
+                  <ExternalLink className="w-3 h-3 mr-1" />
+                  Ver Receta
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -129,6 +224,10 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
             <MealCard
               key={`${meal.id}-${mealIndex}`}
               meal={meal}
+              isExpanded={expandedMeal === meal.id}
+              onToggle={() => handleToggleMealExpansion(meal.id)}
+              onDelete={(e) => handleDeleteClick(meal, e)}
+              onViewRecipe={() => onViewMeal(meal)}
             />
           ))}
         </div>
@@ -141,18 +240,27 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
   );
 
   if (isLoading) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-gray-500">Cargando plan semanal...</p>
-      </div>
-    );
+    return <div className="text-center py-8">Cargando plan semanal...</div>;
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header with week navigation */}
-      <div className="flex items-center justify-between">
+    <section className="mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-app-neutral">
+          {isCurrentWeek() ? "Esta Semana" : "Semana"}
+        </h2>
         <div className="flex items-center space-x-2">
+          {!isCurrentWeek() && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mr-2 text-xs px-2 py-1 h-8 text-app-primary border-app-primary hover:bg-app-primary hover:text-white"
+              onClick={goToCurrentWeek}
+            >
+              <Calendar className="w-3 h-3 mr-1" />
+              Hoy
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -173,15 +281,9 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
             <ChevronRight className="text-gray-600 w-4 h-4" />
           </Button>
         </div>
-        {!isCurrentWeek() && (
-          <Button variant="outline" size="sm" onClick={goToCurrentWeek}>
-            Hoy
-          </Button>
-        )}
       </div>
 
-      {/* Weekly calendar grid */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="space-y-3">
         {weekDates.map((date, index) => {
           const lunchMeals = getMealsForDate(date, "almuerzo");
           const dinnerMeals = getMealsForDate(date, "cena");
@@ -202,7 +304,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                     </span>
                   </div>
                 </div>
-                <div className="space-y-4">
+                
+                <div className="space-y-3">
                   {/* Saturday */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -210,16 +313,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <MealSection 
-                        meals={lunchMeals}
-                        mealType="almuerzo"
-                        date={date}
-                        label="Almuerzo"
+                        meals={lunchMeals} 
+                        mealType="almuerzo" 
+                        date={date} 
+                        label="Almuerzo" 
                       />
                       <MealSection 
-                        meals={dinnerMeals}
-                        mealType="cena"
-                        date={date}
-                        label="Cena"
+                        meals={dinnerMeals} 
+                        mealType="cena" 
+                        date={date} 
+                        label="Cena" 
                       />
                     </div>
                   </div>
@@ -231,16 +334,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <MealSection 
-                        meals={sundayLunchMeals}
-                        mealType="almuerzo"
-                        date={weekDates[6]}
-                        label="Almuerzo"
+                        meals={sundayLunchMeals} 
+                        mealType="almuerzo" 
+                        date={weekDates[6]} 
+                        label="Almuerzo" 
                       />
                       <MealSection 
-                        meals={sundayDinnerMeals}
-                        mealType="cena"
-                        date={weekDates[6]}
-                        label="Cena"
+                        meals={sundayDinnerMeals} 
+                        mealType="cena" 
+                        date={weekDates[6]} 
+                        label="Cena" 
                       />
                     </div>
                   </div>
@@ -261,18 +364,19 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                     </span>
                   </div>
                 </div>
+                
                 <div className="grid grid-cols-2 gap-2">
                   <MealSection 
-                    meals={lunchMeals}
-                    mealType="almuerzo"
-                    date={date}
-                    label="Almuerzo"
+                    meals={lunchMeals} 
+                    mealType="almuerzo" 
+                    date={date} 
+                    label="Almuerzo" 
                   />
                   <MealSection 
-                    meals={dinnerMeals}
-                    mealType="cena"
-                    date={date}
-                    label="Cena"
+                    meals={dinnerMeals} 
+                    mealType="cena" 
+                    date={date} 
+                    label="Cena" 
                   />
                 </div>
               </Card>
@@ -281,6 +385,24 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           return null;
         })}
       </div>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!mealToDelete} onOpenChange={() => setMealToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar comida?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que quieres eliminar esta comida del plan semanal?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   );
 }

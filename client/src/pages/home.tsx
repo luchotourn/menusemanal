@@ -3,6 +3,7 @@ import { Header } from "@/components/header";
 import { WeeklyCalendar } from "@/components/weekly-calendar";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
+import { MealPlanDetailModal } from "@/components/meal-plan-detail-modal";
 import { MealSelectionModal } from "@/components/meal-selection-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +19,8 @@ export default function Home() {
   
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
+  const [selectedMealPlan, setSelectedMealPlan] = useState<(MealPlan & { recipe?: Recipe }) | null>(null);
+  const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedMealType, setSelectedMealType] = useState<string>("almuerzo");
   const [showMealSelection, setShowMealSelection] = useState(false);
@@ -48,10 +51,9 @@ export default function Home() {
     setShowRecipeModal(true);
   };
 
-  const handleViewMeal = (mealPlan: MealPlan & { recipe?: Recipe }) => {
-    if (mealPlan.recipe) {
-      handleViewRecipe(mealPlan.recipe);
-    }
+  const handleViewMealPlan = (mealPlan: MealPlan & { recipe?: Recipe }) => {
+    setSelectedMealPlan(mealPlan);
+    setShowMealPlanModal(true);
   };
 
   const handleAddMeal = (date: string, mealType: string) => {
@@ -61,8 +63,10 @@ export default function Home() {
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
-    // Redirect to recipes page for editing
-    window.location.href = "/recipes";
+    // Close meal plan modal and open recipe modal for editing
+    setShowMealPlanModal(false);
+    setSelectedRecipe(recipe);
+    setShowRecipeModal(true);
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
@@ -82,7 +86,7 @@ export default function Home() {
       <Header />
       
       <main className="max-w-lg mx-auto px-4 pb-20">
-        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMeal={handleViewMeal} />
+        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} />
 
 
 
@@ -101,6 +105,13 @@ export default function Home() {
       />
 
 
+
+      <MealPlanDetailModal
+        isOpen={showMealPlanModal}
+        onClose={() => setShowMealPlanModal(false)}
+        mealPlan={selectedMealPlan}
+        onEditRecipe={handleEditRecipe}
+      />
 
       <MealSelectionModal
         isOpen={showMealSelection}
