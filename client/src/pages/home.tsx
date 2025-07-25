@@ -5,6 +5,7 @@ import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { MealPlanDetailModal } from "@/components/meal-plan-detail-modal";
 import { MealSelectionModal } from "@/components/meal-selection-modal";
+import { AddRecipeModal } from "@/components/add-recipe-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +25,8 @@ export default function Home() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedMealType, setSelectedMealType] = useState<string>("almuerzo");
   const [showMealSelection, setShowMealSelection] = useState(false);
+  const [showAddRecipe, setShowAddRecipe] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
 
 
 
@@ -63,10 +66,10 @@ export default function Home() {
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
-    // Close meal plan modal and redirect directly to recipe editing
+    // Close meal plan modal and open edit recipe modal directly
     setShowMealPlanModal(false);
-    setSelectedRecipe(recipe);
-    setShowRecipeModal(true);
+    setEditingRecipe(recipe);
+    setShowAddRecipe(true);
   };
 
   const handleAddToWeek = (recipe: Recipe) => {
@@ -122,6 +125,15 @@ export default function Home() {
         }}
         selectedDate={selectedDate}
         mealType={selectedMealType}
+      />
+
+      <AddRecipeModal
+        isOpen={showAddRecipe}
+        onClose={() => {
+          setShowAddRecipe(false);
+          setEditingRecipe(null);
+        }}
+        recipe={editingRecipe}
       />
     </div>
   );
