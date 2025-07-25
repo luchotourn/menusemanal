@@ -108,6 +108,14 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                 </p>
               </div>
 
+              {/* Favorite Star */}
+              {recipe.esFavorita === 1 && (
+                <div className="flex items-center">
+                  <span className="text-yellow-500 text-xl">★</span>
+                  <span className="ml-2 text-sm text-gray-600">Favorita</span>
+                </div>
+              )}
+
               {/* Description */}
               {recipe.descripcion && recipe.descripcion.trim().length > 0 && (
                 <div>
@@ -116,8 +124,19 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                 </div>
               )}
 
+              {/* Kids Rating */}
+              {recipe.calificacionNinos && recipe.calificacionNinos > 0 && (
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Calificación de los chicos</h3>
+                  <div className="flex items-center">
+                    {renderStars(recipe.calificacionNinos)}
+                    <span className="ml-2 text-sm text-gray-600">({recipe.calificacionNinos}/5)</span>
+                  </div>
+                </div>
+              )}
+
               {/* Category */}
-              {recipe.categoria && (
+              {recipe.categoria && recipe.categoria.trim().length > 0 && (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Categoría</h3>
                   <span className="inline-block bg-gray-100 text-gray-800 text-sm px-3 py-1 rounded-full">
@@ -131,48 +150,51 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Ingredientes</h3>
                   <ul className="space-y-1">
-                    {recipe.ingredientes.map((ingredient, index) => (
-                      <li key={index} className="text-gray-700 flex items-start">
-                        <span className="text-app-accent mr-2">•</span>
-                        {ingredient}
-                      </li>
-                    ))}
+                    {recipe.ingredientes.map((ingredient, index) =>
+                      ingredient && ingredient.trim().length > 0 && (
+                        <li key={index} className="text-gray-700 flex items-start">
+                          <span className="text-app-accent mr-2">•</span>
+                          {ingredient}
+                        </li>
+                      )
+                    )}
                   </ul>
                 </div>
               )}
 
               {/* Instructions */}
-              {recipe.instrucciones && (
+              {recipe.instrucciones && recipe.instrucciones.trim().length > 0 && (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Instrucciones</h3>
                   <p className="text-gray-700 whitespace-pre-wrap">{recipe.instrucciones}</p>
                 </div>
               )}
 
-              {/* Additional Info */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                {recipe.tiempoPreparacion && (
-                  <div>
-                    <span className="font-medium text-gray-900">Tiempo:</span>
-                    <p className="text-gray-700">{recipe.tiempoPreparacion} min</p>
-                  </div>
-                )}
-                {recipe.porciones && (
-                  <div>
-                    <span className="font-medium text-gray-900">Porciones:</span>
-                    <p className="text-gray-700">{recipe.porciones}</p>
-                  </div>
-                )}
-              </div>
+              {/* Time */}
+              {recipe.tiempoPreparacion && recipe.tiempoPreparacion > 0 && (
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Tiempo</h3>
+                  <p className="text-gray-700">{recipe.tiempoPreparacion} minutos</p>
+                </div>
+              )}
+
+              {/* Portions */}
+              {recipe.porciones && recipe.porciones > 0 && (
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Porciones</h3>
+                  <p className="text-gray-700">{recipe.porciones} porciones</p>
+                </div>
+              )}
 
               {/* External Link */}
-              {recipe.enlaceExterno && (
+              {recipe.enlaceExterno && recipe.enlaceExterno.trim().length > 0 && (
                 <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Enlace Externo</h3>
                   <a
                     href={recipe.enlaceExterno}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-app-primary hover:underline text-sm"
+                    className="text-app-primary hover:underline text-sm break-all"
                   >
                     Ver receta original →
                   </a>
