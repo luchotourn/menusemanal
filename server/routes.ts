@@ -6,8 +6,43 @@ import { z } from "zod";
 import { checkDatabaseHealth } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check route for deployment (with database check)
-  app.get("/", async (req, res) => {
+  // Root health check specifically for Replit deployment (only in production)
+  if (process.env.NODE_ENV === 'production') {
+    app.get("/", async (req, res) => {
+      try {
+        const dbHealth = await checkDatabaseHealth();
+        
+        if (!dbHealth.healthy) {
+          return res.status(503).json({ 
+            status: "unhealthy", 
+            message: "Database connection failed",
+            database: dbHealth,
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV || "development"
+          });
+        }
+
+        res.status(200).json({ 
+          status: "ok", 
+          message: "Menu Familiar API is running",
+          database: { healthy: true },
+          uptime: process.uptime(),
+          timestamp: new Date().toISOString(),
+          environment: process.env.NODE_ENV || "development"
+        });
+      } catch (error) {
+        res.status(503).json({ 
+          status: "error", 
+          message: "Health check failed",
+          error: error instanceof Error ? error.message : "Unknown error",
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+  }
+
+  // Health check route for deployment (with database check) - moved to /api/health-check to avoid conflicts
+  app.get("/api/health-check", async (req, res) => {
     try {
       const dbHealth = await checkDatabaseHealth();
       

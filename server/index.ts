@@ -137,7 +137,7 @@ process.on('unhandledRejection', (reason, promise) => {
       console.log('🎉 Server successfully started!');
       log(`serving on port ${port}`);
       console.log('🌐 Health check endpoints:');
-      console.log(`   • Root: http://0.0.0.0:${port}/`);
+      console.log(`   • API Health: http://0.0.0.0:${port}/api/health-check`); 
       console.log(`   • Health: http://0.0.0.0:${port}/health`);
       if (process.env.NODE_ENV === 'production') {
         console.log('✅ Production deployment ready for health checks');

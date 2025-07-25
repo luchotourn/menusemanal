@@ -101,7 +101,7 @@ Preferred communication style: Simple, everyday language.
 ## Changelog
 
 Changelog:
-- July 25, 2025: Applied comprehensive deployment fixes for health check failures - added root health check endpoint with database connectivity testing, enhanced startup logging with environment validation and server status messages, fixed TypeScript diagnostics in storage layer, and added detailed error handling for production deployment
+- July 25, 2025: Applied comprehensive deployment fixes for health check failures - added root health check endpoint with database connectivity testing, enhanced startup logging with environment validation and server status messages, fixed TypeScript diagnostics in storage layer, and added detailed error handling for production deployment. Fixed routing conflict where health check was interfering with frontend serving by making root health check production-only
 - June 25, 2025: Removed non-functional hamburger/filter button from recipes page
 - June 25, 2025: Changed "Recetas" to "Comidas" throughout the interface for better terminology
 - June 25, 2025: Moved "Hoy" button to the left of week selector for consistent navigation positioning
