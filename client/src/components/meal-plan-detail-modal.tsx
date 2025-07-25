@@ -87,8 +87,15 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
 
           <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="space-y-4">
-              {/* Recipe Image */}
-              {recipe.imagen && recipe.imagen.startsWith('http') && (
+              {/* Meal Plan Context */}
+              <div className="bg-blue-50 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  Planificado para <strong>{formatDate(mealPlan.fecha)}</strong> - <strong>{getMealTypeLabel(mealPlan.tipoComida)}</strong>
+                </p>
+              </div>
+
+              {/* Recipe Image - only show if it's a valid HTTP URL */}
+              {recipe.imagen && recipe.imagen.startsWith('http') ? (
                 <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
                   <img
                     src={recipe.imagen}
@@ -99,33 +106,26 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                     }}
                   />
                 </div>
-              )}
+              ) : null}
 
-              {/* Meal Plan Context */}
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  Planificado para <strong>{formatDate(mealPlan.fecha)}</strong> - <strong>{getMealTypeLabel(mealPlan.tipoComida)}</strong>
-                </p>
-              </div>
-
-              {/* Favorite Star */}
-              {recipe.esFavorita === 1 && (
+              {/* Favorite Star - only show if es_favorita is 1 */}
+              {recipe.esFavorita === 1 ? (
                 <div className="flex items-center">
                   <span className="text-yellow-500 text-xl">★</span>
                   <span className="ml-2 text-sm text-gray-600">Favorita</span>
                 </div>
-              )}
+              ) : null}
 
-              {/* Description */}
-              {recipe.descripcion && recipe.descripcion.trim().length > 0 && (
+              {/* Description - only show if not empty */}
+              {recipe.descripcion && recipe.descripcion.trim() ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Descripción</h3>
                   <p className="text-gray-700">{recipe.descripcion}</p>
                 </div>
-              )}
+              ) : null}
 
-              {/* Kids Rating */}
-              {recipe.calificacionNinos && recipe.calificacionNinos > 0 && (
+              {/* Kids Rating - only show if greater than 0 */}
+              {recipe.calificacionNinos > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Calificación de los chicos</h3>
                   <div className="flex items-center">
@@ -133,61 +133,59 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                     <span className="ml-2 text-sm text-gray-600">({recipe.calificacionNinos}/5)</span>
                   </div>
                 </div>
-              )}
+              ) : null}
 
-              {/* Category */}
-              {recipe.categoria && recipe.categoria.trim().length > 0 && (
+              {/* Category - only show if not empty */}
+              {recipe.categoria && recipe.categoria.trim() ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Categoría</h3>
                   <span className="inline-block bg-gray-100 text-gray-800 text-sm px-3 py-1 rounded-full">
                     {recipe.categoria}
                   </span>
                 </div>
-              )}
+              ) : null}
 
-              {/* Ingredients */}
-              {recipe.ingredientes && recipe.ingredientes.length > 0 && (
+              {/* Ingredients - only show if array has content */}
+              {recipe.ingredientes && recipe.ingredientes.length > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Ingredientes</h3>
                   <ul className="space-y-1">
-                    {recipe.ingredientes.map((ingredient, index) =>
-                      ingredient && ingredient.trim().length > 0 && (
-                        <li key={index} className="text-gray-700 flex items-start">
-                          <span className="text-app-accent mr-2">•</span>
-                          {ingredient}
-                        </li>
-                      )
-                    )}
+                    {recipe.ingredientes.filter(ingredient => ingredient && ingredient.trim()).map((ingredient, index) => (
+                      <li key={index} className="text-gray-700 flex items-start">
+                        <span className="text-app-accent mr-2">•</span>
+                        {ingredient}
+                      </li>
+                    ))}
                   </ul>
                 </div>
-              )}
+              ) : null}
 
-              {/* Instructions */}
-              {recipe.instrucciones && recipe.instrucciones.trim().length > 0 && (
+              {/* Instructions - only show if not empty */}
+              {recipe.instrucciones && recipe.instrucciones.trim() ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Instrucciones</h3>
                   <p className="text-gray-700 whitespace-pre-wrap">{recipe.instrucciones}</p>
                 </div>
-              )}
+              ) : null}
 
-              {/* Time */}
-              {recipe.tiempoPreparacion && recipe.tiempoPreparacion > 0 && (
+              {/* Time - only show if greater than 0 */}
+              {recipe.tiempoPreparacion > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Tiempo</h3>
                   <p className="text-gray-700">{recipe.tiempoPreparacion} minutos</p>
                 </div>
-              )}
+              ) : null}
 
-              {/* Portions */}
-              {recipe.porciones && recipe.porciones > 0 && (
+              {/* Portions - only show if greater than 0 */}
+              {recipe.porciones > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Porciones</h3>
                   <p className="text-gray-700">{recipe.porciones} porciones</p>
                 </div>
-              )}
+              ) : null}
 
-              {/* External Link */}
-              {recipe.enlaceExterno && recipe.enlaceExterno.trim().length > 0 && (
+              {/* External Link - only show if not empty */}
+              {recipe.enlaceExterno && recipe.enlaceExterno.trim() ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Enlace Externo</h3>
                   <a
@@ -199,7 +197,7 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                     Ver receta original →
                   </a>
                 </div>
-              )}
+              ) : null}
             </div>
           </ScrollArea>
 
