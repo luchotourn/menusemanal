@@ -75,12 +75,15 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md mx-auto max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-md mx-auto max-h-[90vh] flex flex-col" aria-describedby="meal-plan-description">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-lg font-semibold text-left">
               {recipe.nombre}
             </DialogTitle>
           </DialogHeader>
+          <div id="meal-plan-description" className="sr-only">
+            Detalles del plan de comida para {formatDate(mealPlan?.fecha || '')} - {getMealTypeLabel(mealPlan?.tipoComida || '')}
+          </div>
 
           <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="space-y-4">
