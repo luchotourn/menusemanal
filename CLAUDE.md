@@ -71,3 +71,11 @@ npm run check
 - Search and filtering across recipes
 - Spanish-localized UI and error messages
 - PWA capabilities with offline support
+
+## Developer Preferences
+
+- **Commit Messages**: The user prefers to write their own commit messages. When ready to commit:
+  1. Stage changes with `git add .`
+  2. Show what's being committed with `git status` or `git diff --cached`
+  3. Ask: "Ready to commit. What commit message would you like to use?"
+  4. Wait for user's message before committing
