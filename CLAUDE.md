@@ -79,3 +79,9 @@ npm run check
   2. Show what's being committed with `git status` or `git diff --cached`
   3. Ask: "Ready to commit. What commit message would you like to use?"
   4. Wait for user's message before committing
+
+- **Issue Resolution**: When resolving GitHub issues, always comment on the issue before closing it:
+  1. Summarize what was implemented/fixed
+  2. Mention any key technical decisions made
+  3. Reference the commit(s) that resolved it
+  4. Ask user to review and close if satisfied
