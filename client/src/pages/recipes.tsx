@@ -17,13 +17,10 @@ const categories = [
   { value: "all", label: "Todas" },
   { value: "favorites", label: "Favoritas" },
   { value: "Plato Principal", label: "Platos Principales" },
-  { value: "Postre", label: "Postres" },
-  { value: "Merienda", label: "Meriendas" },
-  { value: "Desayuno", label: "Desayuno" },
+  { value: "Acompañamiento", label: "Acompañamientos" },
   { value: "Entrada", label: "Entradas" },
-  { value: "Sopa", label: "Sopas" },
   { value: "Ensalada", label: "Ensaladas" },
-  { value: "Bebida", label: "Bebidas" }
+  { value: "Sopa", label: "Sopas" }
 ];
 
 export default function Recipes() {

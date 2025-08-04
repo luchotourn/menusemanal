@@ -19,13 +19,10 @@ interface AddRecipeModalProps {
 
 const categories = [
   "Plato Principal",
-  "Postre",
-  "Merienda",
-  "Desayuno",
+  "Acompañamiento",
   "Entrada",
-  "Sopa",
   "Ensalada",
-  "Bebida"
+  "Sopa"
 ];
 
 export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps) {

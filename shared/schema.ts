@@ -9,7 +9,7 @@ export const recipes = pgTable("recipes", {
   descripcion: text("descripcion"),
   imagen: text("imagen"), // URL or base64 image
   enlaceExterno: text("enlace_externo"),
-  categoria: text("categoria").notNull(), // "Plato Principal", "Postre", "Merienda", etc.
+  categoria: text("categoria").notNull(), // "Plato Principal", "Acompañamiento", "Entrada", "Ensalada", "Sopa"
   calificacionNinos: integer("calificacion_ninos").default(0), // 0-5 stars
   ingredientes: text("ingredientes").array(),
   instrucciones: text("instrucciones"),
