@@ -128,8 +128,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           ))}
         </div>
       ) : (
-        <div className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center">
-          <p className="text-xs text-gray-400">Sin planificar</p>
+        <div 
+          className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center cursor-pointer hover:border-app-accent hover:bg-orange-50/50 transition-all group"
+          onClick={() => onAddMeal(formatDate(date), mealType)}
+        >
+          <div className="flex flex-col items-center space-y-1">
+            <Plus className="w-4 h-4 text-gray-300 group-hover:text-app-accent transition-colors" />
+            <p className="text-xs text-gray-400 group-hover:text-app-accent transition-colors">
+              {mealType === 'almuerzo' ? 'Agregar almuerzo' : 'Agregar cena'}
+            </p>
+          </div>
         </div>
       )}
     </div>
