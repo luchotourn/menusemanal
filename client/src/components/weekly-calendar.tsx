@@ -59,6 +59,11 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     return formatDate(todayMonday) === formatDate(currentWeekStart);
   };
 
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return formatDate(date) === formatDate(today);
+  };
+
   const getMealsForDate = (date: Date, mealType: string) => {
     const dateStr = formatDate(date);
     const dailyMeals = (mealPlans || []).filter(
@@ -186,9 +191,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
             // Combine weekend days
             const sundayLunchMeals = getMealsForDate(weekDates[6], "almuerzo");
             const sundayDinnerMeals = getMealsForDate(weekDates[6], "cena");
+            const isSaturdayToday = isToday(date);
+            const isSundayToday = isToday(weekDates[6]);
+            const isWeekendToday = isSaturdayToday || isSundayToday;
             
             return (
-              <Card key="weekend" className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <Card key="weekend" className={`rounded-xl p-4 shadow-sm transition-all ${
+                isWeekendToday 
+                  ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-app-accent shadow-md' 
+                  : 'bg-white border border-gray-100'
+              }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium text-gray-500">SÁB-DOM</span>
@@ -201,7 +213,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                   {/* Saturday */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-400">SÁBADO</span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs font-medium ${
+                          isSaturdayToday ? 'text-app-accent' : 'text-gray-400'
+                        }`}>SÁBADO</span>
+                        {isSaturdayToday && (
+                          <span className="text-xs bg-app-accent text-white px-2 py-1 rounded-full font-medium">
+                            HOY
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <MealSection 
@@ -222,7 +243,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                   {/* Sunday */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-400">DOMINGO</span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs font-medium ${
+                          isSundayToday ? 'text-app-accent' : 'text-gray-400'
+                        }`}>DOMINGO</span>
+                        {isSundayToday && (
+                          <span className="text-xs bg-app-accent text-white px-2 py-1 rounded-full font-medium">
+                            HOY
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <MealSection 
@@ -244,16 +274,30 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
             );
           } else if (!isWeekend) {
             // Regular weekday
+            const isCurrentDay = isToday(date);
             return (
-              <Card key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <Card key={index} className={`rounded-xl p-4 shadow-sm transition-all ${
+                isCurrentDay 
+                  ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-app-accent shadow-md' 
+                  : 'bg-white border border-gray-100'
+              }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-500">
+                    <span className={`text-sm font-medium ${
+                      isCurrentDay ? 'text-app-accent' : 'text-gray-500'
+                    }`}>
                       {getDayName(date).toUpperCase()}
                     </span>
-                    <span className="text-lg font-semibold text-app-neutral">
+                    <span className={`text-lg font-semibold ${
+                      isCurrentDay ? 'text-app-accent' : 'text-app-neutral'
+                    }`}>
                       {date.getDate()}
                     </span>
+                    {isCurrentDay && (
+                      <span className="text-xs bg-app-accent text-white px-2 py-1 rounded-full font-medium">
+                        HOY
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
