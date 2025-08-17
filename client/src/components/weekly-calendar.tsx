@@ -84,21 +84,51 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     ));
   };
 
-  // Simplified MealCard Component - just tap to open modal
+  // Enhanced MealCard Component with meal preview details
   const MealCard = ({ meal }: {
     meal: MealPlan & { recipe?: Recipe };
   }) => {
     const recipe = meal.recipe;
     
+    if (!recipe) {
+      return (
+        <div className="bg-red-50 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition-colors min-h-[44px] flex items-center">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-red-600 truncate">
+              Receta no encontrada
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div 
-        className="bg-orange-50 rounded-lg p-3 cursor-pointer hover:bg-orange-100 transition-colors min-h-[44px] flex items-center"
+        className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-200 transition-all border border-orange-200 shadow-sm min-h-[70px]"
         onClick={() => onViewMealPlan(meal)}
       >
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {recipe?.nombre || "Receta no encontrada"}
+        <div className="flex flex-col justify-between h-full">
+          {/* Recipe Name - Allow multiple lines */}
+          <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">
+            {recipe.nombre}
           </p>
+          
+          {/* Additional info section - only show if there's actual content */}
+          {((recipe.calificacionNinos ?? 0) > 0 || Boolean(recipe.esFavorita)) ? (
+            <div className="flex items-center justify-between mt-2">
+              {/* Kid Rating */}
+              {(recipe.calificacionNinos ?? 0) > 0 ? (
+                <div className="flex">
+                  {renderStars(recipe.calificacionNinos ?? 0)}
+                </div>
+              ) : null}
+              
+              {/* Favorite indicator */}
+              {Boolean(recipe.esFavorita) ? (
+                <span className="text-xs text-orange-600 font-medium">⭐ Favorita</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     );
