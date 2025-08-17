@@ -36,6 +36,38 @@ export function formatWeekRange(startDate: Date): string {
   return `${start} - ${end}`;
 }
 
+export function getWeekNumber(date: Date): number {
+  const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+}
+
+export function formatEnhancedWeekRange(startDate: Date): { 
+  range: string; 
+  monthContext: string;
+} {
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+  
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
+  const startMonth = startDate.toLocaleDateString('es-AR', { month: 'short' });
+  const endMonth = endDate.toLocaleDateString('es-AR', { month: 'short' });
+  const year = startDate.getFullYear();
+  
+  // Format the date range
+  const range = startMonth === endMonth 
+    ? `${startDay} - ${endDay} ${startMonth}`
+    : `${startDay} ${startMonth} - ${endDay} ${endMonth}`;
+  
+  // Month context (if spanning multiple months)
+  const monthContext = startMonth === endMonth 
+    ? `${startMonth} ${year}`
+    : `${startMonth} - ${endMonth} ${year}`;
+  
+  return { range, monthContext };
+}
+
 export function getDayName(date: Date): string {
   const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
   return days[date.getDay()];

@@ -85,3 +85,49 @@ npm run check
   2. Mention any key technical decisions made
   3. Reference the commit(s) that resolved it
   4. Ask user to review and close if satisfied
+
+- **Database Queries**: When asked to list database table contents, use this format:
+  1. Use `DATABASE_URL=postgresql://neondb_owner:npg_5Mg0pPLNfshC@ep-old-heart-a6k4918t.us-west-2.aws.neon.tech/neondb?sslmode=require npx tsx -e` with database connection
+  2. Format output concisely for terminal viewing - avoid overwhelming detail
+  3. For recipes table: show numbered list with favorites (⭐), ratings (★☆), categories, and prep time
+  4. Include summary of totals and favorites at the end
+  5. Use this exact query format for recipes:
+  ```bash
+  DATABASE_URL=postgresql://neondb_owner:npg_5Mg0pPLNfshC@ep-old-heart-a6k4918t.us-west-2.aws.neon.tech/neondb?sslmode=require npx tsx -e "
+  (async () => {
+    const { db } = await import('./server/db.js');
+    const { recipes } = await import('./shared/schema.js');
+    const allRecipes = await db.select().from(recipes);
+    
+    console.log('=== RECIPES SUMMARY ===');
+    console.log();
+    allRecipes.forEach((recipe, index) => {
+      const favorite = recipe.esFavorita ? '⭐' : '  ';
+      const stars = recipe.calificacionNinos || 0;
+      const rating = '★'.repeat(stars) + '☆'.repeat(5 - stars);
+      const prep = recipe.tiempoPreparacion ? '(' + recipe.tiempoPreparacion + ' min)' : '';
+      const category = recipe.categoria || 'Sin categoría';
+      console.log((index + 1) + '. ' + favorite + ' ' + recipe.nombre + ' [' + category + '] - ' + rating + ' ' + prep);
+    });
+    
+    console.log();
+    console.log('Total recipes: ' + allRecipes.length);
+    console.log();
+    console.log('=== FAVORITES ===');
+    const favorites = allRecipes.filter(r => r.esFavorita);
+    favorites.forEach((recipe, index) => {
+      console.log((index + 1) + '. ⭐ ' + recipe.nombre + ' - Rating: ' + (recipe.calificacionNinos || 0) + '/5');
+    });
+  })();
+  "
+  ```
+
+- **Screenshots**: For visual testing and documentation, use the screenshot script:
+  ```bash
+  node screenshot.js
+  ```
+  This creates screenshots of the running app at http://localhost:3001:
+  - `menu-semanal-desktop.png` - Desktop view (1200x800)
+  - `menu-semanal-mobile.png` - Mobile view (375x667)
+  
+  The script uses Puppeteer to capture both responsive layouts and requires the dev server to be running.
