@@ -119,7 +119,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
               {/* Kid Rating */}
               {(recipe.calificacionNinos ?? 0) > 0 ? (
                 <div className="flex">
-                  {renderStars(recipe.calificacionNinos)}
+                  {renderStars(recipe.calificacionNinos ?? 0)}
                 </div>
               ) : null}
               
