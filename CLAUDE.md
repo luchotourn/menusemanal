@@ -61,7 +61,7 @@ npm run check
 
 ### Environment Setup
 - Requires `DATABASE_URL` environment variable
-- Development server runs on port 5000
+- Development server runs on port 3001
 - Vite dev server integrated for development
 - Production serves static files from `dist/public`
 
