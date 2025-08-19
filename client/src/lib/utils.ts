@@ -22,7 +22,9 @@ export function getWeekDates(startDate: Date): Date[] {
 export function getMonday(date: Date): Date {
   const day = date.getDay();
   const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-  return new Date(date.setDate(diff));
+  const result = new Date(date);
+  result.setDate(diff);
+  return result;
 }
 
 export function formatWeekRange(startDate: Date): string {
