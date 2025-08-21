@@ -155,4 +155,59 @@
       min-height: 100dvh;
     }
   }
+
+  /* Bottom sheet keyboard handling */
+  @media (max-width: 768px) {
+    .bottom-sheet-content {
+      /* Respect safe areas and keyboard */
+      max-height: calc(85vh - env(safe-area-inset-top, 0px));
+      margin-top: max(env(safe-area-inset-top), 20px);
+    }
+    
+    /* Ensure search stays visible when keyboard opens */
+    .search-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      border-radius: 0;
+    }
+    
+    /* Adjust content height when keyboard is active */
+    .keyboard-active {
+      max-height: 60vh !important;
+      margin-top: max(env(safe-area-inset-top), 10px) !important;
+    }
+    
+    /* Prevent content from going behind browser chrome */
+    .mobile-safe-content {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    /* Ensure proper flex scrolling */
+    .flex-scroll-container {
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+      overflow-y: auto;
+    }
+    
+    /* Bottom sheet specific scrolling */
+    .bottom-sheet-content .flex-1 {
+      min-height: 0;
+    }
+    
+    /* Force scroll behavior on mobile */
+    .overflow-y-scroll {
+      -webkit-overflow-scrolling: touch !important;
+      overflow-y: scroll !important;
+      overscroll-behavior: contain;
+    }
+    
+    /* Prevent touch conflicts */
+    .mobile-scroll-area {
+      touch-action: pan-y;
+    }
+  }
 }
