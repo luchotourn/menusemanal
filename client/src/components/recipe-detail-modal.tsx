@@ -1,6 +1,6 @@
 import { X, ExternalLink, Edit, Share2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal, useDragToDismiss } from "@/components/ui/responsive-modal";
 import { Badge } from "@/components/ui/badge";
 import type { Recipe } from "@shared/schema";
 
@@ -49,14 +49,13 @@ export function RecipeDetailModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="sticky top-0 bg-white border-b border-gray-100 p-4">
-          <DialogTitle className="text-lg font-semibold text-app-neutral">
-            {recipe.nombre}
-          </DialogTitle>
-        </DialogHeader>
-        
+    <ResponsiveModal 
+      isOpen={isOpen} 
+      onClose={onClose}
+      title={recipe.nombre}
+      className="p-0"
+    >
+      <div>
         <div className="p-4">
           {recipe.imagen && recipe.imagen.startsWith('http') && (
             <div className="mb-6">
@@ -179,7 +178,7 @@ export function RecipeDetailModal({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ResponsiveModal>
   );
 }

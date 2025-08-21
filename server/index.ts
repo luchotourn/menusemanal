@@ -129,7 +129,7 @@ process.on('unhandledRejection', (reason, promise) => {
     // Use PORT from environment or default to 5000
     // this serves both the API and the client.
     const port = parseInt(process.env.PORT || '5000');
-    const host = process.env.NODE_ENV === 'production' ? "0.0.0.0" : "127.0.0.1";
+    const host = "0.0.0.0"; // Allow access from network devices
     server.listen(port, host, () => {
       console.log('🎉 Server successfully started!');
       log(`serving on port ${port}`);

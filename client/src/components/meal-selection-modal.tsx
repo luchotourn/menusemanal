@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal, useDragToDismiss } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { RecipeCard } from "@/components/recipe-card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,10 +18,20 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Reset search state when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Reset to passive state when modal opens
+      setIsSearchActive(false);
+      setSearchQuery("");
+      setKeyboardHeight(0);
+    }
+  }, [isOpen]);
 
   const { data: recipes, isLoading } = useQuery({
     queryKey: ["/api/recipes", { search: searchQuery }],
@@ -54,64 +64,54 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
     },
   });
 
-  // Mobile keyboard detection and viewport adjustment
+  // Mobile keyboard detection - only when search is active
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isSearchActive) return;
 
     const handleVisualViewportChange = () => {
       if (typeof window !== "undefined" && window.visualViewport) {
         const viewportHeight = window.visualViewport.height;
         const windowHeight = window.innerHeight;
         const keyboardHeight = windowHeight - viewportHeight;
-        
         setKeyboardHeight(keyboardHeight);
-        
-        // Auto-scroll to search results when keyboard appears
-        if (keyboardHeight > 0 && isSearchFocused && resultsRef.current) {
-          setTimeout(() => {
-            resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 100);
-        }
-      }
-    };
-
-    const handleResize = () => {
-      // Fallback for browsers without visualViewport support
-      if (!window.visualViewport) {
-        const currentHeight = window.innerHeight;
-        const originalHeight = window.screen.height;
-        const heightDiff = originalHeight - currentHeight;
-        
-        if (heightDiff > 150) { // Likely keyboard is open
-          setKeyboardHeight(heightDiff);
-        } else {
-          setKeyboardHeight(0);
-        }
       }
     };
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', handleVisualViewportChange);
-    } else {
-      window.addEventListener('resize', handleResize);
     }
 
     return () => {
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', handleVisualViewportChange);
-      } else {
-        window.removeEventListener('resize', handleResize);
       }
     };
-  }, [isSearchFocused, isOpen]);
+  }, [isSearchActive, isOpen]);
 
-  const handleSearchFocus = () => {
-    setIsSearchFocused(true);
+  const handleSearchClick = () => {
+    setIsSearchActive(true);
+    // Focus after state update
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
   };
 
   const handleSearchBlur = () => {
-    setIsSearchFocused(false);
+    // Don't immediately deactivate search to allow typing
+    setTimeout(() => {
+      if (searchQuery === "") {
+        setIsSearchActive(false);
+        setKeyboardHeight(0);
+      }
+    }, 100);
+  };
+
+  const handleModalClose = () => {
+    // Ensure clean state when closing
+    setIsSearchActive(false);
+    setSearchQuery("");
     setKeyboardHeight(0);
+    onClose();
   };
 
   const handleSelectRecipe = (recipe: Recipe) => {
@@ -128,29 +128,29 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
   });
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg mx-auto max-h-[90vh] overflow-y-auto p-0">
-        {/* Header */}
-        <DialogHeader className="p-4 border-b border-gray-100">
-          <DialogTitle className={`font-semibold text-app-neutral transition-all duration-200 ${
-            isSearchFocused && keyboardHeight > 0 ? 'text-base' : 'text-lg'
-          }`}>
-            Elegir Comida para {mealTypeLabel}
-          </DialogTitle>
-          {!(isSearchFocused && keyboardHeight > 0) && (
-            <p className="text-sm text-gray-600 capitalize">
-              {dateLabel}
-            </p>
-          )}
-        </DialogHeader>
-        
-        {/* Search - Sticky when focused */}
-        <div className={`mobile-search-container ${isSearchFocused ? 'sticky top-0 z-40 bg-white border-b border-gray-100 pt-2' : ''} p-4 transition-all duration-200`}>
+    <ResponsiveModal 
+      isOpen={isOpen} 
+      onClose={handleModalClose}
+      title={`Elegir Comida para ${mealTypeLabel}`}
+      subtitle={!isSearchActive ? dateLabel : undefined}
+      className="p-0"
+    >
+      {/* Search Input - Only focusable when clicked */}
+      <div className="px-4 py-3 border-b border-gray-100 bg-white">
+        {!isSearchActive ? (
+          // Passive search box - shows placeholder, no focus
+          <div
+            onClick={handleSearchClick}
+            className="bg-gray-50 border-0 rounded-md px-3 py-2 text-gray-500 cursor-pointer"
+          >
+            Buscar comidas...
+          </div>
+        ) : (
+          // Active search input
           <Input
             ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={handleSearchFocus}
             onBlur={handleSearchBlur}
             placeholder="Buscar comidas..."
             className="bg-gray-50 border-0 focus:bg-white text-base"
@@ -159,15 +159,18 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
             autoCapitalize="off"
             spellCheck="false"
           />
-        </div>
+        )}
+      </div>
 
-        {/* Recipes List */}
-        <div 
-          ref={resultsRef}
-          className={`px-4 pb-4 transition-all duration-200 ${
-            keyboardHeight > 0 ? `max-h-[calc(100vh-180px)] overflow-y-auto keyboard-open-results` : ''
-          }`}
-        >
+      {/* Simple Scrollable Content */}
+      <div 
+        ref={resultsRef}
+        className="overflow-y-auto px-4 py-4"
+        style={{
+          height: isSearchActive && keyboardHeight > 0 ? '250px' : '400px',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
           {isLoading ? (
             <div className="text-center py-8">
               <p className="text-gray-500">Cargando comidas...</p>
@@ -194,7 +197,6 @@ export function MealSelectionModal({ isOpen, onClose, selectedDate, mealType }: 
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }
