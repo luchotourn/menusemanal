@@ -249,10 +249,16 @@ export class DatabaseStorage implements IStorage {
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     
+    // Format end date correctly in local timezone
+    const year = end.getFullYear();
+    const month = String(end.getMonth() + 1).padStart(2, '0');
+    const day = String(end.getDate()).padStart(2, '0');
+    const endDateStr = `${year}-${month}-${day}`;
+    
     return await db.select().from(mealPlans).where(
       and(
         gte(mealPlans.fecha, startDate),
-        lte(mealPlans.fecha, end.toISOString().split('T')[0])
+        lte(mealPlans.fecha, endDateStr)
       )
     );
   }

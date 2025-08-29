@@ -230,7 +230,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dayOfWeek = today.getDay();
         const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday
         startOfWeek.setDate(diff);
-        mealPlans = await storage.getMealPlansForWeek(startOfWeek.toISOString().split('T')[0]);
+        // Format date correctly in local timezone
+        const year = startOfWeek.getFullYear();
+        const month = String(startOfWeek.getMonth() + 1).padStart(2, '0');
+        const day = String(startOfWeek.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        mealPlans = await storage.getMealPlansForWeek(formattedDate);
       }
       
       res.json(mealPlans);
