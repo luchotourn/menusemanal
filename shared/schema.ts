@@ -8,8 +8,10 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(), // bcrypt hashed
   name: text("name").notNull(),
+  avatar: text("avatar"), // Base64 image or URL
   familyId: text("family_id"), // For future multi-family support
   role: text("role").notNull().default("member"), // "admin", "member"
+  notificationPreferences: text("notification_preferences").default('{"email": true, "recipes": true, "mealPlans": true}'), // JSON string
   loginAttempts: integer("login_attempts").notNull().default(0),
   lastLoginAttempt: timestamp("last_login_attempt"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -82,11 +84,6 @@ export const insertUserSchema = createInsertSchema(users, {
   updatedAt: true,
 });
 
-export const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(1, "La contraseña es requerida"),
-});
-
 export const insertRecipeSchema = createInsertSchema(recipes).omit({
   id: true,
   createdAt: true,
@@ -151,3 +148,68 @@ export const registerSchema = z.object({
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
+// Profile management schemas
+export const updateProfileSchema = z.object({
+  name: z
+    .string()
+    .min(1, "El nombre es requerido")
+    .min(2, "El nombre debe tener al menos 2 caracteres")
+    .max(100, "El nombre es demasiado largo"),
+  email: z
+    .string()
+    .min(1, "El email es requerido")
+    .email("Ingresa un email válido"),
+  avatar: z.string().optional(),
+  notificationPreferences: z.object({
+    email: z.boolean().default(true),
+    recipes: z.boolean().default(true),
+    mealPlans: z.boolean().default(true),
+  }).optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z
+    .string()
+    .min(1, "La contraseña actual es requerida"),
+  newPassword: z
+    .string()
+    .min(1, "La nueva contraseña es requerida")
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[a-z]/, "Debe contener al menos una letra minúscula")
+    .regex(/[A-Z]/, "Debe contener al menos una letra mayúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número"),
+  confirmPassword: z.string().min(1, "Confirma la nueva contraseña"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+});
+
+export const avatarUploadSchema = z.object({
+  avatar: z
+    .string()
+    .refine((data) => {
+      if (!data) return true; // Optional field
+      // Check if it's a valid base64 image or URL
+      return data.startsWith('data:image/') || data.startsWith('http');
+    }, "Avatar debe ser una imagen válida")
+    .refine((data) => {
+      if (!data || !data.startsWith('data:image/')) return true;
+      // Check size limit for base64 images (1MB ~ 1.4MB in base64)
+      return data.length <= 1400000;
+    }, "La imagen es demasiado grande (máximo 1MB)"),
+});
+
+export const accountDeletionSchema = z.object({
+  confirmationText: z
+    .string()
+    .refine((val) => val === "ELIMINAR", "Escribe 'ELIMINAR' para confirmar"),
+  password: z
+    .string()
+    .min(1, "Ingresa tu contraseña para confirmar"),
+});
+
+export type UpdateProfileData = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordData = z.infer<typeof changePasswordSchema>;
+export type AvatarUploadData = z.infer<typeof avatarUploadSchema>;
+export type AccountDeletionData = z.infer<typeof accountDeletionSchema>;

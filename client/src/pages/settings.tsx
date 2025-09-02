@@ -1,4 +1,5 @@
-import { Settings as SettingsIcon, Users, Bell, Download, Share2, Info } from "lucide-react";
+import { Settings as SettingsIcon, Users, Bell, Download, Share2, Info, User } from "lucide-react";
+import { useLocation } from "wouter";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const handleExportData = () => {
     toast({ title: "Función de exportación próximamente disponible" });
@@ -41,6 +43,29 @@ export default function Settings() {
           </div>
 
           <div className="space-y-4">
+            {/* User Profile */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center space-x-2">
+                  <User className="w-5 h-5 text-app-primary" />
+                  <span>Perfil de Usuario</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setLocation("/profile")}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Gestionar Perfil
+                </Button>
+                <p className="text-sm text-gray-600 mt-2">
+                  Actualiza tu información personal, avatar y configuraciones de seguridad
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Family Settings */}
             <Card>
               <CardHeader className="pb-3">
