@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { configureSession, validateSessionConfig } from "./auth/session";
+import passport from "./auth/passport";
 
 // Validate critical environment variables in production
 function validateEnvironment() {
@@ -16,6 +18,9 @@ function validateEnvironment() {
   }
   
   console.log('✅ All required environment variables are present');
+  
+  // Validate session configuration
+  validateSessionConfig();
 }
 
 // Add startup logging
@@ -34,6 +39,12 @@ if (process.env.NODE_ENV === 'production') {
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Configure session and authentication
+console.log('🔐 Setting up authentication...');
+app.use(configureSession());
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use((req, res, next) => {
   const start = Date.now();
