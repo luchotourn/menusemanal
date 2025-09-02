@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { insertRecipeSchema, insertMealPlanSchema } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth } from "./db";
+import authRouter from "./auth/routes";
+import { apiRateLimit, isAuthenticated, attachUser, getCurrentUser } from "./auth/middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Smart health check at root - serves health check for deployment systems, React app for browsers
@@ -106,18 +108,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Authentication Routes
+  app.use("/api/auth", authRouter);
+
+  // Apply general rate limiting to all API routes
+  app.use("/api", apiRateLimit);
+  
+  // Attach user information to all requests
+  app.use("/api", attachUser);
+
   // Recipe routes
-  app.get("/api/recipes", async (req, res) => {
+  app.get("/api/recipes", isAuthenticated, async (req, res) => {
     try {
       const { category, search, favorites } = req.query;
+      const user = getCurrentUser(req);
+      const userId = user?.id;
       
       let recipes;
       
-      // Start with all recipes or favorites
+      // Start with all recipes or favorites for this user
       if (favorites === 'true') {
-        recipes = await storage.getFavoriteRecipes();
+        recipes = await storage.getFavoriteRecipes(userId);
       } else {
-        recipes = await storage.getAllRecipes();
+        recipes = await storage.getAllRecipes(userId);
       }
       
       // Apply category filter
@@ -142,10 +155,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/recipes/:id", async (req, res) => {
+  app.get("/api/recipes/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const recipe = await storage.getRecipeById(id);
+      const user = getCurrentUser(req);
+      const userId = user?.id;
+      
+      const recipe = await storage.getRecipeById(id, userId);
       
       if (!recipe) {
         return res.status(404).json({ error: "Receta no encontrada" });
@@ -157,10 +173,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/recipes", async (req, res) => {
+  app.post("/api/recipes", isAuthenticated, async (req, res) => {
     try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
       const recipeData = insertRecipeSchema.parse(req.body);
-      const recipe = await storage.createRecipe(recipeData);
+      // Ensure the recipe belongs to the current user
+      const recipeWithUser = { ...recipeData, userId: user.id };
+      const recipe = await storage.createRecipe(recipeWithUser);
       res.status(201).json(recipe);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -170,11 +193,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/recipes/:id", async (req, res) => {
+  app.put("/api/recipes/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const user = getCurrentUser(req);
+      const userId = user?.id;
+      
       const updateData = insertRecipeSchema.partial().parse(req.body);
-      const recipe = await storage.updateRecipe(id, updateData);
+      const recipe = await storage.updateRecipe(id, updateData, userId);
       
       if (!recipe) {
         return res.status(404).json({ error: "Receta no encontrada" });
@@ -189,19 +215,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/recipes/:id", async (req, res) => {
+  app.delete("/api/recipes/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const user = getCurrentUser(req);
+      const userId = user?.id;
       
-      // Check if recipe is used in meal plans
-      const isUsed = await storage.isRecipeUsedInMealPlans(id);
+      // Check if recipe is used in meal plans (user-specific)
+      const isUsed = await storage.isRecipeUsedInMealPlans(id, userId);
       if (isUsed) {
         return res.status(400).json({ 
           error: "No se puede eliminar la receta porque está asignada a uno o más días de la semana. Primero elimine la receta de la planificación semanal." 
         });
       }
       
-      const deleted = await storage.deleteRecipe(id);
+      const deleted = await storage.deleteRecipe(id, userId);
       
       if (!deleted) {
         return res.status(404).json({ error: "Receta no encontrada" });
@@ -214,15 +242,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Meal plan routes
-  app.get("/api/meal-plans", async (req, res) => {
+  app.get("/api/meal-plans", isAuthenticated, async (req, res) => {
     try {
       const { startDate, date } = req.query;
+      const user = getCurrentUser(req);
+      const userId = user?.id;
       
       let mealPlans;
       if (startDate) {
-        mealPlans = await storage.getMealPlansForWeek(startDate as string);
+        mealPlans = await storage.getMealPlansForWeek(startDate as string, userId);
       } else if (date) {
-        mealPlans = await storage.getMealPlanByDate(date as string);
+        mealPlans = await storage.getMealPlanByDate(date as string, userId);
       } else {
         // Default to current week
         const today = new Date();
@@ -235,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const month = String(startOfWeek.getMonth() + 1).padStart(2, '0');
         const day = String(startOfWeek.getDate()).padStart(2, '0');
         const formattedDate = `${year}-${month}-${day}`;
-        mealPlans = await storage.getMealPlansForWeek(formattedDate);
+        mealPlans = await storage.getMealPlansForWeek(formattedDate, userId);
       }
       
       res.json(mealPlans);
@@ -244,10 +274,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/meal-plans", async (req, res) => {
+  app.post("/api/meal-plans", isAuthenticated, async (req, res) => {
     try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
       const mealPlanData = insertMealPlanSchema.parse(req.body);
-      const mealPlan = await storage.createMealPlan(mealPlanData);
+      // Ensure the meal plan belongs to the current user
+      const mealPlanWithUser = { ...mealPlanData, userId: user.id };
+      const mealPlan = await storage.createMealPlan(mealPlanWithUser);
       res.status(201).json(mealPlan);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -257,11 +294,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/meal-plans/:id", async (req, res) => {
+  app.put("/api/meal-plans/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const user = getCurrentUser(req);
+      const userId = user?.id;
+      
       const updateData = insertMealPlanSchema.partial().parse(req.body);
-      const mealPlan = await storage.updateMealPlan(id, updateData);
+      const mealPlan = await storage.updateMealPlan(id, updateData, userId);
       
       if (!mealPlan) {
         return res.status(404).json({ error: "Plan de comida no encontrado" });
@@ -276,10 +316,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/meal-plans/:id", async (req, res) => {
+  app.delete("/api/meal-plans/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const deleted = await storage.deleteMealPlan(id);
+      const user = getCurrentUser(req);
+      const userId = user?.id;
+      
+      const deleted = await storage.deleteMealPlan(id, userId);
       
       if (!deleted) {
         return res.status(404).json({ error: "Plan de comida no encontrado" });

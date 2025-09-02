@@ -4,23 +4,23 @@ import { eq, and, gte, lte, like, or } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
-  getAllRecipes(): Promise<Recipe[]>;
-  getRecipeById(id: number): Promise<Recipe | undefined>;
-  getRecipesByCategory(categoria: string): Promise<Recipe[]>;
-  getFavoriteRecipes(): Promise<Recipe[]>;
-  searchRecipes(query: string): Promise<Recipe[]>;
+  getAllRecipes(userId?: number): Promise<Recipe[]>;
+  getRecipeById(id: number, userId?: number): Promise<Recipe | undefined>;
+  getRecipesByCategory(categoria: string, userId?: number): Promise<Recipe[]>;
+  getFavoriteRecipes(userId?: number): Promise<Recipe[]>;
+  searchRecipes(query: string, userId?: number): Promise<Recipe[]>;
   createRecipe(recipe: InsertRecipe): Promise<Recipe>;
-  updateRecipe(id: number, recipe: Partial<InsertRecipe>): Promise<Recipe | undefined>;
-  deleteRecipe(id: number): Promise<boolean>;
-  isRecipeUsedInMealPlans(recipeId: number): Promise<boolean>;
+  updateRecipe(id: number, recipe: Partial<InsertRecipe>, userId?: number): Promise<Recipe | undefined>;
+  deleteRecipe(id: number, userId?: number): Promise<boolean>;
+  isRecipeUsedInMealPlans(recipeId: number, userId?: number): Promise<boolean>;
   
   // Meal plan methods
-  getMealPlansForWeek(startDate: string): Promise<MealPlan[]>;
-  getMealPlanByDate(fecha: string): Promise<MealPlan[]>;
-  getMealPlanByDateAndType(fecha: string, tipoComida: string): Promise<MealPlan | undefined>;
+  getMealPlansForWeek(startDate: string, userId?: number): Promise<MealPlan[]>;
+  getMealPlanByDate(fecha: string, userId?: number): Promise<MealPlan[]>;
+  getMealPlanByDateAndType(fecha: string, tipoComida: string, userId?: number): Promise<MealPlan | undefined>;
   createMealPlan(mealPlan: InsertMealPlan): Promise<MealPlan>;
-  updateMealPlan(id: number, mealPlan: Partial<InsertMealPlan>): Promise<MealPlan | undefined>;
-  deleteMealPlan(id: number): Promise<boolean>;
+  updateMealPlan(id: number, mealPlan: Partial<InsertMealPlan>, userId?: number): Promise<MealPlan | undefined>;
+  deleteMealPlan(id: number, userId?: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -36,24 +36,24 @@ export class MemStorage implements IStorage {
     this.currentMealPlanId = 1;
   }
 
-  // Recipe methods
-  async getAllRecipes(): Promise<Recipe[]> {
+  // Recipe methods (Note: MemStorage ignores userId for simplicity)
+  async getAllRecipes(userId?: number): Promise<Recipe[]> {
     return Array.from(this.recipes.values());
   }
 
-  async getRecipeById(id: number): Promise<Recipe | undefined> {
+  async getRecipeById(id: number, userId?: number): Promise<Recipe | undefined> {
     return this.recipes.get(id);
   }
 
-  async getRecipesByCategory(categoria: string): Promise<Recipe[]> {
+  async getRecipesByCategory(categoria: string, userId?: number): Promise<Recipe[]> {
     return Array.from(this.recipes.values()).filter(recipe => recipe.categoria === categoria);
   }
 
-  async getFavoriteRecipes(): Promise<Recipe[]> {
+  async getFavoriteRecipes(userId?: number): Promise<Recipe[]> {
     return Array.from(this.recipes.values()).filter(recipe => recipe.esFavorita === 1);
   }
 
-  async searchRecipes(query: string): Promise<Recipe[]> {
+  async searchRecipes(query: string, userId?: number): Promise<Recipe[]> {
     const lowercaseQuery = query.toLowerCase();
     return Array.from(this.recipes.values()).filter(recipe => 
       recipe.nombre.toLowerCase().includes(lowercaseQuery) ||
@@ -82,7 +82,7 @@ export class MemStorage implements IStorage {
     return recipe;
   }
 
-  async updateRecipe(id: number, updateData: Partial<InsertRecipe>): Promise<Recipe | undefined> {
+  async updateRecipe(id: number, updateData: Partial<InsertRecipe>, userId?: number): Promise<Recipe | undefined> {
     const existingRecipe = this.recipes.get(id);
     if (!existingRecipe) return undefined;
     
@@ -103,11 +103,11 @@ export class MemStorage implements IStorage {
     return updatedRecipe;
   }
 
-  async deleteRecipe(id: number): Promise<boolean> {
+  async deleteRecipe(id: number, userId?: number): Promise<boolean> {
     return this.recipes.delete(id);
   }
 
-  async isRecipeUsedInMealPlans(recipeId: number): Promise<boolean> {
+  async isRecipeUsedInMealPlans(recipeId: number, userId?: number): Promise<boolean> {
     const mealPlansArray = Array.from(this.mealPlans.values());
     for (const mealPlan of mealPlansArray) {
       if (mealPlan.recetaId === recipeId) {
@@ -118,7 +118,7 @@ export class MemStorage implements IStorage {
   }
 
   // Meal plan methods
-  async getMealPlansForWeek(startDate: string): Promise<MealPlan[]> {
+  async getMealPlansForWeek(startDate: string, userId?: number): Promise<MealPlan[]> {
     // Get meal plans for a week starting from startDate
     const start = new Date(startDate);
     const end = new Date(start);
@@ -130,11 +130,11 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getMealPlanByDate(fecha: string): Promise<MealPlan[]> {
+  async getMealPlanByDate(fecha: string, userId?: number): Promise<MealPlan[]> {
     return Array.from(this.mealPlans.values()).filter(mealPlan => mealPlan.fecha === fecha);
   }
 
-  async getMealPlanByDateAndType(fecha: string, tipoComida: string): Promise<MealPlan | undefined> {
+  async getMealPlanByDateAndType(fecha: string, tipoComida: string, userId?: number): Promise<MealPlan | undefined> {
     return Array.from(this.mealPlans.values()).find(mealPlan => 
       mealPlan.fecha === fecha && mealPlan.tipoComida === tipoComida
     );
@@ -153,7 +153,7 @@ export class MemStorage implements IStorage {
     return mealPlan;
   }
 
-  async updateMealPlan(id: number, updateData: Partial<InsertMealPlan>): Promise<MealPlan | undefined> {
+  async updateMealPlan(id: number, updateData: Partial<InsertMealPlan>, userId?: number): Promise<MealPlan | undefined> {
     const existingMealPlan = this.mealPlans.get(id);
     if (!existingMealPlan) return undefined;
     
@@ -168,43 +168,65 @@ export class MemStorage implements IStorage {
     return updatedMealPlan;
   }
 
-  async deleteMealPlan(id: number): Promise<boolean> {
+  async deleteMealPlan(id: number, userId?: number): Promise<boolean> {
     return this.mealPlans.delete(id);
   }
 }
 
 export class DatabaseStorage implements IStorage {
-  async getAllRecipes(): Promise<Recipe[]> {
+  async getAllRecipes(userId?: number): Promise<Recipe[]> {
     try {
-      return await db.select().from(recipes);
+      let query = db.select().from(recipes);
+      
+      if (userId) {
+        query = query.where(eq(recipes.userId, userId));
+      }
+      
+      return await query;
     } catch (error) {
       console.error('Database error in getAllRecipes:', error);
       throw new Error('Error al obtener las recetas de la base de datos');
     }
   }
 
-  async getRecipeById(id: number): Promise<Recipe | undefined> {
-    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
+  async getRecipeById(id: number, userId?: number): Promise<Recipe | undefined> {
+    const conditions = userId 
+      ? and(eq(recipes.id, id), eq(recipes.userId, userId))
+      : eq(recipes.id, id);
+    
+    const [recipe] = await db.select().from(recipes).where(conditions);
     return recipe || undefined;
   }
 
-  async getRecipesByCategory(categoria: string): Promise<Recipe[]> {
-    return await db.select().from(recipes).where(eq(recipes.categoria, categoria));
+  async getRecipesByCategory(categoria: string, userId?: number): Promise<Recipe[]> {
+    const conditions = userId 
+      ? and(eq(recipes.categoria, categoria), eq(recipes.userId, userId))
+      : eq(recipes.categoria, categoria);
+    
+    return await db.select().from(recipes).where(conditions);
   }
 
-  async getFavoriteRecipes(): Promise<Recipe[]> {
-    return await db.select().from(recipes).where(eq(recipes.esFavorita, 1));
+  async getFavoriteRecipes(userId?: number): Promise<Recipe[]> {
+    const conditions = userId 
+      ? and(eq(recipes.esFavorita, 1), eq(recipes.userId, userId))
+      : eq(recipes.esFavorita, 1);
+    
+    return await db.select().from(recipes).where(conditions);
   }
 
-  async searchRecipes(query: string): Promise<Recipe[]> {
+  async searchRecipes(query: string, userId?: number): Promise<Recipe[]> {
     const lowercaseQuery = `%${query.toLowerCase()}%`;
-    return await db.select().from(recipes).where(
-      or(
-        like(recipes.nombre, lowercaseQuery),
-        like(recipes.descripcion, lowercaseQuery),
-        like(recipes.categoria, lowercaseQuery)
-      )
+    const searchConditions = or(
+      like(recipes.nombre, lowercaseQuery),
+      like(recipes.descripcion, lowercaseQuery),
+      like(recipes.categoria, lowercaseQuery)
     );
+    
+    const conditions = userId 
+      ? and(searchConditions, eq(recipes.userId, userId))
+      : searchConditions;
+    
+    return await db.select().from(recipes).where(conditions);
   }
 
   async createRecipe(insertRecipe: InsertRecipe): Promise<Recipe> {
@@ -215,18 +237,26 @@ export class DatabaseStorage implements IStorage {
     return recipe;
   }
 
-  async updateRecipe(id: number, updateData: Partial<InsertRecipe>): Promise<Recipe | undefined> {
+  async updateRecipe(id: number, updateData: Partial<InsertRecipe>, userId?: number): Promise<Recipe | undefined> {
+    const conditions = userId 
+      ? and(eq(recipes.id, id), eq(recipes.userId, userId))
+      : eq(recipes.id, id);
+    
     const [recipe] = await db
       .update(recipes)
       .set(updateData)
-      .where(eq(recipes.id, id))
+      .where(conditions)
       .returning();
     return recipe || undefined;
   }
 
-  async deleteRecipe(id: number): Promise<boolean> {
+  async deleteRecipe(id: number, userId?: number): Promise<boolean> {
     try {
-      const result = await db.delete(recipes).where(eq(recipes.id, id));
+      const conditions = userId 
+        ? and(eq(recipes.id, id), eq(recipes.userId, userId))
+        : eq(recipes.id, id);
+      
+      const result = await db.delete(recipes).where(conditions);
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
       console.error('Database error in deleteRecipe:', error);
@@ -234,9 +264,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async isRecipeUsedInMealPlans(recipeId: number): Promise<boolean> {
+  async isRecipeUsedInMealPlans(recipeId: number, userId?: number): Promise<boolean> {
     try {
-      const result = await db.select().from(mealPlans).where(eq(mealPlans.recetaId, recipeId)).limit(1);
+      const conditions = userId 
+        ? and(eq(mealPlans.recetaId, recipeId), eq(mealPlans.userId, userId))
+        : eq(mealPlans.recetaId, recipeId);
+      
+      const result = await db.select().from(mealPlans).where(conditions).limit(1);
       return result.length > 0;
     } catch (error) {
       console.error('Database error in isRecipeUsedInMealPlans:', error);
@@ -244,7 +278,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getMealPlansForWeek(startDate: string): Promise<MealPlan[]> {
+  async getMealPlansForWeek(startDate: string, userId?: number): Promise<MealPlan[]> {
     const start = new Date(startDate);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
@@ -255,25 +289,37 @@ export class DatabaseStorage implements IStorage {
     const day = String(end.getDate()).padStart(2, '0');
     const endDateStr = `${year}-${month}-${day}`;
     
-    return await db.select().from(mealPlans).where(
-      and(
-        gte(mealPlans.fecha, startDate),
-        lte(mealPlans.fecha, endDateStr)
-      )
+    const dateRange = and(
+      gte(mealPlans.fecha, startDate),
+      lte(mealPlans.fecha, endDateStr)
     );
+    
+    const conditions = userId 
+      ? and(dateRange, eq(mealPlans.userId, userId))
+      : dateRange;
+    
+    return await db.select().from(mealPlans).where(conditions);
   }
 
-  async getMealPlanByDate(fecha: string): Promise<MealPlan[]> {
-    return await db.select().from(mealPlans).where(eq(mealPlans.fecha, fecha));
+  async getMealPlanByDate(fecha: string, userId?: number): Promise<MealPlan[]> {
+    const conditions = userId 
+      ? and(eq(mealPlans.fecha, fecha), eq(mealPlans.userId, userId))
+      : eq(mealPlans.fecha, fecha);
+    
+    return await db.select().from(mealPlans).where(conditions);
   }
 
-  async getMealPlanByDateAndType(fecha: string, tipoComida: string): Promise<MealPlan | undefined> {
-    const [mealPlan] = await db.select().from(mealPlans).where(
-      and(
-        eq(mealPlans.fecha, fecha),
-        eq(mealPlans.tipoComida, tipoComida)
-      )
+  async getMealPlanByDateAndType(fecha: string, tipoComida: string, userId?: number): Promise<MealPlan | undefined> {
+    const baseConditions = and(
+      eq(mealPlans.fecha, fecha),
+      eq(mealPlans.tipoComida, tipoComida)
     );
+    
+    const conditions = userId 
+      ? and(baseConditions, eq(mealPlans.userId, userId))
+      : baseConditions;
+    
+    const [mealPlan] = await db.select().from(mealPlans).where(conditions);
     return mealPlan || undefined;
   }
 
@@ -285,17 +331,25 @@ export class DatabaseStorage implements IStorage {
     return mealPlan;
   }
 
-  async updateMealPlan(id: number, updateData: Partial<InsertMealPlan>): Promise<MealPlan | undefined> {
+  async updateMealPlan(id: number, updateData: Partial<InsertMealPlan>, userId?: number): Promise<MealPlan | undefined> {
+    const conditions = userId 
+      ? and(eq(mealPlans.id, id), eq(mealPlans.userId, userId))
+      : eq(mealPlans.id, id);
+    
     const [mealPlan] = await db
       .update(mealPlans)
       .set(updateData)
-      .where(eq(mealPlans.id, id))
+      .where(conditions)
       .returning();
     return mealPlan || undefined;
   }
 
-  async deleteMealPlan(id: number): Promise<boolean> {
-    const result = await db.delete(mealPlans).where(eq(mealPlans.id, id));
+  async deleteMealPlan(id: number, userId?: number): Promise<boolean> {
+    const conditions = userId 
+      ? and(eq(mealPlans.id, id), eq(mealPlans.userId, userId))
+      : eq(mealPlans.id, id);
+    
+    const result = await db.delete(mealPlans).where(conditions);
     return (result.rowCount ?? 0) > 0;
   }
 }
