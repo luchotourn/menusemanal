@@ -106,3 +106,48 @@ export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
 export type Recipe = typeof recipes.$inferSelect;
 export type InsertMealPlan = z.infer<typeof insertMealPlanSchema>;
 export type MealPlan = typeof mealPlans.$inferSelect;
+
+// Authentication schemas
+export const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, "El email es requerido")
+    .email("Ingresa un email válido"),
+  password: z
+    .string()
+    .min(1, "La contraseña es requerida")
+    .min(8, "La contraseña debe tener al menos 8 caracteres"),
+  rememberMe: z.boolean().default(false),
+});
+
+export const registerSchema = z.object({
+  fullName: z
+    .string()
+    .min(1, "El nombre completo es requerido")
+    .min(2, "El nombre debe tener al menos 2 caracteres")
+    .max(100, "El nombre es demasiado largo"),
+  email: z
+    .string()
+    .min(1, "El email es requerido")
+    .email("Ingresa un email válido"),
+  password: z
+    .string()
+    .min(1, "La contraseña es requerida")
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[a-z]/, "Debe contener al menos una letra minúscula")
+    .regex(/[A-Z]/, "Debe contener al menos una letra mayúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número"),
+  confirmPassword: z.string().min(1, "Confirma tu contraseña"),
+  role: z.enum(["creator", "commentator"], {
+    required_error: "Selecciona un rol",
+  }),
+  acceptTerms: z
+    .boolean()
+    .refine((val) => val === true, "Debes aceptar los términos y condiciones"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+});
+
+export type LoginFormData = z.infer<typeof loginSchema>;
+export type RegisterFormData = z.infer<typeof registerSchema>;
