@@ -47,7 +47,6 @@ authRouter.post("/register", authRateLimit, async (req: Request, res: Response) 
         name: users.name,
         avatar: users.avatar,
         role: users.role,
-        familyId: users.familyId,
         notificationPreferences: users.notificationPreferences,
         loginAttempts: users.loginAttempts,
         lastLoginAttempt: users.lastLoginAttempt,
@@ -128,8 +127,7 @@ authRouter.post("/login", authRateLimit, async (req: Request, res: Response, nex
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            familyId: user.familyId
+            role: user.role
           }
         });
       });
@@ -193,7 +191,6 @@ authRouter.get("/me", isAuthenticated, (req: Request, res: Response) => {
       email: user.email,
       name: user.name,
       role: user.role,
-      familyId: user.familyId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     }
@@ -312,7 +309,6 @@ authRouter.put("/profile", isAuthenticated, async (req: Request, res: Response) 
         name: users.name,
         avatar: users.avatar,
         role: users.role,
-        familyId: users.familyId,
         notificationPreferences: users.notificationPreferences,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,

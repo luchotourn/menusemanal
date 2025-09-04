@@ -71,7 +71,7 @@ export function useAuth() {
           name: data.fullName,
           email: data.email,
           password: data.password,
-          role: data.role === "creator" ? "admin" : "member"
+          role: data.role
         }),
       });
     },

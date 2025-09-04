@@ -197,8 +197,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const recipeData = insertRecipeSchema.parse(req.body);
-      // Ensure the recipe belongs to the current user
-      const recipeWithUser = { ...recipeData, userId: user.id };
+      
+      // Get user's primary family
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const primaryFamily = userFamilies[0];
+      
+      // Ensure the recipe belongs to the current user and family
+      const recipeWithUser = { 
+        ...recipeData, 
+        userId: user.id,
+        createdBy: user.id,
+        familyId: primaryFamily?.id
+      };
       const recipe = await storage.createRecipe(recipeWithUser);
       res.status(201).json(recipe);
     } catch (error) {
@@ -306,8 +316,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const mealPlanData = insertMealPlanSchema.parse(req.body);
-      // Ensure the meal plan belongs to the current user
-      const mealPlanWithUser = { ...mealPlanData, userId: user.id };
+      
+      // Get user's primary family
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const primaryFamily = userFamilies[0];
+      
+      // Ensure the meal plan belongs to the current user and family
+      const mealPlanWithUser = { 
+        ...mealPlanData, 
+        userId: user.id,
+        createdBy: user.id,
+        familyId: primaryFamily?.id
+      };
       const mealPlan = await storage.createMealPlan(mealPlanWithUser);
       res.status(201).json(mealPlan);
     } catch (error) {

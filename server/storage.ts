@@ -15,7 +15,7 @@ import {
   type User
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, like, or } from "drizzle-orm";
+import { eq, and, gte, lte, like, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
@@ -577,7 +577,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select()
       .from(families)
-      .where(eq(families.id, familyIds[0])); // For now, handle single family
+      .where(inArray(families.id, familyIds));
     
     return result;
   }
@@ -614,7 +614,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select()
       .from(users)
-      .where(eq(users.id, userIds[0])); // For now, handle single user
+      .where(inArray(users.id, userIds));
     
     return result;
   }
