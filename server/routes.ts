@@ -124,13 +124,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = getCurrentUser(req);
       const userId = user?.id;
       
+      if (!userId) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(userId);
+      const familyId = userFamilies[0]?.id; // Use first family for now
+      
       let recipes;
       
-      // Start with all recipes or favorites for this user
+      // Start with all recipes or favorites for this user and family
       if (favorites === 'true') {
-        recipes = await storage.getFavoriteRecipes(userId);
+        recipes = await storage.getFavoriteRecipes(userId, familyId);
       } else {
-        recipes = await storage.getAllRecipes(userId);
+        recipes = await storage.getAllRecipes(userId, familyId);
       }
       
       // Apply category filter
@@ -161,7 +169,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = getCurrentUser(req);
       const userId = user?.id;
       
-      const recipe = await storage.getRecipeById(id, userId);
+      if (!userId) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(userId);
+      const familyId = userFamilies[0]?.id; // Use first family for now
+      
+      const recipe = await storage.getRecipeById(id, userId, familyId);
       
       if (!recipe) {
         return res.status(404).json({ error: "Receta no encontrada" });
@@ -248,11 +264,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = getCurrentUser(req);
       const userId = user?.id;
       
+      if (!userId) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(userId);
+      const familyId = userFamilies[0]?.id; // Use first family for now
+      
       let mealPlans;
       if (startDate) {
-        mealPlans = await storage.getMealPlansForWeek(startDate as string, userId);
+        mealPlans = await storage.getMealPlansForWeek(startDate as string, userId, familyId);
       } else if (date) {
-        mealPlans = await storage.getMealPlanByDate(date as string, userId);
+        mealPlans = await storage.getMealPlanByDate(date as string, userId, familyId);
       } else {
         // Default to current week
         const today = new Date();
@@ -265,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const month = String(startOfWeek.getMonth() + 1).padStart(2, '0');
         const day = String(startOfWeek.getDate()).padStart(2, '0');
         const formattedDate = `${year}-${month}-${day}`;
-        mealPlans = await storage.getMealPlansForWeek(formattedDate, userId);
+        mealPlans = await storage.getMealPlansForWeek(formattedDate, userId, familyId);
       }
       
       res.json(mealPlans);
