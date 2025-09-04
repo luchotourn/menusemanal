@@ -6,6 +6,7 @@ import { users, insertUserSchema, loginSchema, updateProfileSchema, changePasswo
 import { eq } from "drizzle-orm";
 import { authRateLimit, isAuthenticated } from "./middleware";
 import { z } from "zod";
+import { storage } from "../storage";
 
 const authRouter = Router();
 
@@ -46,7 +47,6 @@ authRouter.post("/register", authRateLimit, async (req: Request, res: Response) 
         name: users.name,
         avatar: users.avatar,
         role: users.role,
-        familyId: users.familyId,
         notificationPreferences: users.notificationPreferences,
         loginAttempts: users.loginAttempts,
         lastLoginAttempt: users.lastLoginAttempt,
@@ -127,8 +127,7 @@ authRouter.post("/login", authRateLimit, async (req: Request, res: Response, nex
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            familyId: user.familyId
+            role: user.role
           }
         });
       });
@@ -192,7 +191,6 @@ authRouter.get("/me", isAuthenticated, (req: Request, res: Response) => {
       email: user.email,
       name: user.name,
       role: user.role,
-      familyId: user.familyId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     }
@@ -215,32 +213,50 @@ authRouter.get("/status", (req: Request, res: Response) => {
 // Profile Management Routes
 
 // Get user profile
-authRouter.get("/profile", isAuthenticated, (req: Request, res: Response) => {
-  const user = req.user as any;
-  
-  // Parse notification preferences from JSON string
-  let notificationPreferences;
+authRouter.get("/profile", isAuthenticated, async (req: Request, res: Response) => {
   try {
-    notificationPreferences = user.notificationPreferences 
-      ? JSON.parse(user.notificationPreferences) 
-      : { email: true, recipes: true, mealPlans: true };
-  } catch (error) {
-    notificationPreferences = { email: true, recipes: true, mealPlans: true };
-  }
-
-  res.json({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      avatar: user.avatar,
-      role: user.role,
-      familyId: user.familyId,
-      notificationPreferences,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+    const user = req.user as any;
+    
+    // Parse notification preferences from JSON string
+    let notificationPreferences;
+    try {
+      notificationPreferences = user.notificationPreferences 
+        ? JSON.parse(user.notificationPreferences) 
+        : { email: true, recipes: true, mealPlans: true };
+    } catch (error) {
+      notificationPreferences = { email: true, recipes: true, mealPlans: true };
     }
-  });
+
+    // Get user's families to provide correct family information
+    const userFamilies = await storage.getUserFamilies(user.id);
+    const primaryFamily = userFamilies[0]; // Use first family as primary
+
+    // Add no-cache headers to ensure fresh data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        role: user.role,
+        familyId: primaryFamily?.id,
+        familyName: primaryFamily?.nombre || primaryFamily?.name,
+        familyInviteCode: primaryFamily?.codigoInvitacion || primaryFamily?.inviteCode,
+        notificationPreferences,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    res.status(500).json({ error: "Error al obtener el perfil del usuario" });
+  }
 });
 
 // Update user profile
@@ -293,7 +309,6 @@ authRouter.put("/profile", isAuthenticated, async (req: Request, res: Response) 
         name: users.name,
         avatar: users.avatar,
         role: users.role,
-        familyId: users.familyId,
         notificationPreferences: users.notificationPreferences,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,

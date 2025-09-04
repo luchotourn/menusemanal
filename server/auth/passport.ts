@@ -100,19 +100,7 @@ passport.serializeUser((user: any, done) => {
 passport.deserializeUser(async (id: number, done) => {
   try {
     const [user] = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        avatar: users.avatar,
-        role: users.role,
-        familyId: users.familyId,
-        notificationPreferences: users.notificationPreferences,
-        loginAttempts: users.loginAttempts,
-        lastLoginAttempt: users.lastLoginAttempt,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
+      .select()
       .from(users)
       .where(eq(users.id, id))
       .limit(1);

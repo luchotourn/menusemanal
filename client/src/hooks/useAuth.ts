@@ -11,7 +11,9 @@ interface AuthResponse {
     email: string;
     name: string;
     role: string;
-    familyId?: string;
+    familyId?: number;
+    familyName?: string;
+    familyInviteCode?: string;
     avatar?: string;
     notificationPreferences?: {
       email: boolean;
@@ -69,7 +71,7 @@ export function useAuth() {
           name: data.fullName,
           email: data.email,
           password: data.password,
-          role: data.role === "creator" ? "admin" : "member"
+          role: data.role
         }),
       });
     },
@@ -151,7 +153,7 @@ export function useProfile() {
     queryFn: async () => {
       return await jsonApiRequest<AuthResponse>(`/api/auth/profile`);
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Always fetch fresh data
   });
 
   const updateProfileMutation = useMutation({
