@@ -165,7 +165,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
     if (ingredientInput.trim()) {
       setFormData(prev => ({
         ...prev,
-        ingredientes: [...prev.ingredientes, ingredientInput.trim()]
+        ingredientes: [...(prev.ingredientes || []), ingredientInput.trim()]
       }));
       setIngredientInput("");
     }
@@ -174,7 +174,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
   const removeIngredient = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      ingredientes: prev.ingredientes.filter((_, i) => i !== index)
+      ingredientes: (prev.ingredientes || []).filter((_, i) => i !== index)
     }));
   };
 
@@ -186,7 +186,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
             key={i}
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, calificacionNinos: i + 1 }))}
-            className={`text-2xl ${i < formData.calificacionNinos ? "text-app-accent" : "text-gray-300"}`}
+            className={`text-2xl ${i < (formData.calificacionNinos || 0) ? "text-app-accent" : "text-gray-300"}`}
           >
             <Star className="w-6 h-6 fill-current" />
           </button>
@@ -239,7 +239,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
             <Label htmlFor="descripcion">Descripción</Label>
             <Textarea
               id="descripcion"
-              value={formData.descripcion}
+              value={formData.descripcion || ""}
               onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
               placeholder="Describe brevemente la receta..."
               rows={3}
@@ -250,7 +250,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
             <Label htmlFor="imagen">URL de Imagen (opcional)</Label>
             <Input
               id="imagen"
-              value={formData.imagen}
+              value={formData.imagen || ""}
               onChange={(e) => setFormData(prev => ({ ...prev, imagen: e.target.value }))}
               placeholder="https://ejemplo.com/imagen.jpg"
               type="url"
@@ -274,7 +274,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
             <Input
               id="enlaceExterno"
               type="url"
-              value={formData.enlaceExterno}
+              value={formData.enlaceExterno || ""}
               onChange={(e) => setFormData(prev => ({ ...prev, enlaceExterno: e.target.value }))}
               placeholder="https://ejemplo.com/receta"
             />
@@ -304,9 +304,9 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
                   Agregar
                 </Button>
               </div>
-              {formData.ingredientes.length > 0 && (
+              {(formData.ingredientes || []).length > 0 && (
                 <div className="space-y-2">
-                  {formData.ingredientes.map((ingrediente, index) => (
+                  {(formData.ingredientes || []).map((ingrediente, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                       <span className="text-sm">{ingrediente}</span>
                       <Button
@@ -329,7 +329,7 @@ export function AddRecipeModal({ isOpen, onClose, recipe }: AddRecipeModalProps)
             <Label htmlFor="instrucciones">Instrucciones</Label>
             <Textarea
               id="instrucciones"
-              value={formData.instrucciones}
+              value={formData.instrucciones || ""}
               onChange={(e) => setFormData(prev => ({ ...prev, instrucciones: e.target.value }))}
               placeholder="Paso a paso para preparar la receta..."
               rows={4}

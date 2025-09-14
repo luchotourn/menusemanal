@@ -246,8 +246,8 @@ authRouter.get("/profile", isAuthenticated, async (req: Request, res: Response) 
         avatar: user.avatar,
         role: user.role,
         familyId: primaryFamily?.id,
-        familyName: primaryFamily?.nombre || primaryFamily?.name,
-        familyInviteCode: primaryFamily?.codigoInvitacion || primaryFamily?.inviteCode,
+        familyName: primaryFamily?.nombre,
+        familyInviteCode: primaryFamily?.codigoInvitacion,
         notificationPreferences,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt

@@ -78,28 +78,42 @@ export default function Settings() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="notifications" className="font-medium">Notificaciones</Label>
-                    <p className="text-sm text-gray-600">Recibir recordatorios de comidas</p>
-                  </div>
-                  <Switch id="notifications" />
-                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setLocation("/family-settings")}
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Gestionar Familia
+                </Button>
+                <p className="text-sm text-gray-600">
+                  Crea o únete a una familia, gestiona miembros y comparte códigos de invitación
+                </p>
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="weekly-planning" className="font-medium">Planificación Semanal</Label>
-                    <p className="text-sm text-gray-600">Mostrar próxima semana automáticamente</p>
+                <div className="pt-2 border-t space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="notifications" className="font-medium">Notificaciones</Label>
+                      <p className="text-sm text-gray-600">Recibir recordatorios de comidas</p>
+                    </div>
+                    <Switch id="notifications" />
                   </div>
-                  <Switch id="weekly-planning" defaultChecked />
-                </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="weekly-planning" className="font-medium">Planificación Semanal</Label>
+                      <p className="text-sm text-gray-600">Mostrar próxima semana automáticamente</p>
+                    </div>
+                    <Switch id="weekly-planning" defaultChecked />
+                  </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="kid-ratings" className="font-medium">Calificaciones de los Chicos</Label>
-                    <p className="text-sm text-gray-600">Permitir que los chicos califiquen</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="kid-ratings" className="font-medium">Calificaciones de los Chicos</Label>
+                      <p className="text-sm text-gray-600">Permitir que los chicos califiquen</p>
+                    </div>
+                    <Switch id="kid-ratings" defaultChecked />
                   </div>
-                  <Switch id="kid-ratings" defaultChecked />
                 </div>
               </CardContent>
             </Card>
@@ -150,35 +164,6 @@ export default function Settings() {
                   <Share2 className="w-4 h-4 mr-2" />
                   Compartir App
                 </Button>
-                
-                <div className="pt-2">
-                  <Label className="font-medium">Código de Familia</Label>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Comparte este código para que otros miembros de la familia puedan acceder
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <code className="bg-gray-100 px-3 py-2 rounded text-sm flex-1">
-                      {isLoading ? (
-                        "Cargando..."
-                      ) : (
-                        profile?.familyInviteCode || "No disponible"
-                      )}
-                    </code>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const code = profile?.familyInviteCode;
-                        if (code) {
-                          navigator.clipboard.writeText(code);
-                          toast({ title: "Código copiado al portapapeles" });
-                        }
-                      }}
-                    >
-                      Copiar
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 

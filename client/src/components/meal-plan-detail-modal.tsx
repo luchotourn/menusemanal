@@ -125,11 +125,11 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
               ) : null}
 
               {/* Kids Rating - only show if greater than 0 */}
-              {recipe.calificacionNinos > 0 ? (
+              {recipe.calificacionNinos && recipe.calificacionNinos > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Calificación de los chicos</h3>
                   <div className="flex items-center">
-                    {renderStars(recipe.calificacionNinos)}
+                    {renderStars(recipe.calificacionNinos || 0)}
                     <span className="ml-2 text-sm text-gray-600">({recipe.calificacionNinos}/5)</span>
                   </div>
                 </div>
@@ -169,7 +169,7 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
               ) : null}
 
               {/* Time - only show if greater than 0 */}
-              {recipe.tiempoPreparacion > 0 ? (
+              {recipe.tiempoPreparacion && recipe.tiempoPreparacion > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Tiempo</h3>
                   <p className="text-gray-700">{recipe.tiempoPreparacion} minutos</p>
@@ -177,7 +177,7 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
               ) : null}
 
               {/* Portions - only show if greater than 0 */}
-              {recipe.porciones > 0 ? (
+              {recipe.porciones && recipe.porciones > 0 ? (
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Porciones</h3>
                   <p className="text-gray-700">{recipe.porciones} porciones</p>
