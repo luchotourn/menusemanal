@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { jsonApiRequest } from "@/lib/queryClient";
-import type { LoginFormData, RegisterFormData, UpdateProfileData, ChangePasswordData, AvatarUploadData, AccountDeletionData } from "@shared/schema";
+import type { LoginFormData, RegisterFormData, UpdateProfileData, ChangePasswordData, AvatarUploadData, AccountDeletionData, CreateFamilyData, JoinFamilyData } from "@shared/schema";
 
 interface AuthResponse {
   message: string;
@@ -153,7 +153,8 @@ export function useProfile() {
     queryFn: async () => {
       return await jsonApiRequest<AuthResponse>(`/api/auth/profile`);
     },
-    staleTime: 0, // Always fetch fresh data
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: false, // Don't retry on failure
   });
 
   const updateProfileMutation = useMutation({
@@ -271,5 +272,249 @@ export function useProfile() {
     isChangingPassword: changePasswordMutation.isPending,
     isUploadingAvatar: uploadAvatarMutation.isPending,
     isDeletingAccount: deleteAccountMutation.isPending,
+  };
+}
+
+// Family management interfaces
+interface FamilyResponse {
+  message?: string;
+  id: number;
+  nombre: string;
+  codigoInvitacion: string;
+  createdBy: number;
+  createdAt: string;
+}
+
+interface FamilyMember {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: "admin" | "member";
+  createdAt: string;
+}
+
+interface FamilyJoinResponse {
+  message: string;
+  family: {
+    id: number;
+    nombre: string;
+  };
+}
+
+// Family management hooks
+export function useFamilies() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Get user's families
+  const familiesQuery = useQuery<FamilyResponse[]>({
+    queryKey: ["families"],
+    queryFn: async () => {
+      try {
+        // For now, we'll extract family info from the user profile
+        // The profile includes familyId, familyName, and familyInviteCode
+        const profile = await jsonApiRequest<AuthResponse>(`/api/auth/profile`);
+
+        // If user has a family, return it as an array
+        if (profile.user?.familyId) {
+          return [{
+            id: profile.user.familyId,
+            nombre: profile.user.familyName || "",
+            codigoInvitacion: profile.user.familyInviteCode || "",
+            createdBy: profile.user.id, // Assume current user for now
+            createdAt: profile.user.createdAt
+          }];
+        }
+      } catch (error) {
+        // If unauthorized or error, return empty array
+        console.error("Error fetching families:", error);
+      }
+
+      return [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry on failure
+  });
+
+  // Create family
+  const createFamilyMutation = useMutation({
+    mutationFn: async (data: CreateFamilyData): Promise<FamilyResponse> => {
+      return await jsonApiRequest<FamilyResponse>(`/api/families`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "¡Familia creada!",
+        description: `La familia "${response.nombre}" ha sido creada exitosamente.`,
+      });
+      // Force refresh of all relevant queries
+      queryClient.invalidateQueries({ queryKey: ["families"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // Also refetch immediately
+      queryClient.refetchQueries({ queryKey: ["families"] });
+      queryClient.refetchQueries({ queryKey: ["profile"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al crear familia",
+        description: error.message || "No se pudo crear la familia. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Join family
+  const joinFamilyMutation = useMutation({
+    mutationFn: async (data: JoinFamilyData): Promise<FamilyJoinResponse> => {
+      return await jsonApiRequest<FamilyJoinResponse>(`/api/families/join`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "¡Te has unido a la familia!",
+        description: response.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ["families"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al unirse a la familia",
+        description: error.message || "Código de invitación inválido o expirado.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return {
+    families: familiesQuery.data || [],
+    isLoading: familiesQuery.isLoading,
+    isError: familiesQuery.isError,
+    error: familiesQuery.error,
+    refetch: familiesQuery.refetch,
+    createFamily: createFamilyMutation.mutate,
+    joinFamily: joinFamilyMutation.mutate,
+    isCreating: createFamilyMutation.isPending,
+    isJoining: joinFamilyMutation.isPending,
+  };
+}
+
+// Family details and member management
+export function useFamily(familyId: number) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Get family details
+  const familyQuery = useQuery<FamilyResponse>({
+    queryKey: ["family", familyId],
+    queryFn: async () => {
+      return await jsonApiRequest<FamilyResponse>(`/api/families/${familyId}`);
+    },
+    enabled: !!familyId,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  // Get family members
+  const membersQuery = useQuery<FamilyMember[]>({
+    queryKey: ["family", familyId, "members"],
+    queryFn: async () => {
+      return await jsonApiRequest<FamilyMember[]>(`/api/families/${familyId}/members`);
+    },
+    enabled: !!familyId,
+    staleTime: 2 * 60 * 1000,
+    retry: false,
+  });
+
+  // Remove member (admin only)
+  const removeMemberMutation = useMutation({
+    mutationFn: async (userId: number): Promise<{ message: string }> => {
+      return await jsonApiRequest<{ message: string }>(`/api/families/${familyId}/members/${userId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Miembro removido",
+        description: response.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ["family", familyId, "members"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al remover miembro",
+        description: error.message || "No se pudo remover el miembro.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Leave family
+  const leaveFamilyMutation = useMutation({
+    mutationFn: async (): Promise<{ message: string }> => {
+      return await jsonApiRequest<{ message: string }>(`/api/families/${familyId}/leave`, {
+        method: "POST",
+      });
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Has abandonado la familia",
+        description: response.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ["families"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al abandonar familia",
+        description: error.message || "No se pudo abandonar la familia.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Regenerate invitation code (admin only)
+  const regenerateCodeMutation = useMutation({
+    mutationFn: async (): Promise<{ message: string; codigoInvitacion: string }> => {
+      return await jsonApiRequest<{ message: string; codigoInvitacion: string }>(`/api/families/${familyId}/regenerate-code`, {
+        method: "POST",
+      });
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Código regenerado",
+        description: response.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ["family", familyId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al regenerar código",
+        description: error.message || "No se pudo regenerar el código.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return {
+    family: familyQuery.data,
+    members: membersQuery.data || [],
+    isLoadingFamily: familyQuery.isLoading,
+    isLoadingMembers: membersQuery.isLoading,
+    isError: familyQuery.isError || membersQuery.isError,
+    error: familyQuery.error || membersQuery.error,
+    refetchFamily: familyQuery.refetch,
+    refetchMembers: membersQuery.refetch,
+    removeMember: removeMemberMutation.mutate,
+    leaveFamily: leaveFamilyMutation.mutate,
+    regenerateCode: regenerateCodeMutation.mutate,
+    isRemoving: removeMemberMutation.isPending,
+    isLeaving: leaveFamilyMutation.isPending,
+    isRegenerating: regenerateCodeMutation.isPending,
   };
 }

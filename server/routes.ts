@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth } from "./db";
 import authRouter from "./auth/routes";
-import { apiRateLimit, isAuthenticated, attachUser, getCurrentUser } from "./auth/middleware";
+import { apiRateLimit, familyCodeRateLimit, isAuthenticated, attachUser, getCurrentUser } from "./auth/middleware";
+import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Smart health check at root - serves health check for deployment systems, React app for browsers
@@ -375,6 +376,322 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Plan de comida eliminado exitosamente" });
     } catch (error) {
       res.status(500).json({ error: "Error al eliminar el plan de comida" });
+    }
+  });
+
+  // Family management endpoints
+  
+  // Create a new family
+  app.post("/api/families", familyCodeRateLimit, isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const { nombre } = createFamilySchema.parse(req.body);
+      
+      // Generate unique invitation code with retry logic
+      let codigoInvitacion = generateInvitationCode();
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      while (attempts < maxAttempts) {
+        const existingFamily = await storage.getFamilyByInviteCode(codigoInvitacion);
+        if (!existingFamily) {
+          break;
+        }
+        codigoInvitacion = generateInvitationCode();
+        attempts++;
+      }
+      
+      if (attempts === maxAttempts) {
+        return res.status(500).json({ error: "No se pudo generar un código único" });
+      }
+      
+      // Create family
+      const family = await storage.createFamily({
+        nombre,
+        codigoInvitacion,
+        createdBy: user.id
+      });
+      
+      // Automatically add creator as first member
+      await storage.addUserToFamily(family.id, user.id);
+      
+      res.status(201).json(family);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos de familia inválidos", details: error.errors });
+      }
+      console.error("Error creating family:", error);
+      res.status(500).json({ error: "Error al crear la familia" });
+    }
+  });
+  
+  // Get family details
+  app.get("/api/families/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const familyId = parseInt(req.params.id);
+      
+      // Check if user belongs to this family
+      const isMember = await storage.isUserInFamily(user.id, familyId);
+      if (!isMember) {
+        return res.status(403).json({ error: "No tienes acceso a esta familia" });
+      }
+      
+      const family = await storage.getFamilyById(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Familia no encontrada" });
+      }
+      
+      res.json(family);
+    } catch (error) {
+      console.error("Error fetching family:", error);
+      res.status(500).json({ error: "Error al obtener la familia" });
+    }
+  });
+  
+  // Join family with invitation code
+  app.post("/api/families/join", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const { codigoInvitacion } = joinFamilySchema.parse(req.body);
+      
+      // Normalize and validate code format
+      const normalizedCode = normalizeInvitationCode(codigoInvitacion);
+      if (!isValidInvitationCodeFormat(normalizedCode)) {
+        return res.status(400).json({ error: "Formato de código inválido" });
+      }
+      
+      // Find family by invitation code
+      const family = await storage.getFamilyByInviteCode(normalizedCode);
+      if (!family) {
+        return res.status(404).json({ error: "Código de invitación inválido" });
+      }
+      
+      // Check if user is already a member
+      const isAlreadyMember = await storage.isUserInFamily(user.id, family.id);
+      if (isAlreadyMember) {
+        return res.status(400).json({ error: "Ya eres miembro de esta familia" });
+      }
+      
+      // Add user to family
+      await storage.addUserToFamily(family.id, user.id);
+      
+      res.json({ 
+        message: "Te has unido a la familia exitosamente",
+        family: {
+          id: family.id,
+          nombre: family.nombre
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Código de invitación requerido", details: error.errors });
+      }
+      console.error("Error joining family:", error);
+      res.status(500).json({ error: "Error al unirse a la familia" });
+    }
+  });
+  
+  // Get family members
+  app.get("/api/families/:id/members", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const familyId = parseInt(req.params.id);
+      
+      // Check if user belongs to this family
+      const isMember = await storage.isUserInFamily(user.id, familyId);
+      if (!isMember) {
+        return res.status(403).json({ error: "No tienes acceso a esta familia" });
+      }
+      
+      const members = await storage.getFamilyMembers(familyId);
+      
+      // Get family details to identify the creator
+      const family = await storage.getFamilyById(familyId);
+      
+      // Add role information to members
+      const membersWithRoles = members.map(member => ({
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        avatar: member.avatar,
+        role: member.id === family?.createdBy ? "admin" : "member",
+        createdAt: member.createdAt
+      }));
+      
+      res.json(membersWithRoles);
+    } catch (error) {
+      console.error("Error fetching family members:", error);
+      res.status(500).json({ error: "Error al obtener los miembros de la familia" });
+    }
+  });
+  
+  // Remove family member (admin only)
+  app.delete("/api/families/:id/members/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const familyId = parseInt(req.params.id);
+      const targetUserId = parseInt(req.params.userId);
+      
+      // Get family to check if current user is admin
+      const family = await storage.getFamilyById(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Familia no encontrada" });
+      }
+      
+      // Check if current user is admin (creator)
+      if (user.id !== family.createdBy) {
+        return res.status(403).json({ error: "Solo el administrador puede remover miembros" });
+      }
+      
+      // Prevent admin from removing themselves
+      if (user.id === targetUserId) {
+        return res.status(400).json({ error: "No puedes removerte a ti mismo como administrador" });
+      }
+      
+      // Check if target user is actually a member
+      const isMember = await storage.isUserInFamily(targetUserId, familyId);
+      if (!isMember) {
+        return res.status(400).json({ error: "El usuario no es miembro de esta familia" });
+      }
+      
+      // Remove user from family
+      const removed = await storage.removeUserFromFamily(familyId, targetUserId);
+      if (!removed) {
+        return res.status(500).json({ error: "Error al remover el miembro" });
+      }
+      
+      res.json({ message: "Miembro removido exitosamente" });
+    } catch (error) {
+      console.error("Error removing family member:", error);
+      res.status(500).json({ error: "Error al remover el miembro de la familia" });
+    }
+  });
+  
+  // Leave family
+  app.post("/api/families/:id/leave", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const familyId = parseInt(req.params.id);
+      
+      // Get family to check if user is admin
+      const family = await storage.getFamilyById(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Familia no encontrada" });
+      }
+      
+      // Prevent admin from leaving if there are other members
+      if (user.id === family.createdBy) {
+        const members = await storage.getFamilyMembers(familyId);
+        if (members.length > 1) {
+          return res.status(400).json({ 
+            error: "Como administrador, no puedes abandonar la familia mientras tenga otros miembros. Transfiere la administración o remueve a los demás miembros primero." 
+          });
+        }
+        
+        // If admin is the only member, delete the entire family
+        await storage.deleteFamily(familyId);
+        return res.json({ message: "Has abandonado y eliminado la familia" });
+      }
+      
+      // Check if user is actually a member
+      const isMember = await storage.isUserInFamily(user.id, familyId);
+      if (!isMember) {
+        return res.status(400).json({ error: "No eres miembro de esta familia" });
+      }
+      
+      // Remove user from family
+      const removed = await storage.removeUserFromFamily(familyId, user.id);
+      if (!removed) {
+        return res.status(500).json({ error: "Error al abandonar la familia" });
+      }
+      
+      res.json({ message: "Has abandonado la familia exitosamente" });
+    } catch (error) {
+      console.error("Error leaving family:", error);
+      res.status(500).json({ error: "Error al abandonar la familia" });
+    }
+  });
+  
+  // Regenerate invitation code (admin only)
+  app.post("/api/families/:id/regenerate-code", familyCodeRateLimit, isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+      
+      const familyId = parseInt(req.params.id);
+      
+      // Get family to check if current user is admin
+      const family = await storage.getFamilyById(familyId);
+      if (!family) {
+        return res.status(404).json({ error: "Familia no encontrada" });
+      }
+      
+      // Check if current user is admin (creator)
+      if (user.id !== family.createdBy) {
+        return res.status(403).json({ error: "Solo el administrador puede regenerar códigos" });
+      }
+      
+      // Generate new unique invitation code
+      let newCode = generateInvitationCode();
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      while (attempts < maxAttempts) {
+        const existingFamily = await storage.getFamilyByInviteCode(newCode);
+        if (!existingFamily || existingFamily.id === familyId) {
+          break;
+        }
+        newCode = generateInvitationCode();
+        attempts++;
+      }
+      
+      if (attempts === maxAttempts) {
+        return res.status(500).json({ error: "No se pudo generar un código único" });
+      }
+      
+      // Update family with new code
+      const updatedFamily = await storage.updateFamily(familyId, { 
+        codigoInvitacion: newCode 
+      });
+      
+      if (!updatedFamily) {
+        return res.status(500).json({ error: "Error al actualizar el código" });
+      }
+      
+      res.json({ 
+        message: "Código de invitación regenerado exitosamente",
+        codigoInvitacion: newCode
+      });
+    } catch (error) {
+      console.error("Error regenerating invitation code:", error);
+      res.status(500).json({ error: "Error al regenerar el código de invitación" });
     }
   });
 

@@ -15,7 +15,7 @@ import {
   type User
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, like, or, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, like, or, inArray, SQL } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
@@ -337,37 +337,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecipeById(id: number, userId?: number, familyId?: number): Promise<Recipe | undefined> {
-    let conditions = eq(recipes.id, id);
+    const conditions = [eq(recipes.id, id)];
     
     if (familyId) {
-      conditions = and(conditions, eq(recipes.familyId, familyId));
+      conditions.push(eq(recipes.familyId, familyId));
     } else if (userId) {
-      conditions = and(conditions, eq(recipes.userId, userId));
+      conditions.push(eq(recipes.userId, userId));
     }
     
-    const [recipe] = await db.select().from(recipes).where(conditions);
+    const [recipe] = await db.select().from(recipes).where(and(...conditions));
     return recipe || undefined;
   }
 
   async getRecipesByCategory(categoria: string, userId?: number, familyId?: number): Promise<Recipe[]> {
-    let conditions = eq(recipes.categoria, categoria);
-    
+    let conditions: SQL<unknown> = eq(recipes.categoria, categoria);
+
     if (familyId) {
-      conditions = and(conditions, eq(recipes.familyId, familyId));
+      conditions = and(conditions, eq(recipes.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(recipes.userId, userId));
+      conditions = and(conditions, eq(recipes.userId, userId)) ?? conditions;
     }
-    
+
     return await db.select().from(recipes).where(conditions);
   }
 
   async getFavoriteRecipes(userId?: number, familyId?: number): Promise<Recipe[]> {
-    let conditions = eq(recipes.esFavorita, 1);
-    
+    let conditions: SQL<unknown> = eq(recipes.esFavorita, 1);
+
     if (familyId) {
-      conditions = and(conditions, eq(recipes.familyId, familyId));
+      conditions = and(conditions, eq(recipes.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(recipes.userId, userId));
+      conditions = and(conditions, eq(recipes.userId, userId)) ?? conditions;
     }
     
     return await db.select().from(recipes).where(conditions);
@@ -404,9 +404,9 @@ export class DatabaseStorage implements IStorage {
     let conditions = eq(recipes.id, id);
     
     if (familyId) {
-      conditions = and(conditions, eq(recipes.familyId, familyId));
+      conditions = and(conditions, eq(recipes.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(recipes.userId, userId));
+      conditions = and(conditions, eq(recipes.userId, userId)) ?? conditions;
     }
     
     const [recipe] = await db
@@ -422,9 +422,9 @@ export class DatabaseStorage implements IStorage {
       let conditions = eq(recipes.id, id);
       
       if (familyId) {
-        conditions = and(conditions, eq(recipes.familyId, familyId));
+        conditions = and(conditions, eq(recipes.familyId, familyId)) ?? conditions;
       } else if (userId) {
-        conditions = and(conditions, eq(recipes.userId, userId));
+        conditions = and(conditions, eq(recipes.userId, userId)) ?? conditions;
       }
       
       const result = await db.delete(recipes).where(conditions);
@@ -440,9 +440,9 @@ export class DatabaseStorage implements IStorage {
       let conditions = eq(mealPlans.recetaId, recipeId);
       
       if (familyId) {
-        conditions = and(conditions, eq(mealPlans.familyId, familyId));
+        conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
       } else if (userId) {
-        conditions = and(conditions, eq(mealPlans.userId, userId));
+        conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
       }
       
       const result = await db.select().from(mealPlans).where(conditions).limit(1);
@@ -470,9 +470,9 @@ export class DatabaseStorage implements IStorage {
     );
     
     if (familyId) {
-      conditions = and(conditions, eq(mealPlans.familyId, familyId));
+      conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(mealPlans.userId, userId));
+      conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
     }
     
     return await db.select().from(mealPlans).where(conditions);
@@ -482,9 +482,9 @@ export class DatabaseStorage implements IStorage {
     let conditions = eq(mealPlans.fecha, fecha);
     
     if (familyId) {
-      conditions = and(conditions, eq(mealPlans.familyId, familyId));
+      conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(mealPlans.userId, userId));
+      conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
     }
     
     return await db.select().from(mealPlans).where(conditions);
@@ -497,9 +497,9 @@ export class DatabaseStorage implements IStorage {
     );
     
     if (familyId) {
-      conditions = and(conditions, eq(mealPlans.familyId, familyId));
+      conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(mealPlans.userId, userId));
+      conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
     }
     
     const [mealPlan] = await db.select().from(mealPlans).where(conditions);
@@ -518,9 +518,9 @@ export class DatabaseStorage implements IStorage {
     let conditions = eq(mealPlans.id, id);
     
     if (familyId) {
-      conditions = and(conditions, eq(mealPlans.familyId, familyId));
+      conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(mealPlans.userId, userId));
+      conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
     }
     
     const [mealPlan] = await db
@@ -535,9 +535,9 @@ export class DatabaseStorage implements IStorage {
     let conditions = eq(mealPlans.id, id);
     
     if (familyId) {
-      conditions = and(conditions, eq(mealPlans.familyId, familyId));
+      conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
     } else if (userId) {
-      conditions = and(conditions, eq(mealPlans.userId, userId));
+      conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
     }
     
     const result = await db.delete(mealPlans).where(conditions);

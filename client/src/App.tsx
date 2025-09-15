@@ -10,6 +10,7 @@ import Recipes from "@/pages/recipes";
 import Favorites from "@/pages/favorites";
 import Settings from "@/pages/settings";
 import Profile from "@/pages/profile";
+import FamilySettings from "@/pages/family-settings";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
@@ -28,6 +29,7 @@ function Router() {
         <Route path="/favorites" component={Favorites} />
         <Route path="/settings" component={Settings} />
         <Route path="/profile" component={Profile} />
+        <Route path="/family-settings" component={FamilySettings} />
         <Route component={NotFound} />
       </Switch>
       

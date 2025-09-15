@@ -72,6 +72,22 @@ export const apiRateLimit = rateLimit({
   skipSuccessfulRequests: false,
 });
 
+// Rate limiting for family code generation/regeneration
+export const familyCodeRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 code generation requests per hour
+  message: "Demasiados intentos de generación de códigos. Por favor intente de nuevo más tarde.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Only count failed attempts
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Límite de generación de códigos alcanzado. Por favor espere 1 hora antes de generar nuevos códigos.",
+      error: "TOO_MANY_REQUESTS"
+    });
+  }
+});
+
 // Helper to get current user from request
 export const getCurrentUser = (req: Request): User | null => {
   if (req.isAuthenticated() && req.user) {
