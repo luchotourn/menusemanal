@@ -1,18 +1,24 @@
-import { 
-  recipes, 
-  mealPlans, 
+import {
+  recipes,
+  mealPlans,
   families,
   familyMembers,
   users,
-  type Recipe, 
-  type InsertRecipe, 
-  type MealPlan, 
+  recipeRatings,
+  mealComments,
+  type Recipe,
+  type InsertRecipe,
+  type MealPlan,
   type InsertMealPlan,
   type Family,
   type InsertFamily,
   type FamilyMember,
   type InsertFamilyMember,
-  type User
+  type User,
+  type RecipeRating,
+  type InsertRecipeRating,
+  type MealComment,
+  type InsertMealComment
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, like, or, inArray, SQL } from "drizzle-orm";
@@ -48,6 +54,17 @@ export interface IStorage {
   isUserInFamily(userId: number, familyId: number): Promise<boolean>;
   updateFamily(id: number, family: Partial<InsertFamily>): Promise<Family | undefined>;
   deleteFamily(id: number): Promise<boolean>;
+
+  // Recipe rating methods (commentator features)
+  setRecipeRating(recipeId: number, userId: number, familyId: number, rating: number, comment?: string): Promise<RecipeRating>;
+  getRecipeRating(recipeId: number, userId: number): Promise<RecipeRating | undefined>;
+  getRecipeRatings(recipeId: number, familyId: number): Promise<RecipeRating[]>;
+  getAverageRecipeRating(recipeId: number, familyId: number): Promise<number>;
+
+  // Meal comment methods (commentator features)
+  addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment>;
+  getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]>;
+  deleteMealComment(commentId: number, userId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -457,25 +474,39 @@ export class DatabaseStorage implements IStorage {
     const start = new Date(startDate);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
-    
+
     // Format end date correctly in local timezone
     const year = end.getFullYear();
     const month = String(end.getMonth() + 1).padStart(2, '0');
     const day = String(end.getDate()).padStart(2, '0');
     const endDateStr = `${year}-${month}-${day}`;
-    
+
     let conditions = and(
       gte(mealPlans.fecha, startDate),
       lte(mealPlans.fecha, endDateStr)
     );
-    
+
     if (familyId) {
       conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
     } else if (userId) {
       conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
     }
-    
-    return await db.select().from(mealPlans).where(conditions);
+
+    return await db.select({
+      id: mealPlans.id,
+      fecha: mealPlans.fecha,
+      tipoComida: mealPlans.tipoComida,
+      recetaId: mealPlans.recetaId,
+      notas: mealPlans.notas,
+      userId: mealPlans.userId,
+      familyId: mealPlans.familyId,
+      createdAt: mealPlans.createdAt,
+      updatedAt: mealPlans.updatedAt,
+      recipe: recipes
+    })
+    .from(mealPlans)
+    .leftJoin(recipes, eq(mealPlans.recetaId, recipes.id))
+    .where(conditions);
   }
 
   async getMealPlanByDate(fecha: string, userId?: number, familyId?: number): Promise<MealPlan[]> {
@@ -644,6 +675,116 @@ export class DatabaseStorage implements IStorage {
   async deleteFamily(id: number): Promise<boolean> {
     // Note: Cascade delete will handle family_members, recipes, and meal_plans
     const result = await db.delete(families).where(eq(families.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Recipe rating methods (commentator features)
+  async setRecipeRating(recipeId: number, userId: number, familyId: number, rating: number, comment?: string): Promise<RecipeRating> {
+    // Check if rating already exists for this user and recipe
+    const existingRating = await db
+      .select()
+      .from(recipeRatings)
+      .where(and(
+        eq(recipeRatings.recipeId, recipeId),
+        eq(recipeRatings.userId, userId)
+      ))
+      .limit(1);
+
+    if (existingRating.length > 0) {
+      // Update existing rating
+      const [updatedRating] = await db
+        .update(recipeRatings)
+        .set({
+          rating,
+          comment: comment || null,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(recipeRatings.recipeId, recipeId),
+          eq(recipeRatings.userId, userId)
+        ))
+        .returning();
+      return updatedRating;
+    } else {
+      // Create new rating
+      const [newRating] = await db
+        .insert(recipeRatings)
+        .values({
+          recipeId,
+          userId,
+          familyId,
+          rating,
+          comment: comment || null
+        })
+        .returning();
+      return newRating;
+    }
+  }
+
+  async getRecipeRating(recipeId: number, userId: number): Promise<RecipeRating | undefined> {
+    const [rating] = await db
+      .select()
+      .from(recipeRatings)
+      .where(and(
+        eq(recipeRatings.recipeId, recipeId),
+        eq(recipeRatings.userId, userId)
+      ))
+      .limit(1);
+    return rating || undefined;
+  }
+
+  async getRecipeRatings(recipeId: number, familyId: number): Promise<RecipeRating[]> {
+    return await db
+      .select()
+      .from(recipeRatings)
+      .where(and(
+        eq(recipeRatings.recipeId, recipeId),
+        eq(recipeRatings.familyId, familyId)
+      ))
+      .orderBy(recipeRatings.createdAt);
+  }
+
+  async getAverageRecipeRating(recipeId: number, familyId: number): Promise<number> {
+    const ratings = await this.getRecipeRatings(recipeId, familyId);
+    if (ratings.length === 0) return 0;
+
+    const total = ratings.reduce((sum, rating) => sum + rating.rating, 0);
+    return Math.round((total / ratings.length) * 100) / 100; // Round to 2 decimal places
+  }
+
+  // Meal comment methods (commentator features)
+  async addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment> {
+    const [newComment] = await db
+      .insert(mealComments)
+      .values({
+        mealPlanId,
+        userId,
+        familyId,
+        comment,
+        emoji: emoji || null
+      })
+      .returning();
+    return newComment;
+  }
+
+  async getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]> {
+    return await db
+      .select()
+      .from(mealComments)
+      .where(and(
+        eq(mealComments.mealPlanId, mealPlanId),
+        eq(mealComments.familyId, familyId)
+      ))
+      .orderBy(mealComments.createdAt);
+  }
+
+  async deleteMealComment(commentId: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(mealComments)
+      .where(and(
+        eq(mealComments.id, commentId),
+        eq(mealComments.userId, userId) // Ensure user can only delete their own comments
+      ));
     return (result.rowCount ?? 0) > 0;
   }
 }

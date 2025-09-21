@@ -54,7 +54,8 @@ export default function Register() {
   }, [password, confirmPassword, trigger]);
 
   const onSubmit = (data: RegisterFormData) => {
-    console.log("Form submitted with data:", data);
+    // Don't log sensitive data in production
+    console.log("Form submitted for user:", data.email);
     registerUser(data);
   };
 
