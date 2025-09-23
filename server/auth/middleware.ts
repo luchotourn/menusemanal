@@ -80,7 +80,7 @@ export const familyCodeRateLimit = rateLimit({
   message: "Demasiados intentos de generación de códigos. Por favor intente de nuevo más tarde.",
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Only count failed attempts
+  skipSuccessfulRequests: false, // Count all attempts to prevent spam
   handler: (req, res) => {
     res.status(429).json({
       message: "Límite de generación de códigos alcanzado. Por favor espere 1 hora antes de generar nuevos códigos.",

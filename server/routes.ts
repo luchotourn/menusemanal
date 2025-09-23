@@ -131,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's families
       const userFamilies = await storage.getUserFamilies(userId);
-      const familyId = userFamilies[0]?.id; // Use first family for now
+      const familyId = userFamilies[0]?.id; // Single family per user // Single family per user constraint
       
       let recipes;
       
@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's families
       const userFamilies = await storage.getUserFamilies(userId);
-      const familyId = userFamilies[0]?.id; // Use first family for now
+      const familyId = userFamilies[0]?.id; // Single family per user // Single family per user constraint
       
       const recipe = await storage.getRecipeById(id, userId, familyId);
       
@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's primary family
       const userFamilies = await storage.getUserFamilies(user.id);
-      const primaryFamily = userFamilies[0];
+      const primaryFamily = userFamilies[0]; // Single family per user
       
       // Ensure the recipe belongs to the current user and family
       const recipeWithUser = { 
@@ -281,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's families
       const userFamilies = await storage.getUserFamilies(userId);
-      const familyId = userFamilies[0]?.id; // Use first family
+      const familyId = userFamilies[0]?.id; // Single family per user // Single family per user constraint
 
       let mealPlans;
       if (startDate) {
@@ -320,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's primary family
       const userFamilies = await storage.getUserFamilies(user.id);
-      const primaryFamily = userFamilies[0];
+      const primaryFamily = userFamilies[0]; // Single family per user
       
       // Ensure the meal plan belongs to the current user and family
       const mealPlanWithUser = { 
@@ -715,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's families to ensure they can access this recipe
       const userFamilies = await storage.getUserFamilies(user.id);
-      const familyId = userFamilies[0]?.id;
+      const familyId = userFamilies[0]?.id; // Single family per user
 
       if (!familyId) {
         return res.status(403).json({ error: "Debes pertenecer a una familia para calificar recetas" });
@@ -728,7 +728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Store the rating (this will be implemented in storage layer)
-      const result = await storage.setRecipeRating(recipeId, user.id, rating);
+      const result = await storage.setRecipeRating(recipeId, user.id, familyId, rating);
 
       res.json({
         message: "Calificación guardada exitosamente",
@@ -783,7 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's families to ensure they can access this meal plan
       const userFamilies = await storage.getUserFamilies(user.id);
-      const familyId = userFamilies[0]?.id;
+      const familyId = userFamilies[0]?.id; // Single family per user
 
       if (!familyId) {
         return res.status(403).json({ error: "Debes pertenecer a una familia para comentar" });
@@ -826,7 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user's families to ensure they can access this meal plan
       const userFamilies = await storage.getUserFamilies(user.id);
-      const familyId = userFamilies[0]?.id;
+      const familyId = userFamilies[0]?.id; // Single family per user
 
       if (!familyId) {
         return res.status(403).json({ error: "Debes pertenecer a una familia" });

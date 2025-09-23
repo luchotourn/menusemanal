@@ -42,8 +42,9 @@ export const familyMembers = pgTable("family_members", {
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 }, (table) => {
   return {
-    familyUserIdx: uniqueIndex("family_members_family_user_idx").on(table.familyId, table.userId),
-    userIdx: index("family_members_user_idx").on(table.userId),
+    // Enforce single family per user - each user can only belong to one family
+    userIdx: uniqueIndex("family_members_user_idx").on(table.userId),
+    familyIdx: index("family_members_family_idx").on(table.familyId),
   };
 });
 

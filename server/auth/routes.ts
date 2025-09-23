@@ -229,7 +229,7 @@ authRouter.get("/profile", isAuthenticated, async (req: Request, res: Response) 
 
     // Get user's families to provide correct family information
     const userFamilies = await storage.getUserFamilies(user.id);
-    const primaryFamily = userFamilies[0]; // Use first family as primary
+    const primaryFamily = userFamilies[0]; // Single family per user constraint
 
     // Add no-cache headers to ensure fresh data
     res.set({
