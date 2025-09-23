@@ -42,8 +42,9 @@ export const familyMembers = pgTable("family_members", {
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 }, (table) => {
   return {
-    familyUserIdx: uniqueIndex("family_members_family_user_idx").on(table.familyId, table.userId),
-    userIdx: index("family_members_user_idx").on(table.userId),
+    // Enforce single family per user - each user can only belong to one family
+    userIdx: uniqueIndex("family_members_user_idx").on(table.userId),
+    familyIdx: index("family_members_family_idx").on(table.familyId),
   };
 });
 
@@ -91,6 +92,44 @@ export const mealPlans = pgTable("meal_plans", {
   };
 });
 
+// Recipe ratings table for commentator features
+export const recipeRatings = pgTable("recipe_ratings", {
+  id: serial("id").primaryKey(),
+  recipeId: integer("recipe_id").notNull().references(() => recipes.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"), // Optional comment with the rating
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    recipeUserIdx: uniqueIndex("recipe_ratings_recipe_user_idx").on(table.recipeId, table.userId),
+    familyIdx: index("recipe_ratings_family_idx").on(table.familyId),
+    recipeIdx: index("recipe_ratings_recipe_idx").on(table.recipeId),
+    userIdx: index("recipe_ratings_user_idx").on(table.userId),
+  };
+});
+
+// Meal plan comments table for commentator features
+export const mealComments = pgTable("meal_comments", {
+  id: serial("id").primaryKey(),
+  mealPlanId: integer("meal_plan_id").notNull().references(() => mealPlans.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  comment: text("comment").notNull(),
+  emoji: text("emoji"), // Optional emoji reaction
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    mealPlanIdx: index("meal_comments_meal_plan_idx").on(table.mealPlanId),
+    familyIdx: index("meal_comments_family_idx").on(table.familyId),
+    userIdx: index("meal_comments_user_idx").on(table.userId),
+    familyMealIdx: index("meal_comments_family_meal_idx").on(table.familyId, table.mealPlanId),
+  };
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   recipes: many(recipes),
@@ -99,6 +138,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdFamilies: many(families),
   createdRecipes: many(recipes),
   createdMealPlans: many(mealPlans),
+  recipeRatings: many(recipeRatings),
+  mealComments: many(mealComments),
 }));
 
 export const familiesRelations = relations(families, ({ one, many }) => ({
@@ -109,6 +150,8 @@ export const familiesRelations = relations(families, ({ one, many }) => ({
   members: many(familyMembers),
   recipes: many(recipes),
   mealPlans: many(mealPlans),
+  recipeRatings: many(recipeRatings),
+  mealComments: many(mealComments),
 }));
 
 export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
@@ -124,6 +167,7 @@ export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
 
 export const recipesRelations = relations(recipes, ({ many, one }) => ({
   mealPlans: many(mealPlans),
+  ratings: many(recipeRatings),
   user: one(users, {
     fields: [recipes.userId],
     references: [users.id],
@@ -138,11 +182,12 @@ export const recipesRelations = relations(recipes, ({ many, one }) => ({
   }),
 }));
 
-export const mealPlansRelations = relations(mealPlans, ({ one }) => ({
+export const mealPlansRelations = relations(mealPlans, ({ many, one }) => ({
   recipe: one(recipes, {
     fields: [mealPlans.recetaId],
     references: [recipes.id],
   }),
+  comments: many(mealComments),
   user: one(users, {
     fields: [mealPlans.userId],
     references: [users.id],
@@ -153,6 +198,38 @@ export const mealPlansRelations = relations(mealPlans, ({ one }) => ({
   }),
   family: one(families, {
     fields: [mealPlans.familyId],
+    references: [families.id],
+  }),
+}));
+
+// Recipe ratings relations
+export const recipeRatingsRelations = relations(recipeRatings, ({ one }) => ({
+  recipe: one(recipes, {
+    fields: [recipeRatings.recipeId],
+    references: [recipes.id],
+  }),
+  user: one(users, {
+    fields: [recipeRatings.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [recipeRatings.familyId],
+    references: [families.id],
+  }),
+}));
+
+// Meal comments relations
+export const mealCommentsRelations = relations(mealComments, ({ one }) => ({
+  mealPlan: one(mealPlans, {
+    fields: [mealComments.mealPlanId],
+    references: [mealPlans.id],
+  }),
+  user: one(users, {
+    fields: [mealComments.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [mealComments.familyId],
     references: [families.id],
   }),
 }));
@@ -204,6 +281,25 @@ export const insertMealPlanSchema = createInsertSchema(mealPlans).omit({
   updatedAt: true,
 });
 
+// Commentator feature schemas
+export const insertRecipeRatingSchema = createInsertSchema(recipeRatings, {
+  rating: z.number().int().min(1, "La calificación debe ser al menos 1").max(5, "La calificación debe ser máximo 5"),
+  comment: z.string().max(500, "El comentario es demasiado largo").optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMealCommentSchema = createInsertSchema(mealComments, {
+  comment: z.string().min(1, "El comentario es requerido").max(500, "El comentario es demasiado largo"),
+  emoji: z.string().max(10, "El emoji es demasiado largo").optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -216,6 +312,10 @@ export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
 export type Recipe = typeof recipes.$inferSelect;
 export type InsertMealPlan = z.infer<typeof insertMealPlanSchema>;
 export type MealPlan = typeof mealPlans.$inferSelect;
+export type RecipeRating = typeof recipeRatings.$inferSelect;
+export type InsertRecipeRating = z.infer<typeof insertRecipeRatingSchema>;
+export type MealComment = typeof mealComments.$inferSelect;
+export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 

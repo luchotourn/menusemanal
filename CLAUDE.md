@@ -131,3 +131,4 @@ npm run check
   - `menu-semanal-mobile.png` - Mobile view (375x667)
   
   The script uses Puppeteer to capture both responsive layouts and requires the dev server to be running.
+- Be aware of data migration issues, as this will appear in the future when we finalize the implementantion of multi-fanily system. Wathch out of database integrity and orphaned records, and fix whatever necesary

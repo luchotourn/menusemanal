@@ -5,7 +5,7 @@ import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamil
 import { z } from "zod";
 import { checkDatabaseHealth } from "./db";
 import authRouter from "./auth/routes";
-import { apiRateLimit, familyCodeRateLimit, isAuthenticated, attachUser, getCurrentUser } from "./auth/middleware";
+import { apiRateLimit, familyCodeRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -131,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's families
       const userFamilies = await storage.getUserFamilies(userId);
-      const familyId = userFamilies[0]?.id; // Use first family for now
+      const familyId = userFamilies[0]?.id; // Single family per user // Single family per user constraint
       
       let recipes;
       
@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's families
       const userFamilies = await storage.getUserFamilies(userId);
-      const familyId = userFamilies[0]?.id; // Use first family for now
+      const familyId = userFamilies[0]?.id; // Single family per user // Single family per user constraint
       
       const recipe = await storage.getRecipeById(id, userId, familyId);
       
@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/recipes", isAuthenticated, async (req, res) => {
+  app.post("/api/recipes", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {
@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's primary family
       const userFamilies = await storage.getUserFamilies(user.id);
-      const primaryFamily = userFamilies[0];
+      const primaryFamily = userFamilies[0]; // Single family per user
       
       // Ensure the recipe belongs to the current user and family
       const recipeWithUser = { 
@@ -220,7 +220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/recipes/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/recipes/:id", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
@@ -242,7 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/recipes/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/recipes/:id", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
@@ -274,15 +274,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { startDate, date } = req.query;
       const user = getCurrentUser(req);
       const userId = user?.id;
-      
+
       if (!userId) {
         return res.status(401).json({ error: "Usuario no autenticado" });
       }
-      
+
       // Get user's families
       const userFamilies = await storage.getUserFamilies(userId);
-      const familyId = userFamilies[0]?.id; // Use first family for now
-      
+      const familyId = userFamilies[0]?.id; // Single family per user // Single family per user constraint
+
       let mealPlans;
       if (startDate) {
         mealPlans = await storage.getMealPlansForWeek(startDate as string, userId, familyId);
@@ -302,14 +302,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const formattedDate = `${year}-${month}-${day}`;
         mealPlans = await storage.getMealPlansForWeek(formattedDate, userId, familyId);
       }
-      
+
       res.json(mealPlans);
     } catch (error) {
       res.status(500).json({ error: "Error al obtener el plan de comidas" });
     }
   });
 
-  app.post("/api/meal-plans", isAuthenticated, async (req, res) => {
+  app.post("/api/meal-plans", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {
@@ -320,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user's primary family
       const userFamilies = await storage.getUserFamilies(user.id);
-      const primaryFamily = userFamilies[0];
+      const primaryFamily = userFamilies[0]; // Single family per user
       
       // Ensure the meal plan belongs to the current user and family
       const mealPlanWithUser = { 
@@ -339,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/meal-plans/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/meal-plans/:id", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
@@ -361,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/meal-plans/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/meal-plans/:id", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Family management endpoints
   
   // Create a new family
-  app.post("/api/families", familyCodeRateLimit, isAuthenticated, async (req, res) => {
+  app.post("/api/families", familyCodeRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {
@@ -543,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Remove family member (admin only)
-  app.delete("/api/families/:id/members/:userId", isAuthenticated, async (req, res) => {
+  app.delete("/api/families/:id/members/:userId", isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {
@@ -638,7 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Regenerate invitation code (admin only)
-  app.post("/api/families/:id/regenerate-code", familyCodeRateLimit, isAuthenticated, async (req, res) => {
+  app.post("/api/families/:id/regenerate-code", familyCodeRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {
@@ -692,6 +692,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error regenerating invitation code:", error);
       res.status(500).json({ error: "Error al regenerar el código de invitación" });
+    }
+  });
+
+  // Commentator-specific routes
+
+  // Rate a recipe (commentators only)
+  app.post("/api/recipes/:id/rating", isAuthenticated, commentatorRateLimit, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const recipeId = parseInt(req.params.id);
+      const { rating } = req.body;
+
+      // Validate rating (1-5 stars)
+      if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        return res.status(400).json({ error: "La calificación debe ser un número entero entre 1 y 5" });
+      }
+
+      // Get user's families to ensure they can access this recipe
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id; // Single family per user
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia para calificar recetas" });
+      }
+
+      // Verify recipe belongs to user's family
+      const recipe = await storage.getRecipeById(recipeId, user.id, familyId);
+      if (!recipe) {
+        return res.status(404).json({ error: "Receta no encontrada o no tienes acceso" });
+      }
+
+      // Store the rating (this will be implemented in storage layer)
+      const result = await storage.setRecipeRating(recipeId, user.id, familyId, rating);
+
+      res.json({
+        message: "Calificación guardada exitosamente",
+        rating: rating,
+        recipeId: recipeId
+      });
+    } catch (error) {
+      console.error("Error rating recipe:", error);
+      res.status(500).json({ error: "Error al guardar la calificación" });
+    }
+  });
+
+  // Get user's rating for a recipe
+  app.get("/api/recipes/:id/rating", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const recipeId = parseInt(req.params.id);
+
+      // Get user's rating for this recipe
+      const rating = await storage.getRecipeRating(recipeId, user.id);
+
+      res.json({ rating: rating || 0 });
+    } catch (error) {
+      console.error("Error fetching recipe rating:", error);
+      res.status(500).json({ error: "Error al obtener la calificación" });
+    }
+  });
+
+  // Add comment to meal plan
+  app.post("/api/meal-plans/:id/comment", isAuthenticated, commentatorRateLimit, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const mealPlanId = parseInt(req.params.id);
+      const { comment, emoji } = req.body;
+
+      // Validate comment
+      if (!comment || typeof comment !== 'string' || comment.trim().length === 0) {
+        return res.status(400).json({ error: "El comentario es requerido" });
+      }
+
+      if (comment.length > 500) {
+        return res.status(400).json({ error: "El comentario no puede exceder 500 caracteres" });
+      }
+
+      // Get user's families to ensure they can access this meal plan
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id; // Single family per user
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia para comentar" });
+      }
+
+      // Verify meal plan belongs to user's family (this will be implemented)
+      const mealPlan = await storage.getMealPlanById(mealPlanId, user.id, familyId);
+      if (!mealPlan) {
+        return res.status(404).json({ error: "Plan de comida no encontrado o no tienes acceso" });
+      }
+
+      // Store the comment
+      const result = await storage.addMealComment(mealPlanId, user.id, comment.trim(), emoji);
+
+      res.status(201).json({
+        message: "Comentario agregado exitosamente",
+        comment: {
+          id: result.id,
+          comment: comment.trim(),
+          emoji: emoji,
+          userName: user.name,
+          createdAt: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error("Error adding meal comment:", error);
+      res.status(500).json({ error: "Error al agregar el comentario" });
+    }
+  });
+
+  // Get comments for a meal plan
+  app.get("/api/meal-plans/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const mealPlanId = parseInt(req.params.id);
+
+      // Get user's families to ensure they can access this meal plan
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id; // Single family per user
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      // Get comments for this meal plan
+      const comments = await storage.getMealComments(mealPlanId, familyId);
+
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching meal comments:", error);
+      res.status(500).json({ error: "Error al obtener los comentarios" });
     }
   });
 

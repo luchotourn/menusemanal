@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Users, Bell, Download, Share2, Info, User } from "lucide-react";
+import { Settings as SettingsIcon, Users, Bell, Download, Share2, Info, User, LogOut, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useProfile } from "@/hooks/useAuth";
+import { useProfile, useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/components/role-based-wrapper";
 
 export default function Settings() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { profile, isLoading } = useProfile();
+  const { logout } = useAuth();
+  const { isCommentator } = useUserRole();
 
 
   const handleExportData = () => {
@@ -34,6 +37,16 @@ export default function Settings() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({ title: "Sesión cerrada exitosamente" });
+      setLocation("/login");
+    } catch (error) {
+      toast({ title: "Error al cerrar sesión", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-app-background">
       <Header />
@@ -41,17 +54,28 @@ export default function Settings() {
       <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
           <div className="flex items-center space-x-2 mb-6">
-            <SettingsIcon className="text-app-neutral w-6 h-6" />
-            <h2 className="text-2xl font-bold text-app-neutral">Ajustes</h2>
+            {isCommentator ? (
+              <>
+                <User className="text-purple-600 w-6 h-6" />
+                <h2 className="text-2xl font-bold text-purple-800">Mi Perfil</h2>
+              </>
+            ) : (
+              <>
+                <SettingsIcon className="text-app-neutral w-6 h-6" />
+                <h2 className="text-2xl font-bold text-app-neutral">Ajustes</h2>
+              </>
+            )}
           </div>
 
           <div className="space-y-4">
             {/* User Profile */}
-            <Card>
+            <Card className={isCommentator ? "border-purple-200 bg-gradient-to-br from-white to-purple-50" : ""}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center space-x-2">
-                  <User className="w-5 h-5 text-app-primary" />
-                  <span>Perfil de Usuario</span>
+                  <User className={`w-5 h-5 ${isCommentator ? "text-purple-600" : "text-app-primary"}`} />
+                  <span className={isCommentator ? "text-purple-800" : ""}>
+                    {isCommentator ? "Mi Información" : "Perfil de Usuario"}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -70,24 +94,31 @@ export default function Settings() {
             </Card>
 
             {/* Family Settings */}
-            <Card>
+            <Card className={isCommentator ? "border-purple-200 bg-gradient-to-br from-white to-purple-50" : ""}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center space-x-2">
-                  <Users className="w-5 h-5 text-app-primary" />
-                  <span>Configuración Familiar</span>
+                  <Users className={`w-5 h-5 ${isCommentator ? "text-purple-600" : "text-app-primary"}`} />
+                  <span className={isCommentator ? "text-purple-800" : ""}>
+                    {isCommentator ? "Mi Familia" : "Configuración Familiar"}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start"
                   onClick={() => setLocation("/family-settings")}
                 >
                   <Users className="w-4 h-4 mr-2" />
-                  Gestionar Familia
+                  {profile?.familyId ? "Gestionar Familia" : "Crear o Unirse a Familia"}
                 </Button>
                 <p className="text-sm text-gray-600">
-                  Crea o únete a una familia, gestiona miembros y comparte códigos de invitación
+                  {profile?.familyId
+                    ? "Gestiona miembros y comparte códigos de invitación"
+                    : profile?.role === "commentator"
+                      ? "¡Únete a tu familia para empezar a calificar las comidas!"
+                      : "Crea o únete a una familia para compartir recetas"
+                  }
                 </p>
                 
                 <div className="pt-2 border-t space-y-4">
@@ -118,7 +149,8 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* Data Management */}
+            {/* Data Management - Only for creators */}
+            {!isCommentator && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center space-x-2">
@@ -146,6 +178,7 @@ export default function Settings() {
                 </Button>
               </CardContent>
             </Card>
+            )}
 
             {/* Sharing */}
             <Card>
@@ -205,6 +238,29 @@ export default function Settings() {
                     ¡Involucra a los chicos en la planificación! Deja que ellos califiquen las comidas para crear un menú que realmente les guste.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Logout Section */}
+            <Card className="border-red-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center space-x-2">
+                  <LogOut className="w-5 h-5 text-red-500" />
+                  <span>Cerrar Sesión</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="destructive"
+                  className="w-full justify-start"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cerrar Sesión
+                </Button>
+                <p className="text-sm text-gray-600 mt-2">
+                  Cierra tu sesión actual y regresa a la pantalla de inicio de sesión
+                </p>
               </CardContent>
             </Card>
           </div>

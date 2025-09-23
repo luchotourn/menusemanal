@@ -3,7 +3,9 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BottomNavigation } from "@/components/bottom-navigation";
+import { RoleBasedBottomNavigation } from "@/components/role-based-navigation";
+import { AuthGuard, GuestGuard } from "@/components/auth-guard";
+import "@/styles/commentator-theme.css";
 
 import Home from "@/pages/home";
 import Recipes from "@/pages/recipes";
@@ -11,6 +13,8 @@ import Favorites from "@/pages/favorites";
 import Settings from "@/pages/settings";
 import Profile from "@/pages/profile";
 import FamilySettings from "@/pages/family-settings";
+import Ratings from "@/pages/ratings";
+import Family from "@/pages/family";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
@@ -19,32 +23,75 @@ function Router() {
   return (
     <div className="min-h-screen">
       <Switch>
-        {/* Authentication routes (no navigation) */}
-        <Route path="/login" component={Login} />
-        <Route path="/register" component={Register} />
-        
-        {/* Main app routes (with navigation) */}
-        <Route path="/" component={Home} />
-        <Route path="/recipes" component={Recipes} />
-        <Route path="/favorites" component={Favorites} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/profile" component={Profile} />
-        <Route path="/family-settings" component={FamilySettings} />
+        {/* Authentication routes (no navigation) - only for guests */}
+        <Route path="/login">
+          <GuestGuard>
+            <Login />
+          </GuestGuard>
+        </Route>
+        <Route path="/register">
+          <GuestGuard>
+            <Register />
+          </GuestGuard>
+        </Route>
+
+        {/* Main app routes (with navigation) - require authentication */}
+        <Route path="/">
+          <AuthGuard>
+            <Home />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/recipes">
+          <AuthGuard>
+            <Recipes />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/favorites">
+          <AuthGuard>
+            <Favorites />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/settings">
+          <AuthGuard>
+            <Settings />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/profile">
+          <AuthGuard>
+            <Profile />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/family-settings">
+          <AuthGuard>
+            <FamilySettings />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/ratings">
+          <AuthGuard>
+            <Ratings />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
+        <Route path="/family">
+          <AuthGuard>
+            <Family />
+            <ConditionalBottomNavigation />
+          </AuthGuard>
+        </Route>
         <Route component={NotFound} />
       </Switch>
-      
-      {/* Conditional bottom navigation - only show on main app routes */}
-      <ConditionalBottomNavigation />
     </div>
   );
 }
 
 function ConditionalBottomNavigation() {
-  const [location] = useLocation();
-  const authRoutes = ['/login', '/register'];
-  const shouldShowNavigation = !authRoutes.includes(location);
-  
-  return shouldShowNavigation ? <BottomNavigation /> : null;
+  return <RoleBasedBottomNavigation />;
 }
 
 function App() {
