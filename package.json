@@ -10,6 +10,10 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "migrate:multi-user": "tsx scripts/migrate-multi-user.ts",
+    "migrate:production": "tsx scripts/run-production-migration.ts",
+    "migrate:verify": "tsx scripts/verify-migration.ts",
+    "migrate:rollback": "psql $DATABASE_URL -f scripts/rollback-family-migration.sql",
+    "migrate:audit": "psql $DATABASE_URL -f scripts/audit-production-data.sql",
     "test:security": "node tests/run-security-tests.js",
     "test:security:api": "node tests/security/role-based-security.test.js",
     "test:security:frontend": "node tests/security/frontend-security.test.js"
