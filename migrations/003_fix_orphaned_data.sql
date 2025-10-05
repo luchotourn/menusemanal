@@ -365,38 +365,10 @@ SET status = 'completed'
 WHERE migration_name = '003_fix_orphaned_data'
 AND status = 'started';
 
-RAISE NOTICE '✓ Migration 003 completed successfully!';
-RAISE NOTICE '';
+DO $$
+BEGIN
+    RAISE NOTICE '✓ Migration 003 completed successfully!';
+    RAISE NOTICE '';
+END $$;
 
 COMMIT;
-
--- ============================================================================
--- Post-Migration Summary Report
--- ============================================================================
-
-\echo '═══════════════════════════════════════════════════════════════════════'
-\echo '                 POST-MIGRATION DATA SUMMARY'
-\echo '═══════════════════════════════════════════════════════════════════════'
-\echo ''
-\echo 'Recipe Distribution by Family:'
-
-SELECT
-    f.nombre as family_name,
-    f.codigo_invitacion,
-    COUNT(r.id) as recipe_count
-FROM families f
-LEFT JOIN recipes r ON r.family_id = f.id
-GROUP BY f.id, f.nombre, f.codigo_invitacion
-ORDER BY recipe_count DESC;
-
-\echo ''
-\echo 'Meal Plan Distribution by Family:'
-
-SELECT
-    f.nombre as family_name,
-    f.codigo_invitacion,
-    COUNT(mp.id) as meal_plan_count
-FROM families f
-LEFT JOIN meal_plans mp ON mp.family_id = f.id
-GROUP BY f.id, f.nombre, f.codigo_invitacion
-ORDER BY meal_plan_count DESC;

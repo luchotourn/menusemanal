@@ -166,25 +166,11 @@ SET status = 'completed'
 WHERE migration_name = '002_create_default_families'
 AND status = 'started';
 
-RAISE NOTICE '';
-RAISE NOTICE '✓ Migration 002 completed successfully!';
-RAISE NOTICE '';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '✓ Migration 002 completed successfully!';
+    RAISE NOTICE '';
+END $$;
 
 COMMIT;
-
--- ============================================================================
--- Post-Migration Information Query
--- ============================================================================
-
--- Display summary of families created
-SELECT
-    f.id,
-    f.nombre,
-    f.codigo_invitacion,
-    u.name as creator_name,
-    u.email as creator_email,
-    u.role as creator_role,
-    f.created_at
-FROM families f
-JOIN users u ON f.created_by = u.id
-ORDER BY f.created_at DESC;
