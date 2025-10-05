@@ -12,14 +12,13 @@ function validateEnvironment() {
   const missing = requiredEnvVars.filter(env => !process.env[env]);
   
   if (missing.length > 0) {
-    console.error('❌ Missing required environment variables:', missing.join(', '));
-    console.error('Please set these environment variables and restart the application.');
-    process.exit(1);
+    console.warn('⚠️  Missing environment variables:', missing.join(', '));
+    console.warn('The application may not function correctly without these variables.');
+  } else {
+    console.log('✅ All required environment variables are present');
   }
   
-  console.log('✅ All required environment variables are present');
-  
-  // Validate session configuration
+  // Validate session configuration (will warn, not exit)
   validateSessionConfig();
 }
 
