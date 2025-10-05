@@ -49,7 +49,7 @@ export function useAuth() {
         description: response.message,
       });
       // Refetch auth queries and wait for them to complete before navigating
-      await queryClient.refetchQueries({ queryKey: ["auth"] });
+      await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
       await queryClient.refetchQueries({ queryKey: ["profile"] });
       setLocation("/");
     },
@@ -81,7 +81,7 @@ export function useAuth() {
         description: response.message,
       });
       // Refetch auth queries and wait for them to complete before navigating
-      await queryClient.refetchQueries({ queryKey: ["auth"] });
+      await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
       await queryClient.refetchQueries({ queryKey: ["profile"] });
       setLocation("/");
     },
