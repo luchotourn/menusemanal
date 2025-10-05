@@ -48,13 +48,10 @@ export function useAuth() {
         title: "¡Bienvenido!",
         description: response.message,
       });
-      // Invalidate and refetch all auth-related queries
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
-      // Use a small delay to ensure queries have started refetching
-      await new Promise(resolve => setTimeout(resolve, 100));
-      // Force a full page navigation to ensure clean state
-      window.location.href = "/";
+      // Refetch auth queries and wait for them to complete before navigating
+      await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
+      await queryClient.refetchQueries({ queryKey: ["profile"] });
+      setLocation("/");
     },
     onError: (error: any) => {
       toast({
@@ -83,13 +80,10 @@ export function useAuth() {
         title: "¡Cuenta creada!",
         description: response.message,
       });
-      // Invalidate and refetch all auth-related queries
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
-      // Use a small delay to ensure queries have started refetching
-      await new Promise(resolve => setTimeout(resolve, 100));
-      // Force a full page navigation to ensure clean state
-      window.location.href = "/";
+      // Refetch auth queries and wait for them to complete before navigating
+      await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
+      await queryClient.refetchQueries({ queryKey: ["profile"] });
+      setLocation("/");
     },
     onError: (error: any) => {
       toast({
