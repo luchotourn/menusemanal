@@ -44,13 +44,19 @@ export function useAuth() {
       });
     },
     onSuccess: async (response) => {
+      // Invalidate auth queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      
       toast({
         title: "¡Bienvenido!",
         description: response.message,
       });
-      // Refetch auth queries - GuestGuard will handle navigation when auth status changes
-      await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
-      await queryClient.refetchQueries({ queryKey: ["profile"] });
+      
+      // Small delay to ensure queries invalidate before navigation
+      setTimeout(() => {
+        setLocation("/");
+      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -75,13 +81,19 @@ export function useAuth() {
       });
     },
     onSuccess: async (response) => {
+      // Invalidate auth queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      
       toast({
         title: "¡Cuenta creada!",
         description: response.message,
       });
-      // Refetch auth queries - GuestGuard will handle navigation when auth status changes
-      await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
-      await queryClient.refetchQueries({ queryKey: ["profile"] });
+      
+      // Small delay to ensure queries invalidate before navigation
+      setTimeout(() => {
+        setLocation("/");
+      }, 100);
     },
     onError: (error: any) => {
       toast({
