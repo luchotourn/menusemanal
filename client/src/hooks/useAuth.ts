@@ -43,14 +43,14 @@ export function useAuth() {
         body: JSON.stringify(data),
       });
     },
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       toast({
         title: "¡Bienvenido!",
         description: response.message,
       });
-      // Invalidate auth queries to refetch user data
-      queryClient.invalidateQueries({ queryKey: ["auth"] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // Refetch auth queries and wait for them to complete before navigating
+      await queryClient.refetchQueries({ queryKey: ["auth"] });
+      await queryClient.refetchQueries({ queryKey: ["profile"] });
       setLocation("/");
     },
     onError: (error: any) => {
@@ -75,14 +75,14 @@ export function useAuth() {
         }),
       });
     },
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       toast({
         title: "¡Cuenta creada!",
         description: response.message,
       });
-      // Invalidate auth queries to refetch user data
-      queryClient.invalidateQueries({ queryKey: ["auth"] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // Refetch auth queries and wait for them to complete before navigating
+      await queryClient.refetchQueries({ queryKey: ["auth"] });
+      await queryClient.refetchQueries({ queryKey: ["profile"] });
       setLocation("/");
     },
     onError: (error: any) => {
