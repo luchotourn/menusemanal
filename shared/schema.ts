@@ -375,7 +375,7 @@ export const updateProfileSchema = z.object({
     .string()
     .min(1, "El email es requerido")
     .email("Ingresa un email válido"),
-  avatar: z.string().optional(),
+  avatar: z.string().nullable().optional(),
   notificationPreferences: z.object({
     email: z.boolean().default(true),
     recipes: z.boolean().default(true),
