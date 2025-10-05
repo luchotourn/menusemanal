@@ -48,10 +48,9 @@ export function useAuth() {
         title: "¡Bienvenido!",
         description: response.message,
       });
-      // Refetch auth queries and wait for them to complete before navigating
+      // Refetch auth queries - GuestGuard will handle navigation when auth status changes
       await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
       await queryClient.refetchQueries({ queryKey: ["profile"] });
-      setLocation("/");
     },
     onError: (error: any) => {
       toast({
@@ -80,10 +79,9 @@ export function useAuth() {
         title: "¡Cuenta creada!",
         description: response.message,
       });
-      // Refetch auth queries and wait for them to complete before navigating
+      // Refetch auth queries - GuestGuard will handle navigation when auth status changes
       await queryClient.refetchQueries({ queryKey: ["auth", "status"] });
       await queryClient.refetchQueries({ queryKey: ["profile"] });
-      setLocation("/");
     },
     onError: (error: any) => {
       toast({
