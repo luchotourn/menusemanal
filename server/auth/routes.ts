@@ -45,6 +45,7 @@ authRouter.post("/register", authRateLimit, async (req: Request, res: Response) 
         id: users.id,
         email: users.email,
         name: users.name,
+        familyId: users.familyId,
         avatar: users.avatar,
         role: users.role,
         notificationPreferences: users.notificationPreferences,

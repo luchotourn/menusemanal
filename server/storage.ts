@@ -6,6 +6,7 @@ import {
   users,
   recipeRatings,
   mealComments,
+  mealAchievements,
   type Recipe,
   type InsertRecipe,
   type MealPlan,
@@ -18,7 +19,9 @@ import {
   type RecipeRating,
   type InsertRecipeRating,
   type MealComment,
-  type InsertMealComment
+  type InsertMealComment,
+  type MealAchievement,
+  type InsertMealAchievement
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, like, or, inArray, SQL } from "drizzle-orm";
@@ -65,6 +68,16 @@ export interface IStorage {
   addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment>;
   getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]>;
   deleteMealComment(commentId: number, userId: number): Promise<boolean>;
+
+  // Meal achievement methods (gamification features)
+  createOrUpdateAchievement(mealPlanId: number, userId: number, familyId: number, starType: 'tried_it' | 'ate_veggie' | 'left_feedback'): Promise<MealAchievement>;
+  getUserAchievements(userId: number, familyId: number, startDate?: string, endDate?: string): Promise<MealAchievement[]>;
+  getMealAchievements(mealPlanId: number, familyId: number): Promise<MealAchievement[]>;
+  getUserStats(userId: number, familyId: number, startDate?: string): Promise<{
+    weeklyStars: { tried: number, veggie: number, feedback: number },
+    totalStars: number,
+    streakDays: number
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -307,6 +320,23 @@ export class MemStorage implements IStorage {
   
   async deleteFamily(id: number): Promise<boolean> {
     return this.families.delete(id);
+  }
+
+  // Meal achievement stubs (MemStorage is primarily for testing)
+  async createOrUpdateAchievement(mealPlanId: number, userId: number, familyId: number, starType: 'tried_it' | 'ate_veggie' | 'left_feedback'): Promise<MealAchievement> {
+    throw new Error("MemStorage does not implement meal achievements");
+  }
+
+  async getUserAchievements(userId: number, familyId: number, startDate?: string, endDate?: string): Promise<MealAchievement[]> {
+    return [];
+  }
+
+  async getMealAchievements(mealPlanId: number, familyId: number): Promise<MealAchievement[]> {
+    return [];
+  }
+
+  async getUserStats(userId: number, familyId: number, startDate?: string): Promise<{ weeklyStars: { tried: number; veggie: number; feedback: number }; totalStars: number; streakDays: number }> {
+    return { weeklyStars: { tried: 0, veggie: 0, feedback: 0 }, totalStars: 0, streakDays: 0 };
   }
 }
 
@@ -786,6 +816,154 @@ export class DatabaseStorage implements IStorage {
         eq(mealComments.userId, userId) // Ensure user can only delete their own comments
       ));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Meal achievement methods (gamification features)
+  async createOrUpdateAchievement(
+    mealPlanId: number,
+    userId: number,
+    familyId: number,
+    starType: 'tried_it' | 'ate_veggie' | 'left_feedback'
+  ): Promise<MealAchievement> {
+    // First, try to find existing achievement
+    const existing = await db
+      .select()
+      .from(mealAchievements)
+      .where(and(
+        eq(mealAchievements.mealPlanId, mealPlanId),
+        eq(mealAchievements.userId, userId)
+      ))
+      .limit(1);
+
+    const now = new Date();
+
+    if (existing && existing.length > 0) {
+      // Update existing achievement - turn on the star (cannot turn off)
+      const updateData: any = { updatedAt: now };
+
+      if (starType === 'tried_it') {
+        updateData.triedIt = 1;
+      } else if (starType === 'ate_veggie') {
+        updateData.ateVeggie = 1;
+      } else if (starType === 'left_feedback') {
+        updateData.leftFeedback = 1;
+      }
+
+      const updated = await db
+        .update(mealAchievements)
+        .set(updateData)
+        .where(eq(mealAchievements.id, existing[0].id))
+        .returning();
+
+      return updated[0];
+    } else {
+      // Create new achievement
+      const newAchievement: InsertMealAchievement = {
+        mealPlanId,
+        userId,
+        familyId,
+        triedIt: starType === 'tried_it' ? 1 : 0,
+        ateVeggie: starType === 'ate_veggie' ? 1 : 0,
+        leftFeedback: starType === 'left_feedback' ? 1 : 0,
+      };
+
+      const created = await db
+        .insert(mealAchievements)
+        .values(newAchievement)
+        .returning();
+
+      return created[0];
+    }
+  }
+
+  async getUserAchievements(
+    userId: number,
+    familyId: number,
+    startDate?: string,
+    endDate?: string
+  ): Promise<MealAchievement[]> {
+    let conditions = and(
+      eq(mealAchievements.userId, userId),
+      eq(mealAchievements.familyId, familyId)
+    );
+
+    // Add date range filtering if provided
+    if (startDate || endDate) {
+      // Join with meal plans to filter by date
+      const achievements = await db
+        .select()
+        .from(mealAchievements)
+        .innerJoin(mealPlans, eq(mealAchievements.mealPlanId, mealPlans.id))
+        .where(and(
+          eq(mealAchievements.userId, userId),
+          eq(mealAchievements.familyId, familyId),
+          startDate ? gte(mealPlans.fecha, startDate) : undefined,
+          endDate ? lte(mealPlans.fecha, endDate) : undefined
+        ));
+
+      return achievements.map(a => a.meal_achievements);
+    }
+
+    return await db
+      .select()
+      .from(mealAchievements)
+      .where(conditions)
+      .orderBy(mealAchievements.createdAt);
+  }
+
+  async getMealAchievements(mealPlanId: number, familyId: number): Promise<MealAchievement[]> {
+    return await db
+      .select()
+      .from(mealAchievements)
+      .where(and(
+        eq(mealAchievements.mealPlanId, mealPlanId),
+        eq(mealAchievements.familyId, familyId)
+      ))
+      .orderBy(mealAchievements.createdAt);
+  }
+
+  async getUserStats(
+    userId: number,
+    familyId: number,
+    startDate?: string
+  ): Promise<{
+    weeklyStars: { tried: number, veggie: number, feedback: number },
+    totalStars: number,
+    streakDays: number
+  }> {
+    // Calculate start date for the week if not provided
+    const weekStart = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Get achievements for the week
+    const weeklyAchievements = await this.getUserAchievements(userId, familyId, weekStart);
+
+    // Calculate weekly stars
+    const weeklyStars = weeklyAchievements.reduce(
+      (acc, achievement) => {
+        if (achievement.triedIt) acc.tried++;
+        if (achievement.ateVeggie) acc.veggie++;
+        if (achievement.leftFeedback) acc.feedback++;
+        return acc;
+      },
+      { tried: 0, veggie: 0, feedback: 0 }
+    );
+
+    // Get all achievements for total count
+    const allAchievements = await this.getUserAchievements(userId, familyId);
+    const totalStars = allAchievements.reduce(
+      (sum, achievement) => sum + (achievement.triedIt || 0) + (achievement.ateVeggie || 0) + (achievement.leftFeedback || 0),
+      0
+    );
+
+    // Calculate streak days (simplified - counts consecutive days with at least one star)
+    // This is a basic implementation; you might want to enhance this later
+    const streakDays = 0; // Placeholder - would need more complex date comparison logic
+
+    return {
+      weeklyStars,
+      totalStars,
+      streakDays,
+    };
   }
 }
 

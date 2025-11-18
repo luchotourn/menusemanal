@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Trash2, Edit3 } from "lucide-react";
 import { useState } from "react";
@@ -8,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { MealPlan, Recipe } from "@shared/schema";
+import { StarRatingButtons } from "@/components/star-rating-buttons";
 
 interface MealPlanDetailModalProps {
   isOpen: boolean;
@@ -85,8 +85,8 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
             Detalles del plan de comida para {formatDate(mealPlan?.fecha || '')} - {getMealTypeLabel(mealPlan?.tipoComida || '')}
           </div>
 
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="space-y-4">
+          <div className="flex-1 -mx-6 px-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
+            <div className="space-y-4 pb-4">
               {/* Meal Plan Context */}
               <div className="bg-blue-50 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
@@ -198,8 +198,16 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                   </a>
                 </div>
               ) : null}
+
+              {/* Star Rating Section - Kids Gamification */}
+              <div className="border-t pt-4 mt-4">
+                <StarRatingButtons
+                  mealPlanId={mealPlan.id}
+                  size="md"
+                />
+              </div>
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Action Buttons */}
           <div className="flex-shrink-0 space-y-2 pt-4 border-t">

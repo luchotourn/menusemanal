@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Calendar, Star, Leaf, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
-import type { MealPlan, Recipe } from "@shared/schema";
+import type { MealPlan, Recipe, MealAchievement } from "@shared/schema";
+import { useMealAchievements } from "@/hooks/use-meal-achievements";
 
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
@@ -120,7 +121,11 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     meal: MealPlan & { recipe?: Recipe };
   }) => {
     const recipe = meal.recipe;
-    
+    const { mealAchievements } = useMealAchievements(meal.id);
+
+    // Get current user's achievements for this meal (first one if multiple family members)
+    const userAchievement = mealAchievements[0];
+
     if (!recipe) {
       return (
         <div className="bg-red-50 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition-colors min-h-[44px] flex items-center">
@@ -132,9 +137,9 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
         </div>
       );
     }
-    
+
     return (
-      <div 
+      <div
         className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-200 transition-all border border-orange-200 shadow-sm min-h-[70px]"
         onClick={() => onViewMealPlan(meal)}
       >
@@ -143,23 +148,38 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">
             {recipe.nombre}
           </p>
-          
-          {/* Additional info section - only show if there's actual content */}
-          {((recipe.calificacionNinos ?? 0) > 0 || Boolean(recipe.esFavorita)) ? (
-            <div className="flex items-center justify-between mt-2">
+
+          {/* Additional info section - show kid rating, favorite, OR achievements */}
+          <div className="flex items-center justify-between mt-2 gap-2">
+            <div className="flex items-center gap-1">
               {/* Kid Rating */}
               {(recipe.calificacionNinos ?? 0) > 0 ? (
                 <div className="flex">
                   {renderStars(recipe.calificacionNinos ?? 0)}
                 </div>
               ) : null}
-              
+
               {/* Favorite indicator */}
               {Boolean(recipe.esFavorita) ? (
-                <span className="text-xs text-orange-600 font-medium">⭐ Favorita</span>
+                <span className="text-xs text-orange-600 font-medium">⭐</span>
               ) : null}
             </div>
-          ) : null}
+
+            {/* Achievement stars indicators */}
+            {userAchievement && (
+              <div className="flex items-center gap-1">
+                {userAchievement.triedIt === 1 && (
+                  <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" title="Lo probé" />
+                )}
+                {userAchievement.ateVeggie === 1 && (
+                  <Leaf className="w-3 h-3 text-green-600 fill-green-600" title="Comí vegetales" />
+                )}
+                {userAchievement.leftFeedback === 1 && (
+                  <MessageCircle className="w-3 h-3 text-blue-600 fill-blue-600" title="Dejé opinión" />
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
