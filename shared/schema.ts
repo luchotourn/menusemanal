@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, index, uniqueIndex, varchar, json, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(), // bcrypt hashed
   name: text("name").notNull(),
+  familyId: text("family_id"), // Family the user belongs to (nullable for backward compatibility)
   avatar: text("avatar"), // Base64 image or URL
   role: text("role").notNull().default("creator"), // "creator", "commentator"
   notificationPreferences: text("notification_preferences").default('{"email": true, "recipes": true, "mealPlans": true}'), // JSON string
@@ -140,6 +141,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdMealPlans: many(mealPlans),
   recipeRatings: many(recipeRatings),
   mealComments: many(mealComments),
+  mealAchievements: many(mealAchievements),
 }));
 
 export const familiesRelations = relations(families, ({ one, many }) => ({
@@ -152,6 +154,7 @@ export const familiesRelations = relations(families, ({ one, many }) => ({
   mealPlans: many(mealPlans),
   recipeRatings: many(recipeRatings),
   mealComments: many(mealComments),
+  mealAchievements: many(mealAchievements),
 }));
 
 export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
@@ -188,6 +191,7 @@ export const mealPlansRelations = relations(mealPlans, ({ many, one }) => ({
     references: [recipes.id],
   }),
   comments: many(mealComments),
+  achievements: many(mealAchievements),
   user: one(users, {
     fields: [mealPlans.userId],
     references: [users.id],
@@ -233,6 +237,60 @@ export const mealCommentsRelations = relations(mealComments, ({ one }) => ({
     references: [families.id],
   }),
 }));
+
+// Meal achievements table for kids gamification
+export const mealAchievements = pgTable("meal_achievements", {
+  id: serial("id").primaryKey(),
+  mealPlanId: integer("meal_plan_id").notNull().references(() => mealPlans.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  triedIt: integer("tried_it").notNull().default(0), // 0 or 1 as boolean - "I tried it!" gold star
+  ateVeggie: integer("ate_veggie").notNull().default(0), // 0 or 1 as boolean - "Veggie Power!" green star
+  leftFeedback: integer("left_feedback").notNull().default(0), // 0 or 1 as boolean - "I left feedback" blue star
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    mealPlanUserIdx: uniqueIndex("meal_achievements_meal_plan_user_idx").on(table.mealPlanId, table.userId),
+    mealPlanIdx: index("meal_achievements_meal_plan_idx").on(table.mealPlanId),
+    userIdx: index("meal_achievements_user_idx").on(table.userId),
+    familyIdx: index("meal_achievements_family_idx").on(table.familyId),
+    familyUserIdx: index("meal_achievements_family_user_idx").on(table.familyId, table.userId),
+  };
+});
+
+// Meal achievements relations
+export const mealAchievementsRelations = relations(mealAchievements, ({ one }) => ({
+  mealPlan: one(mealPlans, {
+    fields: [mealAchievements.mealPlanId],
+    references: [mealPlans.id],
+  }),
+  user: one(users, {
+    fields: [mealAchievements.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [mealAchievements.familyId],
+    references: [families.id],
+  }),
+}));
+
+// External tables - managed by external libraries, but included in schema to prevent drizzle from trying to delete them
+// This table is managed by express-session (connect-pg-simple)
+export const userSessions = pgTable("user_sessions", {
+  sid: varchar("sid").primaryKey().notNull(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6, mode: "date" }).notNull(),
+});
+
+// This table is managed by drizzle-kit for internal migration tracking
+export const migrationLog = pgTable("migration_log", {
+  id: serial("id").primaryKey(),
+  migrationName: text("migration_name").notNull(),
+  executedAt: timestamp("executed_at", { mode: "date" }).notNull(),
+  status: text("status").notNull(),
+  details: jsonb("details"),
+});
 
 // Validation schemas
 export const insertUserSchema = createInsertSchema(users, {
@@ -300,6 +358,23 @@ export const insertMealCommentSchema = createInsertSchema(mealComments, {
   updatedAt: true,
 });
 
+export const insertMealAchievementSchema = createInsertSchema(mealAchievements, {
+  triedIt: z.number().int().min(0).max(1).default(0),
+  ateVeggie: z.number().int().min(0).max(1).default(0),
+  leftFeedback: z.number().int().min(0).max(1).default(0),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const awardStarSchema = z.object({
+  mealPlanId: z.number().int().positive("El ID del plan de comida es requerido"),
+  starType: z.enum(["tried_it", "ate_veggie", "left_feedback"], {
+    required_error: "El tipo de estrella es requerido",
+  }),
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -316,6 +391,9 @@ export type RecipeRating = typeof recipeRatings.$inferSelect;
 export type InsertRecipeRating = z.infer<typeof insertRecipeRatingSchema>;
 export type MealComment = typeof mealComments.$inferSelect;
 export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
+export type MealAchievement = typeof mealAchievements.$inferSelect;
+export type InsertMealAchievement = z.infer<typeof insertMealAchievementSchema>;
+export type AwardStarData = z.infer<typeof awardStarSchema>;
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 

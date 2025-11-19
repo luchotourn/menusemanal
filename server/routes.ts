@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, mealPlans } from "@shared/schema";
 import { z } from "zod";
-import { checkDatabaseHealth } from "./db";
+import { checkDatabaseHealth, db } from "./db";
+import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
@@ -798,6 +799,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store the comment
       const result = await storage.addMealComment(mealPlanId, user.id, comment.trim(), emoji);
 
+      // Auto-award the blue "left feedback" star for commenting
+      try {
+        await storage.createOrUpdateAchievement(
+          mealPlanId,
+          user.id,
+          familyId,
+          'left_feedback'
+        );
+      } catch (achievementError) {
+        // Don't fail the comment if star award fails - just log it
+        console.error("Error awarding feedback star:", achievementError);
+      }
+
       res.status(201).json({
         message: "Comentario agregado exitosamente",
         comment: {
@@ -839,6 +853,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching meal comments:", error);
       res.status(500).json({ error: "Error al obtener los comentarios" });
+    }
+  });
+
+  // Meal Achievement Routes (Kids Gamification)
+
+  // Award a star to a user for a meal
+  app.post("/api/achievements", isAuthenticated, commentatorRateLimit, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      // Validate request body using Zod schema
+      const { mealPlanId, starType } = req.body;
+
+      if (!mealPlanId || !starType) {
+        return res.status(400).json({ error: "mealPlanId y starType son requeridos" });
+      }
+
+      if (!['tried_it', 'ate_veggie', 'left_feedback'].includes(starType)) {
+        return res.status(400).json({ error: "starType debe ser 'tried_it', 'ate_veggie', o 'left_feedback'" });
+      }
+
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia para ganar estrellas" });
+      }
+
+      // Verify the meal plan belongs to the user's family
+      const mealPlan = await db.select().from(mealPlans).where(eq(mealPlans.id, mealPlanId)).limit(1);
+
+      if (!mealPlan || mealPlan.length === 0) {
+        return res.status(404).json({ error: "Plan de comida no encontrado" });
+      }
+
+      if (mealPlan[0].familyId !== familyId) {
+        return res.status(403).json({ error: "No tienes acceso a este plan de comida" });
+      }
+
+      // Create or update achievement
+      const achievement = await storage.createOrUpdateAchievement(
+        mealPlanId,
+        user.id,
+        familyId,
+        starType as 'tried_it' | 'ate_veggie' | 'left_feedback'
+      );
+
+      // Map star type to friendly message
+      const starMessages: Record<string, string> = {
+        tried_it: "¡Ganaste una estrella dorada por probar la comida! 🌟",
+        ate_veggie: "¡Ganaste una estrella verde por comer vegetales! 💚",
+        left_feedback: "¡Ganaste una estrella azul por dejar comentarios! 💬"
+      };
+
+      res.status(201).json({
+        message: starMessages[starType] || "¡Ganaste una estrella!",
+        achievement
+      });
+    } catch (error) {
+      console.error("Error awarding star:", error);
+      res.status(500).json({ error: "Error al otorgar la estrella" });
+    }
+  });
+
+  // Get achievements for a specific user
+  app.get("/api/achievements/user/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const targetUserId = parseInt(req.params.userId);
+      const { startDate, endDate } = req.query;
+
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      // Verify the target user is in the same family (or is the current user)
+      const isSameFamily = await storage.isUserInFamily(targetUserId, familyId);
+
+      if (!isSameFamily && targetUserId !== user.id) {
+        return res.status(403).json({ error: "No tienes acceso a estos logros" });
+      }
+
+      // Get achievements
+      const achievements = await storage.getUserAchievements(
+        targetUserId,
+        familyId,
+        startDate as string | undefined,
+        endDate as string | undefined
+      );
+
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching user achievements:", error);
+      res.status(500).json({ error: "Error al obtener los logros" });
+    }
+  });
+
+  // Get all achievements for a specific meal (all family members)
+  app.get("/api/achievements/meal/:mealPlanId", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const mealPlanId = parseInt(req.params.mealPlanId);
+
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      // Verify the meal plan belongs to the user's family
+      const mealPlan = await db.select().from(mealPlans).where(eq(mealPlans.id, mealPlanId)).limit(1);
+
+      if (!mealPlan || mealPlan.length === 0) {
+        return res.status(404).json({ error: "Plan de comida no encontrado" });
+      }
+
+      if (mealPlan[0].familyId !== familyId) {
+        return res.status(403).json({ error: "No tienes acceso a este plan de comida" });
+      }
+
+      // Get achievements for this meal
+      const achievements = await storage.getMealAchievements(mealPlanId, familyId);
+
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching meal achievements:", error);
+      res.status(500).json({ error: "Error al obtener los logros de la comida" });
+    }
+  });
+
+  // Get stats for a specific user
+  app.get("/api/achievements/stats/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const targetUserId = parseInt(req.params.userId);
+      const { startDate } = req.query;
+
+      // Get user's families
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      // Verify the target user is in the same family (or is the current user)
+      const isSameFamily = await storage.isUserInFamily(targetUserId, familyId);
+
+      if (!isSameFamily && targetUserId !== user.id) {
+        return res.status(403).json({ error: "No tienes acceso a estas estadísticas" });
+      }
+
+      // Get stats
+      const stats = await storage.getUserStats(
+        targetUserId,
+        familyId,
+        startDate as string | undefined
+      );
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      res.status(500).json({ error: "Error al obtener las estadísticas" });
     }
   });
 
