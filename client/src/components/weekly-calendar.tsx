@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Plus, Calendar, Star, Leaf, MessageCircle } from "lucide-react";
+import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -140,7 +141,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
 
     return (
       <div
-        className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-200 transition-all border border-orange-200 shadow-sm min-h-[70px]"
+        className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-200 transition-all border border-orange-200 shadow-sm h-[88px]"
         onClick={() => onViewMealPlan(meal)}
       >
         <div className="flex flex-col justify-between h-full">
@@ -193,16 +194,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     label: string;
   }) => (
     <div className="relative">
-      <div className="flex items-center justify-between mb-1">
+      <div className="mb-1">
         <span className="text-xs text-gray-500">{label}</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="p-1 rounded-full hover:bg-gray-100 h-6 w-6"
-          onClick={() => onAddMeal(formatDate(date), mealType)}
-        >
-          <Plus className="text-gray-400 w-3 h-3" />
-        </Button>
       </div>
       {meals.length > 0 ? (
         <div className="space-y-1">
@@ -212,19 +205,23 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
               meal={meal}
             />
           ))}
+
+          {/* Multi-meal support - allow adding more meals to same slot */}
+          <AddMealButton
+            variant="append"
+            onClick={() => onAddMeal(formatDate(date), mealType)}
+            label="Agregar nuevo"
+            className="mt-1 border-2 border-dashed border-gray-300"
+          />
         </div>
       ) : (
-        <div 
-          className="p-4 border-2 border-dashed border-gray-200 rounded-lg text-center cursor-pointer hover:border-app-accent hover:bg-orange-50/50 transition-all group"
+        <AddMealButton
+          variant="empty"
           onClick={() => onAddMeal(formatDate(date), mealType)}
-        >
-          <div className="flex flex-col items-center space-y-1">
-            <Plus className="w-4 h-4 text-gray-300 group-hover:text-app-accent transition-colors" />
-            <p className="text-xs text-gray-400 group-hover:text-app-accent transition-colors">
-              {mealType === 'almuerzo' ? 'Agregar almuerzo' : 'Agregar cena'}
-            </p>
-          </div>
-        </div>
+          label="Agregar nuevo"
+          showIcon={false}
+          className="border-2 border-dashed border-gray-300"
+        />
       )}
     </div>
   );
