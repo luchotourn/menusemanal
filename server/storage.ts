@@ -42,6 +42,7 @@ export interface IStorage {
   getMealPlansForWeek(startDate: string, userId?: number, familyId?: number): Promise<MealPlan[]>;
   getMealPlanByDate(fecha: string, userId?: number, familyId?: number): Promise<MealPlan[]>;
   getMealPlanByDateAndType(fecha: string, tipoComida: string, userId?: number, familyId?: number): Promise<MealPlan | undefined>;
+  getMealPlanById(id: number, userId?: number, familyId?: number): Promise<MealPlan | undefined>;
   createMealPlan(mealPlan: InsertMealPlan): Promise<MealPlan>;
   updateMealPlan(id: number, mealPlan: Partial<InsertMealPlan>, userId?: number, familyId?: number): Promise<MealPlan | undefined>;
   deleteMealPlan(id: number, userId?: number, familyId?: number): Promise<boolean>;

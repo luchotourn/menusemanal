@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useMealAchievements } from "@/hooks/use-meal-achievements";
 import type { MealAchievement } from "@shared/schema";
 import { Star, Leaf, MessageCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface StarRatingButtonsProps {
   mealPlanId: number;
@@ -23,6 +23,7 @@ export function StarRatingButtons({
 }: StarRatingButtonsProps) {
   const { awardStar, isAwarding, mealAchievements } = useMealAchievements(mealPlanId);
   const [animatingStars, setAnimatingStars] = useState<Set<string>>(new Set());
+  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Use either prop achievements or fetched achievements
   const currentAchievements = achievements || mealAchievements[0];
@@ -31,6 +32,14 @@ export function StarRatingButtons({
   const hasTriedIt = currentAchievements?.triedIt === 1;
   const hasAteVeggie = currentAchievements?.ateVeggie === 1;
   const hasLeftFeedback = currentAchievements?.leftFeedback === 1;
+
+  // Cleanup all timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      timeoutsRef.current.clear();
+    };
+  }, []);
 
   const handleAwardStar = async (starType: 'tried_it' | 'ate_veggie') => {
     // Trigger haptic feedback if available
@@ -49,14 +58,24 @@ export function StarRatingButtons({
       onStarEarned(starType);
     }
 
+    // Clear existing timeout for this star type if any
+    const existingTimeout = timeoutsRef.current.get(starType);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
     // Remove animation after 600ms
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setAnimatingStars(prev => {
         const newSet = new Set(prev);
         newSet.delete(starType);
         return newSet;
       });
+      timeoutsRef.current.delete(starType);
     }, 600);
+
+    // Store timeout reference
+    timeoutsRef.current.set(starType, timeoutId);
   };
 
   // Size configurations

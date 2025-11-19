@@ -859,7 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Meal Achievement Routes (Kids Gamification)
 
   // Award a star to a user for a meal
-  app.post("/api/achievements", isAuthenticated, async (req, res) => {
+  app.post("/api/achievements", isAuthenticated, commentatorRateLimit, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {
