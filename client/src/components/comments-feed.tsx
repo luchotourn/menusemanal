@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/useAuth";
 
 interface FamilyComment {
   id: number;
@@ -102,7 +102,7 @@ export function CommentsFeed() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { profile: user } = useProfile();
 
   const { data: comments, isLoading, error } = useQuery<FamilyComment[]>({
     queryKey: ["/api/comments/family"],
