@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Heart, Plus } from "lucide-react";
+import { Heart, Plus, MessageCircle } from "lucide-react";
 import { Header } from "@/components/header";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
 import { WeekSelectionModal } from "@/components/week-selection-modal";
+import { CommentsFeed } from "@/components/comments-feed";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -93,80 +95,94 @@ export default function Favorites() {
       
       <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
-          <div className="flex items-center space-x-2 mb-6">
-            <Heart className="text-app-primary w-6 h-6 fill-current" />
-            <h2 className="text-2xl font-bold text-app-neutral">Favoritas de los Chicos</h2>
-          </div>
+          <Tabs defaultValue="favoritos" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="favoritos" className="flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                Favoritos
+              </TabsTrigger>
+              <TabsTrigger value="comentarios" className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4" />
+                Comentarios
+              </TabsTrigger>
+            </TabsList>
 
-          {isLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Cargando recetas favoritas...</p>
-            </div>
-          ) : favoriteRecipes && favoriteRecipes.length > 0 ? (
-            <div className="space-y-6">
-              {/* Group by rating, highest first */}
-              {[5, 4, 3, 2, 1].map(rating => {
-                const recipes = recipesByRating[rating];
-                if (!recipes || recipes.length === 0) return null;
-
-                return (
-                  <div key={rating}>
-                    <h3 className="text-lg font-semibold text-app-neutral mb-3">
-                      {ratingLabels[rating as keyof typeof ratingLabels]}
-                    </h3>
-                    <div className="space-y-3">
-                      {recipes.map((recipe) => (
-                        <RecipeCard 
-                          key={recipe.id} 
-                          recipe={recipe} 
-                          onClick={() => handleViewRecipe(recipe)} 
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Quick Stats */}
-              <Card className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mt-6">
-                <h4 className="font-semibold text-app-neutral mb-3">Estadísticas</h4>
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-app-primary">
-                      {favoriteRecipes.length}
-                    </div>
-                    <p className="text-sm text-gray-600">Favoritas</p>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-app-accent">
-                      {(favoriteRecipes.reduce((sum, recipe) => 
-                        sum + (recipe.calificacionNinos || 0), 0) / favoriteRecipes.length).toFixed(1)}
-                    </div>
-                    <p className="text-sm text-gray-600">Promedio</p>
-                  </div>
+            <TabsContent value="favoritos">
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Cargando recetas favoritas...</p>
                 </div>
-              </Card>
-            </div>
-          ) : (
-            <Card className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
-              <div className="text-center">
-                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-app-neutral mb-2">
-                  ¡Aún no tienes recetas favoritas!
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  Marca tus recetas favoritas para que los chicos siempre encuentren sus comidas preferidas
-                </p>
-                <Button 
-                  className="bg-app-primary text-white hover:bg-app-primary/90"
-                  onClick={() => setShowAddRecipe(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Agregar Primera Receta
-                </Button>
-              </div>
-            </Card>
-          )}
+              ) : favoriteRecipes && favoriteRecipes.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Group by rating, highest first */}
+                  {[5, 4, 3, 2, 1].map(rating => {
+                    const recipes = recipesByRating[rating];
+                    if (!recipes || recipes.length === 0) return null;
+
+                    return (
+                      <div key={rating}>
+                        <h3 className="text-lg font-semibold text-app-neutral mb-3">
+                          {ratingLabels[rating as keyof typeof ratingLabels]}
+                        </h3>
+                        <div className="space-y-3">
+                          {recipes.map((recipe) => (
+                            <RecipeCard
+                              key={recipe.id}
+                              recipe={recipe}
+                              onClick={() => handleViewRecipe(recipe)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Quick Stats */}
+                  <Card className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mt-6">
+                    <h4 className="font-semibold text-app-neutral mb-3">Estadísticas</h4>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-app-primary">
+                          {favoriteRecipes.length}
+                        </div>
+                        <p className="text-sm text-gray-600">Favoritas</p>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-app-accent">
+                          {(favoriteRecipes.reduce((sum, recipe) =>
+                            sum + (recipe.calificacionNinos || 0), 0) / favoriteRecipes.length).toFixed(1)}
+                        </div>
+                        <p className="text-sm text-gray-600">Promedio</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ) : (
+                <Card className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+                  <div className="text-center">
+                    <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-app-neutral mb-2">
+                      ¡Aún no tienes recetas favoritas!
+                    </h3>
+                    <p className="text-gray-500 mb-6">
+                      Marca tus recetas favoritas para que los chicos siempre encuentren sus comidas preferidas
+                    </p>
+                    <Button
+                      className="bg-app-primary text-white hover:bg-app-primary/90"
+                      onClick={() => setShowAddRecipe(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Agregar Primera Receta
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="comentarios">
+              <CommentsFeed />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
 

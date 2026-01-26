@@ -856,6 +856,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get family comments feed (aggregated)
+  app.get("/api/comments/family", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      // Get user's family
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia para ver comentarios" });
+      }
+
+      // Optional limit parameter (default 50, max 100)
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+      // Get aggregated comments for the family
+      const comments = await storage.getFamilyComments(familyId, limit);
+
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching family comments:", error);
+      res.status(500).json({ error: "Error al obtener los comentarios de la familia" });
+    }
+  });
+
+  // Delete a meal comment (users can only delete their own)
+  app.delete("/api/meal-plans/:mealPlanId/comments/:commentId", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const commentId = parseInt(req.params.commentId);
+
+      // Delete comment (storage method ensures user can only delete their own)
+      const deleted = await storage.deleteMealComment(commentId, user.id);
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Comentario no encontrado o no tienes permiso para eliminarlo" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting meal comment:", error);
+      res.status(500).json({ error: "Error al eliminar el comentario" });
+    }
+  });
+
   // Meal Achievement Routes (Kids Gamification)
 
   // Award a star to a user for a meal

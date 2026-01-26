@@ -13,7 +13,6 @@ import Favorites from "@/pages/favorites";
 import Settings from "@/pages/settings";
 import Profile from "@/pages/profile";
 import FamilySettings from "@/pages/family-settings";
-import Ratings from "@/pages/ratings";
 import Family from "@/pages/family";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -69,12 +68,6 @@ function Router() {
         <Route path="/family-settings">
           <AuthGuard>
             <FamilySettings />
-            <ConditionalBottomNavigation />
-          </AuthGuard>
-        </Route>
-        <Route path="/ratings">
-          <AuthGuard>
-            <Ratings />
             <ConditionalBottomNavigation />
           </AuthGuard>
         </Route>

@@ -24,7 +24,7 @@ import {
   type InsertMealAchievement
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, like, or, inArray, SQL } from "drizzle-orm";
+import { eq, and, gte, lte, like, or, inArray, SQL, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
@@ -69,6 +69,15 @@ export interface IStorage {
   addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment>;
   getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]>;
   deleteMealComment(commentId: number, userId: number): Promise<boolean>;
+  getFamilyComments(familyId: number, limit?: number): Promise<Array<{
+    id: number;
+    comment: string;
+    emoji: string | null;
+    createdAt: Date;
+    user: { id: number; name: string; avatar: string | null };
+    mealPlan: { id: number; fecha: string; tipoComida: string };
+    recipe: { id: number; nombre: string } | null;
+  }>>;
 
   // Meal achievement methods (gamification features)
   createOrUpdateAchievement(mealPlanId: number, userId: number, familyId: number, starType: 'tried_it' | 'ate_veggie' | 'left_feedback'): Promise<MealAchievement>;
@@ -338,6 +347,47 @@ export class MemStorage implements IStorage {
 
   async getUserStats(userId: number, familyId: number, startDate?: string): Promise<{ weeklyStars: { tried: number; veggie: number; feedback: number }; totalStars: number; streakDays: number }> {
     return { weeklyStars: { tried: 0, veggie: 0, feedback: 0 }, totalStars: 0, streakDays: 0 };
+  }
+
+  // Meal comment stubs (MemStorage is primarily for testing)
+  async setRecipeRating(recipeId: number, userId: number, familyId: number, rating: number, comment?: string): Promise<RecipeRating> {
+    throw new Error("MemStorage does not implement recipe ratings");
+  }
+
+  async getRecipeRating(recipeId: number, userId: number): Promise<RecipeRating | undefined> {
+    return undefined;
+  }
+
+  async getRecipeRatings(recipeId: number, familyId: number): Promise<RecipeRating[]> {
+    return [];
+  }
+
+  async getAverageRecipeRating(recipeId: number, familyId: number): Promise<number> {
+    return 0;
+  }
+
+  async addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment> {
+    throw new Error("MemStorage does not implement meal comments");
+  }
+
+  async getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]> {
+    return [];
+  }
+
+  async deleteMealComment(commentId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+
+  async getFamilyComments(familyId: number, limit?: number): Promise<Array<{
+    id: number;
+    comment: string;
+    emoji: string | null;
+    createdAt: Date;
+    user: { id: number; name: string; avatar: string | null };
+    mealPlan: { id: number; fecha: string; tipoComida: string };
+    recipe: { id: number; nombre: string } | null;
+  }>> {
+    return [];
   }
 }
 
@@ -817,6 +867,60 @@ export class DatabaseStorage implements IStorage {
         eq(mealComments.userId, userId) // Ensure user can only delete their own comments
       ));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async getFamilyComments(familyId: number, limit: number = 50): Promise<Array<{
+    id: number;
+    comment: string;
+    emoji: string | null;
+    createdAt: Date;
+    user: { id: number; name: string; avatar: string | null };
+    mealPlan: { id: number; fecha: string; tipoComida: string };
+    recipe: { id: number; nombre: string } | null;
+  }>> {
+    const results = await db
+      .select({
+        id: mealComments.id,
+        comment: mealComments.comment,
+        emoji: mealComments.emoji,
+        createdAt: mealComments.createdAt,
+        userId: users.id,
+        userName: users.name,
+        userAvatar: users.avatar,
+        mealPlanId: mealPlans.id,
+        mealPlanFecha: mealPlans.fecha,
+        mealPlanTipoComida: mealPlans.tipoComida,
+        recipeId: recipes.id,
+        recipeName: recipes.nombre,
+      })
+      .from(mealComments)
+      .innerJoin(users, eq(mealComments.userId, users.id))
+      .innerJoin(mealPlans, eq(mealComments.mealPlanId, mealPlans.id))
+      .leftJoin(recipes, eq(mealPlans.recetaId, recipes.id))
+      .where(eq(mealComments.familyId, familyId))
+      .orderBy(desc(mealComments.createdAt))
+      .limit(limit);
+
+    return results.map(row => ({
+      id: row.id,
+      comment: row.comment,
+      emoji: row.emoji,
+      createdAt: row.createdAt,
+      user: {
+        id: row.userId,
+        name: row.userName,
+        avatar: row.userAvatar,
+      },
+      mealPlan: {
+        id: row.mealPlanId,
+        fecha: row.mealPlanFecha,
+        tipoComida: row.mealPlanTipoComida,
+      },
+      recipe: row.recipeId ? {
+        id: row.recipeId,
+        nombre: row.recipeName,
+      } : null,
+    }));
   }
 
   // Meal achievement methods (gamification features)
