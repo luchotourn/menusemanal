@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, mealPlans } from "@shared/schema";
 import { z } from "zod";
@@ -10,6 +11,17 @@ import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
+
+// Helper to parse cookies from request header (avoids adding cookie-parser dependency)
+function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  if (!cookieHeader) return {};
+  return Object.fromEntries(
+    cookieHeader.split(';').map(c => {
+      const [key, ...rest] = c.trim().split('=');
+      return [key, decodeURIComponent(rest.join('='))];
+    })
+  );
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Smart root: landing page for guests, redirect for authenticated users, health check for deployment
@@ -57,10 +69,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    // Unauthenticated browser request: serve the landing page
+    // Unauthenticated browser request: serve the landing page with CSRF token
     const landingPath = path.resolve(import.meta.dirname, "landing.html");
     try {
       const html = await fs.promises.readFile(landingPath, "utf-8");
+      const csrfToken = crypto.randomBytes(32).toString('hex');
+      res.cookie('csrf_token', csrfToken, {
+        httpOnly: false, // JS must read this to send it back as a header
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 1000, // 1 hour
+        path: '/',
+      });
       res.status(200).set({ "Content-Type": "text/html" }).end(html);
     } catch (e) {
       // If landing.html is missing, fall through to SPA
@@ -124,8 +144,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Waitlist signup — public endpoint, rate-limited
-  app.post("/api/waitlist", waitlistRateLimit, async (req, res) => {
+  // CSRF validation middleware — runs before rate limiter so rejected
+  // CSRF requests don't consume rate-limit slots
+  const validateCsrf = (req: any, res: any, next: any) => {
+    const cookies = parseCookies(req.headers.cookie);
+    const cookieToken = cookies['csrf_token'];
+    const headerToken = req.headers['x-csrf-token'] as string | undefined;
+
+    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      return res.status(403).json({ error: "Token CSRF inválido" });
+    }
+    next();
+  };
+
+  // Waitlist signup — public endpoint, CSRF-protected then rate-limited
+  app.post("/api/waitlist", validateCsrf, waitlistRateLimit, async (req, res) => {
     try {
       const { email, source } = insertWaitlistSignupSchema.parse(req.body);
 

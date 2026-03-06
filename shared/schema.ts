@@ -407,7 +407,7 @@ export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 
 // Waitlist schemas
 export const insertWaitlistSignupSchema = createInsertSchema(waitlistSignups, {
-  email: z.string().email("Email inválido").toLowerCase(),
+  email: z.string().email("Email inválido").toLowerCase().transform(val => val.replace(/<[^>]*>/g, '')),
   source: z.enum(["hero", "footer", "landing"]).default("landing"),
 }).omit({
   id: true,

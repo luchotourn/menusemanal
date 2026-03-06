@@ -778,6 +778,12 @@
 
   <script>
   (function() {
+    // Read CSRF token from cookie for double-submit validation
+    function getCsrfToken() {
+      var match = document.cookie.match('(^|;)\\s*csrf_token=([^;]+)');
+      return match ? decodeURIComponent(match[2]) : '';
+    }
+
     // Waitlist forms
     document.querySelectorAll('.waitlist-form').forEach(function(form) {
       form.addEventListener('submit', function(e) {
@@ -797,7 +803,10 @@
 
         fetch('/api/waitlist', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
+          },
           body: JSON.stringify({ email: email, source: source })
         })
         .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
