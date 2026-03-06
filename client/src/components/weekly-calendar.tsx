@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, Calendar, Star, Leaf, MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, MessageCircle } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
-import type { MealPlan, Recipe, MealAchievement } from "@shared/schema";
+import type { MealPlan, Recipe } from "@shared/schema";
 import { useMealAchievements } from "@/hooks/use-meal-achievements";
+import { MealCommentSheet } from "@/components/meal-comment-sheet";
 
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
@@ -16,6 +17,11 @@ interface WeeklyCalendarProps {
 export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [commentSheetMeal, setCommentSheetMeal] = useState<{
+    mealPlanId: number;
+    recipeId: number;
+    recipeName: string;
+  } | null>(null);
 
   const { data: mealPlans, isLoading } = useQuery({
     queryKey: ["/api/meal-plans", { startDate: formatDate(currentWeekStart) }],
@@ -166,20 +172,35 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
               ) : null}
             </div>
 
-            {/* Achievement stars indicators */}
-            {userAchievement && (
-              <div className="flex items-center gap-1">
-                {userAchievement.triedIt === 1 && (
-                  <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" title="Lo probé" />
-                )}
-                {userAchievement.ateVeggie === 1 && (
-                  <Leaf className="w-3 h-3 text-green-600 fill-green-600" title="Comí vegetales" />
-                )}
-                {userAchievement.leftFeedback === 1 && (
-                  <MessageCircle className="w-3 h-3 text-blue-600 fill-blue-600" title="Dejé opinión" />
-                )}
-              </div>
-            )}
+            {/* Comment / feedback button — large touch target */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCommentSheetMeal({
+                  mealPlanId: meal.id,
+                  recipeId: recipe.id,
+                  recipeName: recipe.nombre,
+                });
+              }}
+              className={`
+                flex items-center justify-center w-9 h-9 rounded-full
+                transition-all duration-150 active:scale-90 shadow-sm
+                ${userAchievement?.leftFeedback === 1
+                  ? "bg-purple-200 border border-purple-300/60"
+                  : "bg-purple-50 border border-purple-200/60 hover:bg-purple-100"
+                }
+              `}
+              title="Opinar sobre esta comida"
+            >
+              <MessageCircle
+                className={`w-[18px] h-[18px] ${
+                  userAchievement?.leftFeedback === 1
+                    ? "text-purple-600 fill-purple-200"
+                    : "text-purple-400"
+                }`}
+              />
+            </button>
           </div>
         </div>
       </div>
@@ -441,6 +462,15 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           return null;
         })}
       </div>
+
+      {/* Meal Comment Sheet */}
+      <MealCommentSheet
+        mealPlanId={commentSheetMeal?.mealPlanId ?? 0}
+        recipeId={commentSheetMeal?.recipeId ?? 0}
+        recipeName={commentSheetMeal?.recipeName ?? ""}
+        isOpen={!!commentSheetMeal}
+        onClose={() => setCommentSheetMeal(null)}
+      />
     </div>
   );
 }

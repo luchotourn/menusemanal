@@ -55,7 +55,7 @@ export function useAuth() {
       
       // Small delay to ensure queries invalidate before navigation
       setTimeout(() => {
-        setLocation("/");
+        setLocation("/app");
       }, 100);
     },
     onError: (error: any) => {
@@ -92,7 +92,7 @@ export function useAuth() {
       
       // Small delay to ensure queries invalidate before navigation
       setTimeout(() => {
-        setLocation("/");
+        setLocation("/app");
       }, 100);
     },
     onError: (error: any) => {

@@ -21,7 +21,9 @@ import {
   type MealComment,
   type InsertMealComment,
   type MealAchievement,
-  type InsertMealAchievement
+  type InsertMealAchievement,
+  waitlistSignups,
+  type WaitlistSignup,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, like, or, inArray, SQL } from "drizzle-orm";
@@ -64,11 +66,15 @@ export interface IStorage {
   getRecipeRating(recipeId: number, userId: number): Promise<RecipeRating | undefined>;
   getRecipeRatings(recipeId: number, familyId: number): Promise<RecipeRating[]>;
   getAverageRecipeRating(recipeId: number, familyId: number): Promise<number>;
+  deleteRecipeRating(recipeId: number, userId: number): Promise<boolean>;
 
   // Meal comment methods (commentator features)
   addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment>;
   getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]>;
+  getMealCommentsByFamily(familyId: number, userId?: number): Promise<(MealComment & { recipeId: number | null })[]>;
+  getRecipeComments(recipeId: number, familyId: number): Promise<(MealComment & { fecha: string; tipoComida: string })[]>;
   deleteMealComment(commentId: number, userId: number): Promise<boolean>;
+  getRecipesWithFeedback(familyId: number): Promise<Set<number>>;
 
   // Meal achievement methods (gamification features)
   createOrUpdateAchievement(mealPlanId: number, userId: number, familyId: number, starType: 'tried_it' | 'ate_veggie' | 'left_feedback'): Promise<MealAchievement>;
@@ -79,6 +85,10 @@ export interface IStorage {
     totalStars: number,
     streakDays: number
   }>;
+
+  // Waitlist methods
+  addWaitlistSignup(email: string, source?: string): Promise<WaitlistSignup>;
+  isEmailOnWaitlist(email: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -323,6 +333,33 @@ export class MemStorage implements IStorage {
     return this.families.delete(id);
   }
 
+  // Meal comment stubs (MemStorage is primarily for testing)
+  async addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment> {
+    throw new Error("MemStorage does not implement meal comments");
+  }
+  async getMealComments(mealPlanId: number, familyId: number): Promise<MealComment[]> {
+    return [];
+  }
+  async getMealCommentsByFamily(familyId: number, userId?: number): Promise<(MealComment & { recipeId: number | null })[]> {
+    return [];
+  }
+  async getRecipeComments(recipeId: number, familyId: number): Promise<(MealComment & { fecha: string; tipoComida: string })[]> {
+    return [];
+  }
+  async deleteMealComment(commentId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+  async getRecipesWithFeedback(familyId: number): Promise<Set<number>> {
+    return new Set();
+  }
+
+  // Recipe rating stubs (MemStorage is primarily for testing)
+  async setRecipeRating(): Promise<RecipeRating> { throw new Error("MemStorage does not implement recipe ratings"); }
+  async getRecipeRating(): Promise<RecipeRating | undefined> { return undefined; }
+  async getRecipeRatings(): Promise<RecipeRating[]> { return []; }
+  async getAverageRecipeRating(): Promise<number> { return 0; }
+  async deleteRecipeRating(): Promise<boolean> { return false; }
+
   // Meal achievement stubs (MemStorage is primarily for testing)
   async createOrUpdateAchievement(mealPlanId: number, userId: number, familyId: number, starType: 'tried_it' | 'ate_veggie' | 'left_feedback'): Promise<MealAchievement> {
     throw new Error("MemStorage does not implement meal achievements");
@@ -338,6 +375,14 @@ export class MemStorage implements IStorage {
 
   async getUserStats(userId: number, familyId: number, startDate?: string): Promise<{ weeklyStars: { tried: number; veggie: number; feedback: number }; totalStars: number; streakDays: number }> {
     return { weeklyStars: { tried: 0, veggie: 0, feedback: 0 }, totalStars: 0, streakDays: 0 };
+  }
+
+  // Waitlist stubs
+  async addWaitlistSignup(email: string, source: string = "landing"): Promise<WaitlistSignup> {
+    return { id: 1, email, source, createdAt: new Date() };
+  }
+  async isEmailOnWaitlist(_email: string): Promise<boolean> {
+    return false;
   }
 }
 
@@ -568,6 +613,19 @@ export class DatabaseStorage implements IStorage {
     return mealPlan || undefined;
   }
 
+  async getMealPlanById(id: number, userId?: number, familyId?: number): Promise<MealPlan | undefined> {
+    let conditions = eq(mealPlans.id, id);
+
+    if (familyId) {
+      conditions = and(conditions, eq(mealPlans.familyId, familyId)) ?? conditions;
+    } else if (userId) {
+      conditions = and(conditions, eq(mealPlans.userId, userId)) ?? conditions;
+    }
+
+    const [result] = await db.select().from(mealPlans).where(conditions);
+    return result || undefined;
+  }
+
   async createMealPlan(insertMealPlan: InsertMealPlan): Promise<MealPlan> {
     const [mealPlan] = await db
       .insert(mealPlans)
@@ -783,6 +841,35 @@ export class DatabaseStorage implements IStorage {
     return Math.round((total / ratings.length) * 100) / 100; // Round to 2 decimal places
   }
 
+  async deleteRecipeRating(recipeId: number, userId: number): Promise<boolean> {
+    await db
+      .delete(recipeRatings)
+      .where(and(
+        eq(recipeRatings.recipeId, recipeId),
+        eq(recipeRatings.userId, userId)
+      ));
+    return true;
+  }
+
+  async getRecipesWithFeedback(familyId: number): Promise<Set<number>> {
+    const [ratedRows, commentedRows] = await Promise.all([
+      db
+        .selectDistinct({ recipeId: recipeRatings.recipeId })
+        .from(recipeRatings)
+        .where(eq(recipeRatings.familyId, familyId)),
+      db
+        .selectDistinct({ recipeId: mealPlans.recetaId })
+        .from(mealComments)
+        .innerJoin(mealPlans, eq(mealComments.mealPlanId, mealPlans.id))
+        .where(eq(mealComments.familyId, familyId)),
+    ]);
+
+    const result = new Set<number>();
+    for (const r of ratedRows) result.add(r.recipeId);
+    for (const r of commentedRows) if (r.recipeId) result.add(r.recipeId);
+    return result;
+  }
+
   // Meal comment methods (commentator features)
   async addMealComment(mealPlanId: number, userId: number, familyId: number, comment: string, emoji?: string): Promise<MealComment> {
     const [newComment] = await db
@@ -804,6 +891,53 @@ export class DatabaseStorage implements IStorage {
       .from(mealComments)
       .where(and(
         eq(mealComments.mealPlanId, mealPlanId),
+        eq(mealComments.familyId, familyId)
+      ))
+      .orderBy(mealComments.createdAt);
+  }
+
+  async getMealCommentsByFamily(familyId: number, userId?: number): Promise<(MealComment & { recipeId: number | null })[]> {
+    let conditions = eq(mealComments.familyId, familyId);
+    if (userId) {
+      conditions = and(conditions, eq(mealComments.userId, userId)) ?? conditions;
+    }
+
+    return await db
+      .select({
+        id: mealComments.id,
+        mealPlanId: mealComments.mealPlanId,
+        userId: mealComments.userId,
+        familyId: mealComments.familyId,
+        comment: mealComments.comment,
+        emoji: mealComments.emoji,
+        createdAt: mealComments.createdAt,
+        updatedAt: mealComments.updatedAt,
+        recipeId: mealPlans.recetaId,
+      })
+      .from(mealComments)
+      .innerJoin(mealPlans, eq(mealComments.mealPlanId, mealPlans.id))
+      .where(conditions)
+      .orderBy(mealComments.createdAt);
+  }
+
+  async getRecipeComments(recipeId: number, familyId: number): Promise<(MealComment & { fecha: string; tipoComida: string })[]> {
+    return await db
+      .select({
+        id: mealComments.id,
+        mealPlanId: mealComments.mealPlanId,
+        userId: mealComments.userId,
+        familyId: mealComments.familyId,
+        comment: mealComments.comment,
+        emoji: mealComments.emoji,
+        createdAt: mealComments.createdAt,
+        updatedAt: mealComments.updatedAt,
+        fecha: mealPlans.fecha,
+        tipoComida: mealPlans.tipoComida,
+      })
+      .from(mealComments)
+      .innerJoin(mealPlans, eq(mealComments.mealPlanId, mealPlans.id))
+      .where(and(
+        eq(mealPlans.recetaId, recipeId),
         eq(mealComments.familyId, familyId)
       ))
       .orderBy(mealComments.createdAt);
@@ -965,6 +1099,23 @@ export class DatabaseStorage implements IStorage {
       totalStars,
       streakDays,
     };
+  }
+  // Waitlist methods
+  async addWaitlistSignup(email: string, source: string = "landing"): Promise<WaitlistSignup> {
+    const [signup] = await db
+      .insert(waitlistSignups)
+      .values({ email, source })
+      .returning();
+    return signup;
+  }
+
+  async isEmailOnWaitlist(email: string): Promise<boolean> {
+    const [existing] = await db
+      .select({ id: waitlistSignups.id })
+      .from(waitlistSignups)
+      .where(eq(waitlistSignups.email, email))
+      .limit(1);
+    return !!existing;
   }
 }
 

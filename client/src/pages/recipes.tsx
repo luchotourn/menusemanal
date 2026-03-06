@@ -17,6 +17,7 @@ import type { Recipe } from "@shared/schema";
 const categories = [
   { value: "all", label: "Todas" },
   { value: "favorites", label: "Favoritas" },
+  { value: "engaged", label: "Con opiniones" },
   { value: "Plato Principal", label: "Platos Principales" },
   { value: "Acompañamiento", label: "Acompañamientos" },
   { value: "Entrada", label: "Entradas" },
@@ -47,6 +48,8 @@ export default function Recipes() {
       const params = new URLSearchParams();
       if (selectedCategory === "favorites") {
         params.append("favorites", "true");
+      } else if (selectedCategory === "engaged") {
+        params.append("engaged", "true");
       } else if (selectedCategory !== "all") {
         params.append("category", selectedCategory);
       }

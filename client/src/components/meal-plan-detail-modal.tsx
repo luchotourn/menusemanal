@@ -7,7 +7,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { MealPlan, Recipe } from "@shared/schema";
-import { StarRatingButtons } from "@/components/star-rating-buttons";
 
 interface MealPlanDetailModalProps {
   isOpen: boolean;
@@ -199,13 +198,6 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                 </div>
               ) : null}
 
-              {/* Star Rating Section - Kids Gamification */}
-              <div className="border-t pt-4 mt-4">
-                <StarRatingButtons
-                  mealPlanId={mealPlan.id}
-                  size="md"
-                />
-              </div>
             </div>
           </div>
 

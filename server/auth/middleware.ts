@@ -222,6 +222,21 @@ export const requireFamilyEditAccess = async (req: Request, res: Response, next:
   }
 };
 
+// Rate limiting for public waitlist endpoint
+export const waitlistRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 signups per IP per hour
+  message: "Demasiadas solicitudes. Por favor intente de nuevo más tarde.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Has enviado demasiadas solicitudes. Por favor espera antes de intentar de nuevo.",
+      error: "TOO_MANY_REQUESTS"
+    });
+  }
+});
+
 // Rate limiting specific to commentator actions (more restrictive)
 export const commentatorRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes

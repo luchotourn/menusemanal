@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuthStatus } from '@/hooks/useAuth';
 import { StarRating } from './star-rating';
-import { EmojiReactions } from './emoji-reactions';
 import { KidButton } from './kid-button';
 import { ProgressTracker } from './progress-tracker';
 
@@ -103,7 +102,6 @@ export function CelebrationToast({ emoji, message, onComplete }: {
 // Demo component to showcase the design system
 export function CommentatorDemo() {
   const [rating, setRating] = React.useState(0);
-  const [reaction, setReaction] = React.useState('');
   const [showCelebration, setShowCelebration] = React.useState(false);
 
   const handleRatingChange = (newRating: number) => {
@@ -136,17 +134,6 @@ export function CommentatorDemo() {
               />
             </div>
 
-            {/* Emoji Reactions */}
-            <div className="text-center">
-              <label className="block text-lg font-semibold text-gray-700 mb-3">
-                😊 ¿Cómo te sentiste?
-              </label>
-              <EmojiReactions
-                value={reaction}
-                onChange={setReaction}
-              />
-            </div>
-
             {/* Action Buttons */}
             <div className="flex gap-4 justify-center">
               <KidButton
@@ -160,7 +147,6 @@ export function CommentatorDemo() {
                 variant="secondary"
                 onClick={() => {
                   setRating(0);
-                  setReaction('');
                 }}
               >
                 Borrar 🗑️

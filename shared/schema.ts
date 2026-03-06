@@ -275,6 +275,14 @@ export const mealAchievementsRelations = relations(mealAchievements, ({ one }) =
   }),
 }));
 
+// Waitlist signups table for landing page
+export const waitlistSignups = pgTable("waitlist_signups", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  source: text("source").notNull().default("landing"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // External tables - managed by external libraries, but included in schema to prevent drizzle from trying to delete them
 // This table is managed by express-session (connect-pg-simple)
 export const userSessions = pgTable("user_sessions", {
@@ -396,6 +404,18 @@ export type InsertMealAchievement = z.infer<typeof insertMealAchievementSchema>;
 export type AwardStarData = z.infer<typeof awardStarSchema>;
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
+
+// Waitlist schemas
+export const insertWaitlistSignupSchema = createInsertSchema(waitlistSignups, {
+  email: z.string().email("Email inválido").toLowerCase().transform(val => val.replace(/<[^>]*>/g, '')),
+  source: z.enum(["hero", "footer", "landing"]).default("landing"),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
+export type InsertWaitlistSignup = z.infer<typeof insertWaitlistSignupSchema>;
 
 // Authentication schemas
 export const loginSchema = z.object({

@@ -1,11 +1,11 @@
-import { Calendar, Book, Heart, Settings, Star, MessageCircle, User } from "lucide-react";
+import { Calendar, Book, Heart, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { useUserRole } from "./role-based-wrapper";
 
 export function RoleBasedBottomNavigation() {
   const [location] = useLocation();
-  const { isCreator, isCommentator, isLoading } = useUserRole();
+  const { isCommentator, isLoading } = useUserRole();
 
   // Show loading state
   if (isLoading) {
@@ -23,23 +23,12 @@ export function RoleBasedBottomNavigation() {
     );
   }
 
-  // Creator navigation (adults/parents)
-  const creatorNavItems = [
+  const navItems = [
     { path: "/", icon: Calendar, label: "Semana", id: "home" },
     { path: "/recipes", icon: Book, label: "Comidas", id: "recipes" },
     { path: "/favorites", icon: Heart, label: "Favoritas", id: "favorites" },
     { path: "/settings", icon: Settings, label: "Ajustes", id: "settings" },
   ];
-
-  // Commentator navigation (children) - more playful and focused on viewing/rating
-  const commentatorNavItems = [
-    { path: "/", icon: Calendar, label: "Semana", id: "home" },
-    { path: "/recipes", icon: Book, label: "Recetas", id: "recipes" },
-    { path: "/ratings", icon: Star, label: "Estrellas", id: "ratings" },
-    { path: "/settings", icon: User, label: "Perfil", id: "settings" },
-  ];
-
-  const navItems = isCreator ? creatorNavItems : commentatorNavItems;
 
   return (
     <nav className={`fixed bottom-0 left-0 right-0 border-t z-50 ${

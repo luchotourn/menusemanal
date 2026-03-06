@@ -158,6 +158,10 @@ class SecurityTestRunner {
       {
         name: 'Frontend Component Security Tests',
         path: path.join(process.cwd(), 'tests', 'security', 'frontend-security.test.js')
+      },
+      {
+        name: 'Waitlist API Security Tests',
+        path: path.join(process.cwd(), 'tests', 'security', 'waitlist-api.test.js')
       }
     ];
 

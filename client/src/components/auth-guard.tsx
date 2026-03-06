@@ -46,7 +46,7 @@ export function GuestGuard({ children }: AuthGuardProps) {
   // Redirect to home if already authenticated (using useEffect to avoid render-time navigation)
   useEffect(() => {
     if (authStatus?.authenticated) {
-      setLocation("/");
+      setLocation("/app");
     }
   }, [authStatus?.authenticated, setLocation]);
 
