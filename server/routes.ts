@@ -25,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                          req.headers['accept']?.includes('application/json') ||
                          req.query.health === 'check';
 
-    if (isHealthCheck && process.env.NODE_ENV === 'production') {
+    if (isHealthCheck) {
       try {
         const dbHealth = await checkDatabaseHealth();
 

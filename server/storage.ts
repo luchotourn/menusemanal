@@ -1104,7 +1104,7 @@ export class DatabaseStorage implements IStorage {
   async addWaitlistSignup(email: string, source: string = "landing"): Promise<WaitlistSignup> {
     const [signup] = await db
       .insert(waitlistSignups)
-      .values({ email: email.toLowerCase().trim(), source })
+      .values({ email, source })
       .returning();
     return signup;
   }
@@ -1113,7 +1113,7 @@ export class DatabaseStorage implements IStorage {
     const [existing] = await db
       .select({ id: waitlistSignups.id })
       .from(waitlistSignups)
-      .where(eq(waitlistSignups.email, email.toLowerCase().trim()))
+      .where(eq(waitlistSignups.email, email))
       .limit(1);
     return !!existing;
   }

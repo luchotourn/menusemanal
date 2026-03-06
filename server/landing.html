@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menu Semanal - Planifica las comidas de tu familia</title>
+  <meta name="description" content="Organiza las comidas de tu familia con inteligencia artificial. Recetas, calendario semanal y participacion de toda la familia." />
+  <meta name="theme-color" content="#d4825a" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <meta property="og:title" content="Menu Semanal - Planifica las comidas de tu familia" />
+  <meta property="og:description" content="Organiza las comidas semanales con IA. Recetas, planificacion y feedback familiar." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #d4825a;
+      --orange-light: #e8a882;
+      --orange-dark: #b8694a;
+      --text: #1a1a1a;
+      --text-muted: #5a5a5a;
+      --bg: #faf9f7;
+      --bg-warm: #fdf5ef;
+      --card: #ffffff;
+      --border: #e8e2db;
+      --green: #4ECDC4;
+      --green-bg: #e8f8f6;
+      --yellow: #f0c040;
+      --yellow-bg: #fef8e6;
+      --purple: #7c6fac;
+      --purple-bg: #f0eef7;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0.9rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--orange);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav-links { display: flex; align-items: center; gap: 0.5rem; }
+    .nav-link {
+      display: inline-block;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-link--ghost { color: var(--text); }
+    .nav-link--ghost:hover { background: rgba(0,0,0,0.04); }
+    .nav-link--primary {
+      background: var(--orange);
+      color: #fff;
+    }
+    .nav-link--primary:hover { background: var(--orange-dark); }
+
+    /* ── HERO ───────────────────────────────── */
+    .hero {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem 3rem;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-warm);
+      color: var(--orange);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5.5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 em {
+      font-style: normal;
+      color: var(--orange);
+    }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+    }
+    .hero-cta {
+      max-width: 440px;
+      margin: 0 auto 1rem;
+    }
+    .hero-login {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .hero-login a {
+      color: var(--orange);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .hero-login a:hover { text-decoration: underline; }
+
+    /* ── PHONE MOCKUP ──────────────────────── */
+    .mockup-section {
+      max-width: 1080px;
+      margin: 0 auto 4rem;
+      padding: 0 1.5rem;
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .phone-frame {
+      width: 260px;
+      height: 520px;
+      background: #111;
+      border-radius: 36px;
+      padding: 12px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1) inset;
+      flex-shrink: 0;
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--card);
+      border-radius: 26px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .phone-statusbar {
+      height: 36px;
+      background: var(--orange);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .phone-content {
+      flex: 1;
+      padding: 0.75rem;
+      overflow: hidden;
+    }
+    .phone-content h3 {
+      font-size: 0.8rem;
+      color: var(--text);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .mock-day {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .mock-day-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 28px;
+      flex-shrink: 0;
+    }
+    .mock-meal {
+      font-size: 0.6rem;
+      background: var(--bg-warm);
+      color: var(--orange-dark);
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mock-meal--green { background: var(--green-bg); color: #2a9d8f; }
+    .phone-nav {
+      height: 40px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      font-size: 0.55rem;
+      color: var(--text-muted);
+    }
+    .phone-nav span.active { color: var(--orange); font-weight: 700; }
+
+    /* ── AI SECTION ─────────────────────────── */
+    .ai-section {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      padding: 5rem 1.5rem;
+      text-align: center;
+    }
+    .ai-section .section-inner {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255,255,255,0.1);
+      color: var(--green);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+    }
+    .ai-section h2 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+    .ai-section p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.7);
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+    }
+    .ai-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      text-align: left;
+    }
+    .ai-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 1.25rem;
+    }
+    .ai-card-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .ai-card h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+    .ai-card p {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      margin: 0;
+    }
+
+    /* ── FEATURES ───────────────────────────── */
+    .features {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+    .features h2 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+    .features > p {
+      text-align: center;
+      color: var(--text-muted);
+      max-width: 480px;
+      margin: 0 auto 3rem;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      transition: box-shadow 0.2s;
+    }
+    .feature-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+    .feature-icon--orange { background: var(--bg-warm); }
+    .feature-icon--green { background: var(--green-bg); }
+    .feature-icon--yellow { background: var(--yellow-bg); }
+    .feature-icon--purple { background: var(--purple-bg); }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* ── HOW IT WORKS ──────────────────────── */
+    .how {
+      background: var(--bg-warm);
+      padding: 5rem 1.5rem;
+    }
+    .how-inner {
+      max-width: 840px;
+      margin: 0 auto;
+    }
+    .how h2 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 3rem;
+      letter-spacing: -0.02em;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+    }
+    .step {
+      text-align: center;
+    }
+    .step-number {
+      width: 48px;
+      height: 48px;
+      background: var(--orange);
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 800;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+    }
+    .step h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .step p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* ── FAQ ────────────────────────────────── */
+    .faq {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+    .faq h2 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 2.5rem;
+      letter-spacing: -0.02em;
+    }
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 0;
+    }
+    .faq-q {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      width: 100%;
+      border: none;
+      background: none;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+      padding: 0;
+    }
+    .faq-q::after {
+      content: '+';
+      font-size: 1.3rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      margin-left: 1rem;
+    }
+    .faq-item.open .faq-q::after {
+      content: '-';
+    }
+    .faq-a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+    .faq-item.open .faq-a {
+      max-height: 300px;
+      padding-top: 0.75rem;
+    }
+
+    /* ── BOTTOM CTA ────────────────────────── */
+    .bottom-cta {
+      background: var(--orange);
+      color: #fff;
+      padding: 5rem 1.5rem;
+      text-align: center;
+    }
+    .bottom-cta h2 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+    .bottom-cta p {
+      font-size: 1.05rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+      max-width: 440px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .bottom-cta .form-row input[type="email"] {
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    .bottom-cta .form-row input[type="email"]::placeholder { color: rgba(255,255,255,0.6); }
+    .bottom-cta .form-row input[type="email"]:focus { border-color: #fff; background: rgba(255,255,255,0.2); }
+    .bottom-cta .btn-submit {
+      background: #fff;
+      color: var(--orange);
+    }
+    .bottom-cta .btn-submit:hover {
+      background: rgba(255,255,255,0.9);
+    }
+
+    /* ── FORM ──────────────────────────────── */
+    .form-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .form-row input[type="email"] {
+      flex: 1;
+      min-width: 0;
+      padding: 0.75rem 1rem;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.15s;
+      background: var(--card);
+      color: var(--text);
+    }
+    .form-row input[type="email"]:focus { border-color: var(--orange); }
+    .btn-submit {
+      padding: 0.75rem 1.5rem;
+      background: var(--orange);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-submit:hover { background: var(--orange-dark); }
+    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+    .form-msg {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      min-height: 1.3rem;
+      font-weight: 500;
+    }
+    .form-msg.success { color: #2d7a3a; }
+    .form-msg.error { color: #c0392b; }
+    .bottom-cta .form-msg.success { color: #c0ffc8; }
+    .bottom-cta .form-msg.error { color: #ffcccb; }
+
+    /* ── FOOTER ─────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--orange); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── RESPONSIVE ─────────────────────────── */
+    @media (max-width: 640px) {
+      .hero { padding: 3rem 1.25rem 2rem; }
+      .form-row { flex-direction: column; }
+      .form-row input, .btn-submit { width: 100%; }
+      .mockup-section { gap: 1.25rem; }
+      .phone-frame { width: 220px; height: 440px; }
+      .phone-frame:nth-child(2) { display: none; }
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="logo">Menu Semanal</a>
+      <div class="nav-links">
+        <a href="/login" class="nav-link nav-link--primary">Iniciar sesion</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" viewBox="0 0 24 24"></path></svg>
+      Para familias modernas
+    </div>
+    <h1>El menu semanal de tu familia, <em>resuelto</em></h1>
+    <p>Planifica las comidas de la semana, guarda tus recetas y deja que toda la familia participe. Simple, inteligente y sin complicaciones.</p>
+    <div class="hero-cta">
+      <form class="waitlist-form" data-source="hero">
+        <div class="form-row">
+          <input type="email" placeholder="tu@email.com" required autocomplete="email" />
+          <button type="submit" class="btn-submit">Quiero acceso</button>
+        </div>
+        <div class="form-msg"></div>
+      </form>
+    </div>
+    <p class="hero-login">Ya tienes cuenta? <a href="/login">Inicia sesion</a></p>
+  </section>
+
+  <!-- PHONE MOCKUPS -->
+  <section class="mockup-section">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="phone-statusbar">Menu Semanal</div>
+        <div class="phone-content">
+          <h3>Semana 10 - Marzo 2026</h3>
+          <div class="mock-day"><span class="mock-day-label">LUN</span><span class="mock-meal">Milanesas al horno</span><span class="mock-meal mock-meal--green">Ensalada cesar</span></div>
+          <div class="mock-day"><span class="mock-day-label">MAR</span><span class="mock-meal">Pasta con salsa</span><span class="mock-meal mock-meal--green">Sopa crema</span></div>
+          <div class="mock-day"><span class="mock-day-label">MIE</span><span class="mock-meal">Pollo al limon</span><span class="mock-meal mock-meal--green">Pure de papas</span></div>
+          <div class="mock-day"><span class="mock-day-label">JUE</span><span class="mock-meal">Tacos de carne</span><span class="mock-meal mock-meal--green">Guacamole</span></div>
+          <div class="mock-day"><span class="mock-day-label">VIE</span><span class="mock-meal">Pizza casera</span><span class="mock-meal mock-meal--green">Ensalada mixta</span></div>
+          <div class="mock-day"><span class="mock-day-label">S/D</span><span class="mock-meal">Asado familiar</span><span class="mock-meal mock-meal--green">Verduras grilladas</span></div>
+        </div>
+        <div class="phone-nav">
+          <span class="active">Semana</span>
+          <span>Comidas</span>
+          <span>Favoritas</span>
+          <span>Ajustes</span>
+        </div>
+      </div>
+    </div>
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="phone-statusbar" style="background: var(--purple);">Opiniones</div>
+        <div class="phone-content">
+          <h3>Que dicen los chicos</h3>
+          <div style="background:#fef8e6;border-radius:10px;padding:0.6rem;margin-bottom:0.5rem;">
+            <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem;">
+              <span style="font-size:0.65rem;font-weight:700;">Sofi</span>
+              <span style="font-size:0.6rem;color:var(--yellow);">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+            </div>
+            <p style="font-size:0.6rem;color:var(--text-muted);margin:0;">Las milanesas estaban riquisimas!</p>
+          </div>
+          <div style="background:#f0eef7;border-radius:10px;padding:0.6rem;margin-bottom:0.5rem;">
+            <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem;">
+              <span style="font-size:0.65rem;font-weight:700;">Tomi</span>
+              <span style="font-size:0.6rem;color:var(--yellow);">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+            <p style="font-size:0.6rem;color:var(--text-muted);margin:0;">La pizza casera es mi favorita! Mas de esas</p>
+          </div>
+          <div style="background:var(--green-bg);border-radius:10px;padding:0.6rem;margin-bottom:0.5rem;">
+            <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem;">
+              <span style="font-size:0.65rem;font-weight:700;">Mati</span>
+              <span style="font-size:0.6rem;color:var(--yellow);">&#9733;&#9733;&#9733;&#9734;&#9734;</span>
+            </div>
+            <p style="font-size:0.6rem;color:var(--text-muted);margin:0;">La sopa estaba bien pero prefiero la de tomate</p>
+          </div>
+          <div style="text-align:center;padding:0.5rem 0;">
+            <span style="font-size:0.6rem;color:var(--orange);font-weight:600;">3 estrellas ganadas esta semana</span>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <span>Semana</span>
+          <span>Comidas</span>
+          <span class="active" style="color:var(--purple);">Opiniones</span>
+          <span>Ajustes</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI SECTION -->
+  <section class="ai-section">
+    <div class="section-inner">
+      <div class="ai-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        Inteligencia Artificial
+      </div>
+      <h2>La IA que planifica por vos</h2>
+      <p>Integramos inteligencia artificial para que el menu semanal se arme solo, adaptandose a los gustos de tu familia y la temporada.</p>
+      <div class="ai-features">
+        <div class="ai-card">
+          <div class="ai-card-icon">&#x1F9E0;</div>
+          <h4>Aprende de tu familia</h4>
+          <p>Analiza las calificaciones y preferencias para sugerir las comidas que mas gustan a todos.</p>
+        </div>
+        <div class="ai-card">
+          <div class="ai-card-icon">&#x1F4C5;</div>
+          <h4>Planificacion automatica</h4>
+          <p>Genera el menu de la semana completo con un click. Vos solo ajustas lo que quieras.</p>
+
+        </div>
+        <div class="ai-card">
+          <div class="ai-card-icon">&#x1F331;</div>
+          <h4>Variedad y equilibrio</h4>
+          <p>Busca variedad nutricional y evita repetir las mismas comidas todas las semanas.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <h2>Todo lo que tu familia necesita</h2>
+    <p>Desde la planificacion hasta el feedback de los chicos, todo en un solo lugar.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon feature-icon--orange">&#x1F4C5;</div>
+        <h3>Calendario semanal</h3>
+        <p>Visualiza almuerzo y cena de cada dia. Navega entre semanas y organiza todo de un vistazo.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon feature-icon--green">&#x1F468;&#x200D;&#x1F373;</div>
+        <h3>Recetario familiar</h3>
+        <p>Guarda tus recetas con ingredientes, instrucciones, fotos y tiempo de preparacion.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon feature-icon--yellow">&#x2B50;</div>
+        <h3>Opiniones de los chicos</h3>
+        <p>Los ninos califican con estrellas, dejan comentarios y ganan logros por probar cosas nuevas.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon feature-icon--purple">&#x1F46A;</div>
+        <h3>Sistema familiar</h3>
+        <p>Crea tu familia, invita miembros con un codigo y compartan recetas y planes de comida.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how">
+    <div class="how-inner">
+      <h2>Empezar es muy simple</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Crea tu cuenta</h3>
+          <p>Registrate en menos de un minuto con tu email. Es gratis.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>Agrega tus recetas</h3>
+          <p>Carga tus recetas favoritas o busca inspiracion con las que ya tenemos.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Planifica la semana</h3>
+          <p>Asigna recetas a cada dia y listo. Tu familia ya sabe que se come.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq">
+    <h2>Preguntas frecuentes</h2>
+    <div class="faq-item">
+      <button class="faq-q">Es gratis?</button>
+      <div class="faq-a">Si, Menu Semanal es completamente gratis. Estamos en etapa temprana y queremos que la mayor cantidad de familias lo prueben y nos den feedback para mejorar.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Funciona como app en el celular?</button>
+      <div class="faq-a">Si. Menu Semanal es una Progressive Web App (PWA). Podes agregarla a la pantalla de inicio de tu celular y usarla como si fuera una app nativa, sin descargar nada de la tienda.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Que rol pueden tener los chicos?</button>
+      <div class="faq-a">Los chicos se unen como "comentadores". Pueden ver las comidas planeadas, dejar calificaciones con estrellas, escribir comentarios y ganar logros. No pueden crear ni modificar recetas ni planes.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Como funciona la inteligencia artificial?</button>
+      <div class="faq-a">Menu Semanal usa inteligencia artificial que analiza las preferencias de tu familia (calificaciones, recetas favoritas, ingredientes) para sugerir automaticamente el menu de la semana. Seguimos mejorando esta funcion constantemente.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">En que paises esta disponible?</button>
+      <div class="faq-a">Menu Semanal esta disponible para toda Latinoamerica y cualquier familia de habla hispana. Solo necesitas un email para registrarte.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q">Puedo invitar a mi familia?</button>
+      <div class="faq-a">Si. Al crear una familia, se genera un codigo de invitacion que podes compartir. Los demas miembros se unen con ese codigo y ya comparten recetas y planes de comida.</div>
+    </div>
+  </section>
+
+  <!-- BOTTOM CTA -->
+  <section class="bottom-cta">
+    <h2>Lista para organizar las comidas?</h2>
+    <p>Unite a la lista de espera y te avisamos cuando abramos el acceso.</p>
+    <div style="max-width:440px;margin:0 auto;">
+      <form class="waitlist-form" data-source="footer">
+        <div class="form-row">
+          <input type="email" placeholder="tu@email.com" required autocomplete="email" />
+          <button type="submit" class="btn-submit">Anotarme</button>
+        </div>
+        <div class="form-msg"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p style="margin-bottom:0.5rem;"><strong style="color:var(--orange);">Menu Semanal</strong></p>
+    <p>Hecho con amor para familias que comen bien.</p>
+    <p style="margin-top:0.75rem;">Ya tienes cuenta? <a href="/login">Inicia sesion</a></p>
+  </footer>
+
+  <script>
+  (function() {
+    // Waitlist forms
+    document.querySelectorAll('.waitlist-form').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var input = form.querySelector('input[type="email"]');
+        var btn = form.querySelector('.btn-submit');
+        var msg = form.querySelector('.form-msg');
+        var email = input.value.trim();
+        var source = form.getAttribute('data-source') || 'landing';
+
+        if (!email) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        msg.textContent = '';
+        msg.className = 'form-msg';
+
+        fetch('/api/waitlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, source: source })
+        })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(res) {
+          if (res.ok || res.data.message) {
+            msg.textContent = res.data.message || 'Gracias! Te avisamos pronto.';
+            msg.className = 'form-msg success';
+            input.value = '';
+          } else {
+            msg.textContent = res.data.error || 'Algo salio mal. Intenta de nuevo.';
+            msg.className = 'form-msg error';
+          }
+        })
+        .catch(function() {
+          msg.textContent = 'Error de conexion. Intenta de nuevo.';
+          msg.className = 'form-msg error';
+        })
+        .finally(function() {
+          btn.disabled = false;
+          btn.textContent = form.getAttribute('data-source') === 'hero' ? 'Quiero acceso' : 'Anotarme';
+        });
+      });
+    });
+
+    // FAQ accordion
+    document.querySelectorAll('.faq-q').forEach(function(q) {
+      q.addEventListener('click', function() {
+        var item = q.parentElement;
+        var wasOpen = item.classList.contains('open');
+        // Close all
+        document.querySelectorAll('.faq-item').forEach(function(i) { i.classList.remove('open'); });
+        // Toggle clicked
+        if (!wasOpen) item.classList.add('open');
+      });
+    });
+  })();
+  </script>
+
+</body>
+</html>

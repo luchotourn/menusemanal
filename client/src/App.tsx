@@ -36,7 +36,7 @@ function Router() {
         </Route>
 
         {/* Main app routes (with navigation) - require authentication */}
-        <Route path="/">
+        <Route path="/app">
           <AuthGuard>
             <Home />
             <ConditionalBottomNavigation />

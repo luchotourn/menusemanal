@@ -2,7 +2,7 @@
   "name": "Menu Familiar",
   "short_name": "Menu Familiar",
   "description": "Organiza las comidas de tu familia con recetas y planificación semanal",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#d4825a",
