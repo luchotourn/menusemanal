@@ -1,30 +1,37 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, mealPlans } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, mealPlans } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth, db } from "./db";
 import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
-import { apiRateLimit, familyCodeRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
+import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Smart health check at root - serves health check for deployment systems, React app for browsers
+  // Smart root: landing page for guests, redirect for authenticated users, health check for deployment
   app.get("/", async (req, res, next) => {
-    // Check if this is a health check request from deployment system
-    const isHealthCheck = req.headers['user-agent']?.includes('curl') || 
+    // Authenticated users go to the app
+    if (req.isAuthenticated()) {
+      return res.redirect(302, "/app");
+    }
+
+    // Health check detection (deployment systems, curl, explicit query param)
+    const isHealthCheck = req.headers['user-agent']?.includes('curl') ||
                          req.headers['user-agent']?.includes('health') ||
                          req.headers['accept']?.includes('application/json') ||
                          req.query.health === 'check';
-    
+
     if (isHealthCheck && process.env.NODE_ENV === 'production') {
       try {
         const dbHealth = await checkDatabaseHealth();
-        
+
         if (!dbHealth.healthy) {
-          return res.status(503).json({ 
-            status: "unhealthy", 
+          return res.status(503).json({
+            status: "unhealthy",
             message: "Database connection failed",
             database: dbHealth,
             timestamp: new Date().toISOString(),
@@ -32,8 +39,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        return res.status(200).json({ 
-          status: "ok", 
+        return res.status(200).json({
+          status: "ok",
           message: "Menu Familiar API is running",
           database: { healthy: true },
           uptime: process.uptime(),
@@ -41,17 +48,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           environment: process.env.NODE_ENV || "development"
         });
       } catch (error) {
-        return res.status(503).json({ 
-          status: "error", 
+        return res.status(503).json({
+          status: "error",
           message: "Health check failed",
           error: error instanceof Error ? error.message : "Unknown error",
           timestamp: new Date().toISOString()
         });
       }
     }
-    
-    // For all other requests, continue to static file serving
-    next();
+
+    // Unauthenticated browser request: serve the landing page
+    const landingPath = path.resolve(import.meta.dirname, "landing.html");
+    try {
+      const html = await fs.promises.readFile(landingPath, "utf-8");
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      // If landing.html is missing, fall through to SPA
+      next();
+    }
   });
 
   // Main health check route for deployment systems
@@ -110,6 +124,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Waitlist signup — public endpoint, rate-limited
+  app.post("/api/waitlist", waitlistRateLimit, async (req, res) => {
+    try {
+      const { email, source } = insertWaitlistSignupSchema.parse(req.body);
+
+      const alreadySignedUp = await storage.isEmailOnWaitlist(email);
+      if (alreadySignedUp) {
+        // Return 200 (not 409) to prevent email enumeration
+        return res.status(200).json({
+          message: "¡Gracias! Te notificaremos cuando estemos listos."
+        });
+      }
+
+      await storage.addWaitlistSignup(email, source);
+      res.status(201).json({
+        message: "¡Gracias! Te notificaremos cuando estemos listos."
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Email inválido" });
+      }
+      console.error("Waitlist signup error:", error);
+      res.status(500).json({ error: "Error al procesar tu solicitud" });
+    }
+  });
+
   // Authentication Routes
   app.use("/api/auth", authRouter);
 
@@ -122,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Recipe routes
   app.get("/api/recipes", isAuthenticated, async (req, res) => {
     try {
-      const { category, search, favorites } = req.query;
+      const { category, search, favorites, engaged } = req.query;
       const user = getCurrentUser(req);
       const userId = user?.id;
       
@@ -143,6 +183,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recipes = await storage.getAllRecipes(userId, familyId);
       }
       
+      // Apply "has feedback" filter
+      if (engaged === 'true') {
+        if (!familyId) {
+          return res.status(403).json({ error: "Debes pertenecer a una familia" });
+        }
+        const engagedIds = await storage.getRecipesWithFeedback(familyId);
+        recipes = recipes.filter(recipe => engagedIds.has(recipe.id));
+      }
+
       // Apply category filter
       if (category && category !== 'all') {
         recipes = recipes.filter(recipe => recipe.categoria === category);
@@ -162,6 +211,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(recipes);
     } catch (error) {
       res.status(500).json({ error: "Error al obtener las recetas" });
+    }
+  });
+
+  // Engaged recipes (must be before :id to avoid Express matching "engaged" as an id)
+  app.get("/api/recipes/engaged", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const isCommentator = user.role === "commentator";
+
+      // Get all comments with recipeId already joined
+      const allComments = await storage.getMealCommentsByFamily(familyId, isCommentator ? user.id : undefined);
+
+      // Aggregate comments per recipe
+      const recipeEngagement = new Map<number, { commentCount: number; latestComment: string }>();
+      for (const comment of allComments) {
+        const recipeId = comment.recipeId;
+        if (!recipeId) continue;
+        const existing = recipeEngagement.get(recipeId);
+        if (existing) {
+          existing.commentCount++;
+          if (comment.createdAt.toISOString() > existing.latestComment) {
+            existing.latestComment = comment.createdAt.toISOString();
+          }
+        } else {
+          recipeEngagement.set(recipeId, {
+            commentCount: 1,
+            latestComment: comment.createdAt.toISOString(),
+          });
+        }
+      }
+
+      if (recipeEngagement.size === 0) {
+        return res.json([]);
+      }
+
+      // Fetch the engaged recipes
+      const allRecipes = await storage.getAllRecipes(undefined, familyId);
+      const engagedRecipes = allRecipes
+        .filter(r => recipeEngagement.has(r.id))
+        .map(r => ({
+          ...r,
+          commentCount: recipeEngagement.get(r.id)!.commentCount,
+          latestComment: recipeEngagement.get(r.id)!.latestComment,
+        }))
+        .sort((a, b) => b.commentCount - a.commentCount);
+
+      res.json(engagedRecipes);
+    } catch (error) {
+      console.error("Error fetching engaged recipes:", error);
+      res.status(500).json({ error: "Error al obtener las recetas con opiniones" });
+    }
+  });
+
+  // Get all family ratings for a recipe (for display in recipe detail)
+  app.get("/api/recipes/:id/ratings", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) return res.status(401).json({ error: "Usuario no autenticado" });
+
+      const recipeId = parseInt(req.params.id);
+      if (isNaN(recipeId)) return res.status(400).json({ error: "ID inválido" });
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) return res.status(403).json({ error: "Debes pertenecer a una familia" });
+
+      const [ratings, familyMembers] = await Promise.all([
+        storage.getRecipeRatings(recipeId, familyId),
+        storage.getFamilyMembers(familyId),
+      ]);
+
+      const userNameMap = new Map(familyMembers.map(m => [m.id, m.name]));
+      const enriched = ratings.map(r => ({
+        id: r.id,
+        rating: r.rating,
+        userName: userNameMap.get(r.userId) || "Usuario",
+        createdAt: r.createdAt,
+      }));
+
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching recipe ratings:", error);
+      res.status(500).json({ error: "Error al obtener las calificaciones" });
     }
   });
 
@@ -709,9 +851,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recipeId = parseInt(req.params.id);
       const { rating } = req.body;
 
-      // Validate rating (1-5 stars)
-      if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-        return res.status(400).json({ error: "La calificación debe ser un número entero entre 1 y 5" });
+      // rating must be an integer 0-5 (0 = delete)
+      if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 0 || rating > 5) {
+        return res.status(400).json({ error: "La calificación debe ser un número entero entre 0 y 5" });
       }
 
       // Get user's families to ensure they can access this recipe
@@ -728,7 +870,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Receta no encontrada o no tienes acceso" });
       }
 
-      // Store the rating (this will be implemented in storage layer)
+      // rating=0 means clear the rating
+      if (rating === 0) {
+        await storage.deleteRecipeRating(recipeId, user.id);
+        return res.json({
+          message: "Calificación eliminada",
+          rating: 0,
+          recipeId: recipeId
+        });
+      }
+
+      // Store the rating
       const result = await storage.setRecipeRating(recipeId, user.id, familyId, rating);
 
       res.json({
@@ -752,10 +904,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const recipeId = parseInt(req.params.id);
 
-      // Get user's rating for this recipe
-      const rating = await storage.getRecipeRating(recipeId, user.id);
+      // Get user's rating for this recipe (returns RecipeRating object or undefined)
+      const ratingRecord = await storage.getRecipeRating(recipeId, user.id);
 
-      res.json({ rating: rating || 0 });
+      res.json({ rating: ratingRecord?.rating || 0 });
     } catch (error) {
       console.error("Error fetching recipe rating:", error);
       res.status(500).json({ error: "Error al obtener la calificación" });
@@ -771,6 +923,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const mealPlanId = parseInt(req.params.id);
+      if (isNaN(mealPlanId)) {
+        return res.status(400).json({ error: "ID de plan de comida inválido" });
+      }
       const { comment, emoji } = req.body;
 
       // Validate comment
@@ -797,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Store the comment
-      const result = await storage.addMealComment(mealPlanId, user.id, comment.trim(), emoji);
+      const result = await storage.addMealComment(mealPlanId, user.id, familyId, comment.trim(), emoji);
 
       // Auto-award the blue "left feedback" star for commenting
       try {
@@ -837,6 +992,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const mealPlanId = parseInt(req.params.id);
+      if (isNaN(mealPlanId)) {
+        return res.status(400).json({ error: "ID de plan de comida inválido" });
+      }
 
       // Get user's families to ensure they can access this meal plan
       const userFamilies = await storage.getUserFamilies(user.id);
@@ -846,16 +1004,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Debes pertenecer a una familia" });
       }
 
-      // Get comments for this meal plan
-      const comments = await storage.getMealComments(mealPlanId, familyId);
+      // Get comments for this meal plan, enriched with user names
+      const [comments, familyMembers] = await Promise.all([
+        storage.getMealComments(mealPlanId, familyId),
+        storage.getFamilyMembers(familyId),
+      ]);
 
-      res.json(comments);
+      const userNameMap = new Map(familyMembers.map(m => [m.id, m.name]));
+      const enrichedComments = comments.map(c => ({
+        ...c,
+        userName: userNameMap.get(c.userId) || "Usuario",
+      }));
+
+      res.json(enrichedComments);
     } catch (error) {
       console.error("Error fetching meal comments:", error);
       res.status(500).json({ error: "Error al obtener los comentarios" });
     }
   });
 
+  // Get all comments for a recipe (across all meal plans)
+  app.get("/api/recipes/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const recipeId = parseInt(req.params.id);
+      if (isNaN(recipeId)) {
+        return res.status(400).json({ error: "ID de receta inválido" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const [comments, familyMembers] = await Promise.all([
+        storage.getRecipeComments(recipeId, familyId),
+        storage.getFamilyMembers(familyId),
+      ]);
+
+      const userNameMap = new Map(familyMembers.map(m => [m.id, m.name]));
+      const enrichedComments = comments.map(c => ({
+        ...c,
+        userName: userNameMap.get(c.userId) || "Usuario",
+      }));
+
+      res.json(enrichedComments);
+    } catch (error) {
+      console.error("Error fetching recipe comments:", error);
+      res.status(500).json({ error: "Error al obtener los comentarios" });
+    }
+  });
+
+  // Get recipes with engagement (comments/stars) for the favorites page
   // Meal Achievement Routes (Kids Gamification)
 
   // Award a star to a user for a meal
