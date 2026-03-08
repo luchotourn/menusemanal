@@ -25,6 +25,12 @@ export function sendSignupNotification(email: string, source: string): void {
         `Fecha: ${now}`,
       ].join("\n"),
     })
-    .then(() => console.log(`Signup notification sent for ${email}`))
+    .then((result) => {
+      if (result.error) {
+        console.error("Resend API error:", JSON.stringify(result.error));
+      } else {
+        console.log(`Signup notification sent for ${email}, id: ${result.data?.id}`);
+      }
+    })
     .catch((err) => console.error("Failed to send signup notification:", err));
 }
