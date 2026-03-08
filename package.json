@@ -16,7 +16,8 @@
     "migrate:audit": "psql $DATABASE_URL -f scripts/audit-production-data.sql",
     "test:security": "node tests/run-security-tests.js",
     "test:security:api": "node tests/security/role-based-security.test.js",
-    "test:security:frontend": "node tests/security/frontend-security.test.js"
+    "test:security:frontend": "node tests/security/frontend-security.test.js",
+    "test:email": "node tests/email-notification.test.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

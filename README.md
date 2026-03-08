@@ -49,6 +49,17 @@ npm run dev
 - `GET/POST /api/recipes` - CRUD recetas + búsqueda/filtros
 - `GET/POST /api/meal-plans` - Planificación semanal
 
+## Variables de Entorno
+
+| Variable | Requerida | Descripción |
+|----------|-----------|-------------|
+| `DATABASE_URL` | Si | Connection string PostgreSQL (recomendamos [Neon](https://neon.tech)) |
+| `SESSION_SECRET` | Si | Secreto para sesiones Express |
+| `RESEND_API_KEY` | No | API key de [Resend](https://resend.com) para notificaciones de signup |
+| `NOTIFY_EMAIL` | No | Email que recibe alertas de nuevos registros en la waitlist |
+
+> Si `RESEND_API_KEY` o `NOTIFY_EMAIL` no están configurados, las notificaciones se omiten silenciosamente.
+
 ## Contribuir
 
 ¿Encontraste un bug? Abrí un issue. ¿Querés contribuir? Fork y PR.
