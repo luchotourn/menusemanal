@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
+import { sendSignupNotification } from "./email";
 
 // Helper to parse cookies from request header (avoids adding cookie-parser dependency)
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
@@ -171,6 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.addWaitlistSignup(email, source);
+      sendSignupNotification(email, source);
       res.status(201).json({
         message: "¡Gracias! Te notificaremos cuando estemos listos."
       });
