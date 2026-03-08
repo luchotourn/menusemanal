@@ -14,7 +14,7 @@ export function sendSignupNotification(email: string, source: string): void {
 
   resend.emails
     .send({
-      from: "Menu Familiar <onboarding@resend.dev>",
+      from: "Menu Familiar <notificaciones@menusemanal.app>",
       to: process.env.NOTIFY_EMAIL,
       subject: `Nuevo registro en waitlist: ${email}`,
       text: [
