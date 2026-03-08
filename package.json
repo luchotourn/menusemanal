@@ -16,7 +16,8 @@
     "migrate:audit": "psql $DATABASE_URL -f scripts/audit-production-data.sql",
     "test:security": "node tests/run-security-tests.js",
     "test:security:api": "node tests/security/role-based-security.test.js",
-    "test:security:frontend": "node tests/security/frontend-security.test.js"
+    "test:security:frontend": "node tests/security/frontend-security.test.js",
+    "test:email": "node tests/email-notification.test.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -79,6 +80,7 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
+    "resend": "^6.9.3",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.2.5",
