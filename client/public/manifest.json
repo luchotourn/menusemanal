@@ -1,6 +1,6 @@
 {
-  "name": "Menu Familiar",
-  "short_name": "Menu Familiar",
+  "name": "Menu Semanal",
+  "short_name": "Menu Semanal",
   "description": "Organiza las comidas de tu familia con recetas y planificación semanal",
   "start_url": "/app",
   "display": "standalone",

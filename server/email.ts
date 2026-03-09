@@ -14,11 +14,11 @@ export function sendSignupNotification(email: string, source: string): void {
 
   resend.emails
     .send({
-      from: "Menu Familiar <notificaciones@menusemanal.app>",
+      from: "Menu Semanal <notificaciones@menusemanal.app>",
       to: process.env.NOTIFY_EMAIL,
       subject: `Nuevo registro en waitlist: ${email}`,
       text: [
-        `Nuevo registro en la waitlist de Menu Familiar`,
+        `Nuevo registro en la waitlist de Menu Semanal`,
         ``,
         `Email: ${email}`,
         `Fuente: ${source}`,

@@ -1,13 +1,11 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "wouter";
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -41,139 +39,174 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-app-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-app-primary">Menu Familiar</h1>
-          <p className="text-app-neutral text-sm">Planifica las comidas de tu familia</p>
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        background: "#faf9f7",
+      }}
+    >
+      <div className="w-full max-w-md space-y-8">
+        {/* Header - matching landing page logo style */}
+        <div className="text-center space-y-3">
+          <a
+            href="/"
+            className="inline-block text-sm font-medium hover:underline"
+            style={{ color: "#5a5a5a" }}
+          >
+            &larr; Volver al inicio
+          </a>
+          <h1
+            className="text-4xl tracking-tight"
+            style={{ fontWeight: 800, color: "#d4825a", letterSpacing: "-0.03em" }}
+          >
+            Menu Semanal
+          </h1>
+          <div
+            className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-full"
+            style={{ background: "#fdf5ef", color: "#d4825a" }}
+          >
+            <span>&#x1F37D;&#xFE0F;</span>
+            Planifica las comidas de tu familia
+          </div>
         </div>
 
-        {/* Login Card */}
-        <Card className="border border-gray-200 shadow-lg">
-          <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-2xl text-app-neutral text-center">
-              Iniciar Sesión
-            </CardTitle>
-            <CardDescription className="text-center text-gray-600">
+        {/* Login Card - warm landing page style */}
+        <div
+          className="rounded-2xl p-8"
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e8e2db",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
+          }}
+        >
+          <div className="text-center mb-6">
+            <h2
+              className="text-2xl mb-1"
+              style={{ fontWeight: 700, color: "#1a1a1a", letterSpacing: "-0.02em" }}
+            >
+              Iniciar Sesion
+            </h2>
+            <p className="text-sm" style={{ color: "#5a5a5a" }}>
               Ingresa a tu cuenta para acceder a tus planes de comida
-            </CardDescription>
-          </CardHeader>
+            </p>
+          </div>
 
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Email Field */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-app-neutral font-medium">
-                  Correo electrónico
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="tu@email.com"
-                    className="pl-10 h-12 border-gray-300 focus:border-app-primary focus:ring-app-primary"
-                    {...register("email")}
-                    aria-describedby={errors.email ? "email-error" : undefined}
-                  />
-                </div>
-                {errors.email && (
-                  <p id="email-error" className="text-sm text-red-600" role="alert">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Password Field */}
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-app-neutral font-medium">
-                  Contraseña
-                </Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Tu contraseña"
-                    className="pl-10 pr-12 h-12 border-gray-300 focus:border-app-primary focus:ring-app-primary"
-                    {...register("password")}
-                    aria-describedby={errors.password ? "password-error" : undefined}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p id="password-error" className="text-sm text-red-600" role="alert">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setValue("rememberMe", !!checked)}
-                  />
-                  <Label
-                    htmlFor="rememberMe"
-                    className="text-sm text-app-neutral cursor-pointer"
-                  >
-                    Recordarme
-                  </Label>
-                </div>
-                <Link href="#" className="text-sm text-app-primary hover:underline">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                disabled={isLoginLoading || !isValid}
-                className="w-full h-12 bg-app-primary hover:bg-app-primary/90 text-white font-medium rounded-lg transition-colors"
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Email Field */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="email"
+                className="text-sm"
+                style={{ fontWeight: 600, color: "#1a1a1a" }}
               >
-                {isLoginLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Iniciando sesión...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    <span>Iniciar Sesión</span>
-                    <ArrowRight className="h-5 w-5" />
-                  </div>
-                )}
-              </Button>
-            </form>
-
-            {/* Register Link */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                ¿No tienes cuenta?{" "}
-                <Link
-                  href="/register"
-                  className="text-app-primary hover:underline font-medium"
-                >
-                  Regístrate aquí
-                </Link>
-              </p>
+                Correo electronico
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="tu@email.com"
+                className="h-12 rounded-xl px-4"
+                style={{
+                  border: "1.5px solid #e8e2db",
+                  background: "#faf9f7",
+                  fontSize: "1rem",
+                }}
+                {...register("email")}
+                aria-describedby={errors.email ? "email-error" : undefined}
+              />
+              {errors.email && (
+                <p id="email-error" className="text-sm text-red-600" role="alert">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Password Field */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="password"
+                className="text-sm"
+                style={{ fontWeight: 600, color: "#1a1a1a" }}
+              >
+                Contrasena
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Tu contrasena"
+                  className="h-12 rounded-xl px-4 pr-12"
+                  style={{
+                    border: "1.5px solid #e8e2db",
+                    background: "#faf9f7",
+                    fontSize: "1rem",
+                  }}
+                  {...register("password")}
+                  aria-describedby={errors.password ? "password-error" : undefined}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-3 hover:opacity-70 transition-opacity"
+                  style={{ color: "#5a5a5a" }}
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p id="password-error" className="text-sm text-red-600" role="alert">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            {/* Remember Me */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setValue("rememberMe", !!checked)}
+              />
+              <Label
+                htmlFor="rememberMe"
+                className="text-sm cursor-pointer"
+                style={{ color: "#1a1a1a" }}
+              >
+                Recordarme
+              </Label>
+            </div>
+
+            {/* Submit Button - matching landing page CTA */}
+            <Button
+              type="submit"
+              disabled={isLoginLoading || !isValid}
+              className="w-full h-12 text-white font-semibold rounded-xl transition-all"
+              style={{
+                background: isLoginLoading || !isValid ? "#e8a882" : "#d4825a",
+                fontSize: "0.95rem",
+              }}
+            >
+              {isLoginLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Iniciando sesion...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <span>Iniciar Sesion</span>
+                  <ArrowRight className="h-5 w-5" />
+                </div>
+              )}
+            </Button>
+          </form>
+
+        </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-500">
-          Al iniciar sesión aceptas nuestros términos de servicio y política de privacidad
+        <p className="text-center text-xs" style={{ color: "#5a5a5a" }}>
+          Al iniciar sesion aceptas nuestros terminos de servicio y politica de privacidad
         </p>
       </div>
     </div>

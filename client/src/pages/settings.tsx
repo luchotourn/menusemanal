@@ -25,7 +25,7 @@ export default function Settings() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Menu Familiar',
+          title: 'Menu Semanal',
           text: '¡Organiza las comidas de tu familia con esta increíble app!',
           url: window.location.origin,
         });

@@ -24,7 +24,7 @@ export function RoleBasedBottomNavigation() {
   }
 
   const navItems = [
-    { path: "/", icon: Calendar, label: "Semana", id: "home" },
+    { path: "/app", icon: Calendar, label: "Semana", id: "home" },
     { path: "/recipes", icon: Book, label: "Comidas", id: "recipes" },
     { path: "/favorites", icon: Heart, label: "Favoritas", id: "favorites" },
     { path: "/settings", icon: Settings, label: "Ajustes", id: "settings" },

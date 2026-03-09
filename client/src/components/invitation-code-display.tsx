@@ -31,8 +31,8 @@ export function InvitationCodeDisplay({
     if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: 'Código de Familia - Menu Familiar',
-          text: `¡Únete a nuestra familia en Menu Familiar! Usa el código: ${code}`,
+          title: 'Código de Familia - Menu Semanal',
+          text: `¡Únete a nuestra familia en Menu Semanal! Usa el código: ${code}`,
           url: window.location.origin + '/family-settings',
         });
       } catch (error) {

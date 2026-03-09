@@ -31,7 +31,7 @@ export function Header({ title, showBack }: HeaderProps = {}) {
             )}
             <Utensils className="text-app-primary text-xl w-6 h-6" />
             <h1 className="text-lg font-semibold text-app-neutral">
-              {title || "Menu Familiar"}
+              {title || "Menu Semanal"}
             </h1>
           </div>
           <Button variant="ghost" size="sm" className="p-2 rounded-full hover:bg-gray-100">
