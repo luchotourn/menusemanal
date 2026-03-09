@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFamilies, useFamily, useProfile } from "@/hooks/useAuth";
 import { CreateFamilyModal } from "@/components/create-family-modal";
 import { JoinFamilyModal } from "@/components/join-family-modal";
+import { InviteMemberModal } from "@/components/invite-member-modal";
 import { InvitationCodeDisplay } from "@/components/invitation-code-display";
 
 export default function FamilySettings() {
@@ -36,6 +37,7 @@ export default function FamilySettings() {
 
   const [createFamilyOpen, setCreateFamilyOpen] = useState(false);
   const [joinFamilyOpen, setJoinFamilyOpen] = useState(false);
+  const [inviteMemberOpen, setInviteMemberOpen] = useState(false);
 
   const isLoading = profileLoading || familiesLoading || isLoadingFamily || isLoadingMembers;
   const currentUser = profile;
@@ -207,7 +209,7 @@ export default function FamilySettings() {
                 <CardTitle className="text-lg flex items-center justify-between">
                   <span>Miembros de la Familia</span>
                   {isAdmin && (
-                    <Dialog open={joinFamilyOpen} onOpenChange={setJoinFamilyOpen}>
+                    <Dialog open={inviteMemberOpen} onOpenChange={setInviteMemberOpen}>
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline">
                           <UserPlus className="w-4 h-4 mr-2" />
@@ -215,7 +217,11 @@ export default function FamilySettings() {
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
-                        <JoinFamilyModal onClose={() => setJoinFamilyOpen(false)} />
+                        <InviteMemberModal
+                          familyName={family.nombre}
+                          invitationCode={family.codigoInvitacion}
+                          onClose={() => setInviteMemberOpen(false)}
+                        />
                       </DialogContent>
                     </Dialog>
                   )}

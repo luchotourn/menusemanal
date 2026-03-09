@@ -28,18 +28,24 @@ export function InvitationCodeDisplay({
   };
 
   const shareCode = async () => {
+    const appUrl = window.location.origin;
+    const shareMessage = `¡Unite a nuestra familia en Menu Semanal!\n\n1. Registrate en: ${appUrl}/register\n2. Andá a Configuración Familiar\n3. Tocá "Unirse a una Familia" e ingresá el código: ${code}`;
+
     if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: 'Código de Familia - Menu Semanal',
-          text: `¡Únete a nuestra familia en Menu Semanal! Usa el código: ${code}`,
-          url: window.location.origin + '/family-settings',
+          title: 'Invitación a Menu Semanal',
+          text: shareMessage,
         });
-      } catch (error) {
+      } catch {
         // User cancelled share
       }
     } else {
-      copyToClipboard();
+      navigator.clipboard.writeText(shareMessage);
+      toast({
+        title: "Mensaje copiado",
+        description: "El mensaje de invitación ha sido copiado al portapapeles",
+      });
     }
   };
 
