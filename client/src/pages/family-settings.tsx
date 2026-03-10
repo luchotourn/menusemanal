@@ -13,6 +13,7 @@ import { CreateFamilyModal } from "@/components/create-family-modal";
 import { JoinFamilyModal } from "@/components/join-family-modal";
 import { InviteMemberModal } from "@/components/invite-member-modal";
 import { InvitationCodeDisplay } from "@/components/invitation-code-display";
+import { copyToClipboard } from "@/lib/share-utils";
 
 export default function FamilySettings() {
   const { toast } = useToast();
@@ -61,13 +62,21 @@ export default function FamilySettings() {
     }
   };
 
-  const copyInvitationCode = () => {
+  const copyInvitationCode = async () => {
     if (family?.codigoInvitacion) {
-      navigator.clipboard.writeText(family.codigoInvitacion);
-      toast({
-        title: "Código copiado",
-        description: "El código de invitación ha sido copiado al portapapeles",
-      });
+      const success = await copyToClipboard(family.codigoInvitacion);
+      if (success) {
+        toast({
+          title: "Código copiado",
+          description: "El código de invitación ha sido copiado al portapapeles",
+        });
+      } else {
+        toast({
+          title: "Error al copiar",
+          description: "No se pudo copiar el código. Intenta nuevamente.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

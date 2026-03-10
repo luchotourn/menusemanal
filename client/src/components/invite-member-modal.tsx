@@ -2,6 +2,7 @@ import { Copy, Share2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { buildInviteMessage, copyToClipboard, buildWhatsAppUrl } from "@/lib/share-utils";
 
 interface InviteMemberModalProps {
   familyName: string;
@@ -14,24 +15,22 @@ export function InviteMemberModal({ familyName, invitationCode, onClose }: Invit
 
   const appUrl = window.location.origin;
 
-  const shareMessage =
-`¡Hola! Te invito a unirte a nuestra familia "${familyName}" en Menu Semanal para planificar comidas juntos.
+  const shareMessage = buildInviteMessage({ familyName, invitationCode, appUrl });
 
-Seguí estos pasos:
-1. Creá tu cuenta en: ${appUrl}/register
-2. Una vez registrado, andá a Configuración Familiar
-3. Tocá "Unirse a una Familia" e ingresá este código:
-
-${invitationCode}
-
-¡Te esperamos!`;
-
-  const copyMessage = () => {
-    navigator.clipboard.writeText(shareMessage);
-    toast({
-      title: "Mensaje copiado",
-      description: "El mensaje de invitación ha sido copiado al portapapeles. ¡Compartilo por WhatsApp u otra app!",
-    });
+  const copyMessage = async () => {
+    const success = await copyToClipboard(shareMessage);
+    if (success) {
+      toast({
+        title: "Mensaje copiado",
+        description: "El mensaje de invitación ha sido copiado al portapapeles. ¡Compartilo por WhatsApp u otra app!",
+      });
+    } else {
+      toast({
+        title: "Error al copiar",
+        description: "No se pudo copiar el mensaje. Intenta nuevamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const shareNative = async () => {
@@ -50,8 +49,7 @@ ${invitationCode}
   };
 
   const shareWhatsApp = () => {
-    const encoded = encodeURIComponent(shareMessage);
-    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+    window.open(buildWhatsAppUrl(shareMessage), "_blank");
   };
 
   return (
