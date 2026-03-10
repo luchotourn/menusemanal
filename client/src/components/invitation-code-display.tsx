@@ -2,6 +2,7 @@ import { Copy, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { buildCompactInviteMessage, copyToClipboard } from "@/lib/share-utils";
 
 interface InvitationCodeDisplayProps {
   code: string;
@@ -10,36 +11,58 @@ interface InvitationCodeDisplayProps {
   isRegenerating: boolean;
 }
 
-export function InvitationCodeDisplay({ 
-  code, 
-  isAdmin, 
-  onRegenerate, 
-  isRegenerating 
+export function InvitationCodeDisplay({
+  code,
+  isAdmin,
+  onRegenerate,
+  isRegenerating
 }: InvitationCodeDisplayProps) {
   const { toast } = useToast();
   const [showCode, setShowCode] = useState(true);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(code);
-    toast({
-      title: "Código copiado",
-      description: "El código de invitación ha sido copiado al portapapeles",
-    });
+  const handleCopyCode = async () => {
+    const success = await copyToClipboard(code);
+    if (success) {
+      toast({
+        title: "Código copiado",
+        description: "El código de invitación ha sido copiado al portapapeles",
+      });
+    } else {
+      toast({
+        title: "Error al copiar",
+        description: "No se pudo copiar el código. Intenta nuevamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const shareCode = async () => {
+    const appUrl = window.location.origin;
+    const shareMessage = buildCompactInviteMessage({ invitationCode: code, appUrl });
+
     if (navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: 'Código de Familia - Menu Semanal',
-          text: `¡Únete a nuestra familia en Menu Semanal! Usa el código: ${code}`,
-          url: window.location.origin + '/family-settings',
+          title: 'Invitación a Menu Semanal',
+          text: shareMessage,
         });
-      } catch (error) {
+      } catch {
         // User cancelled share
       }
     } else {
-      copyToClipboard();
+      const success = await copyToClipboard(shareMessage);
+      if (success) {
+        toast({
+          title: "Mensaje copiado",
+          description: "El mensaje de invitación ha sido copiado al portapapeles",
+        });
+      } else {
+        toast({
+          title: "Error al copiar",
+          description: "No se pudo copiar el mensaje. Intenta nuevamente.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -69,7 +92,7 @@ export function InvitationCodeDisplay({
             <Button
               variant="outline"
               size="sm"
-              onClick={copyToClipboard}
+              onClick={handleCopyCode}
               disabled={!showCode}
             >
               <Copy className="w-4 h-4" />
