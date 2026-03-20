@@ -24,6 +24,12 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  test: {
+    include: [
+      "**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "../shared/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+    ],
+  },
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,

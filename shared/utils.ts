@@ -1,16 +1,15 @@
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
+
+const generateCode = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
 
 /**
  * Generates a unique 6-character family invitation code in XXX-XXX format
- * Uses nanoid for cryptographic security with URL-safe alphabet
- * 
+ * Uses nanoid with alphanumeric-only alphabet to guarantee valid codes
+ *
  * @returns string - A formatted invitation code (e.g., "ABC-123")
  */
 export function generateInvitationCode(): string {
-  // Generate 6 characters using URL-safe alphabet (excludes ambiguous chars)
-  const code = nanoid(6).toUpperCase();
-  
-  // Format as XXX-XXX for readability
+  const code = generateCode();
   return `${code.slice(0, 3)}-${code.slice(3)}`;
 }
 
