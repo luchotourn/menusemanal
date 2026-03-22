@@ -33,11 +33,12 @@ authRouter.post("/register", authRateLimit, async (req: Request, res: Response) 
     // Hash password with bcrypt (10 salt rounds as per requirements)
     const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
-    // Create new user
+    // Create new user — always override role server-side to prevent privilege escalation
     const [newUser] = await db
       .insert(users)
       .values({
         ...validatedData,
+        role: "creator", // never trust client-supplied role
         email: validatedData.email.toLowerCase(),
         password: hashedPassword,
       })
