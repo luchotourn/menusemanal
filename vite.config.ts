@@ -26,9 +26,9 @@ export default defineConfig({
   root: path.resolve(import.meta.dirname, "client"),
   test: {
     include: [
-      "src/**/*.{test,spec}.{ts,tsx}",
-      "../shared/**/*.{test,spec}.{ts,tsx}",
-      "../server/**/*.{test,spec}.{ts,tsx}",
+      "**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "../shared/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "../server/**/*.{test,spec}.?(c|m)[jt]s?(x)",
     ],
   },
   build: {
