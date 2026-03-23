@@ -70,7 +70,6 @@ export const recipes = pgTable("recipes", {
 }, (table) => {
   return {
     familyIdx: index("recipes_family_idx").on(table.familyId),
-    userIdx: index("recipes_user_idx").on(table.userId),
     createdByIdx: index("recipes_created_by_idx").on(table.createdBy),
   };
 });

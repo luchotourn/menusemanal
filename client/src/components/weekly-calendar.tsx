@@ -29,7 +29,16 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
       const params = new URLSearchParams({ startDate: formatDate(currentWeekStart) });
       const response = await fetch(`/api/meal-plans?${params}`);
       if (!response.ok) throw new Error("Error al cargar el plan de comidas");
-      return response.json() as Promise<(MealPlan & { recipe: Recipe | null })[]>;
+      return response.json() as Promise<MealPlan[]>;
+    },
+  });
+
+  const { data: recipes } = useQuery({
+    queryKey: ["/api/recipes"],
+    queryFn: async () => {
+      const response = await fetch("/api/recipes");
+      if (!response.ok) throw new Error("Error al cargar las recetas");
+      return response.json() as Promise<Recipe[]>;
     },
   });
 
@@ -100,10 +109,10 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
       (plan) => plan.fecha === dateStr && plan.tipoComida === mealType
     );
 
-    return dailyMeals.map((mealPlan) => ({
-      ...mealPlan,
-      recipe: mealPlan.recipe ?? undefined,
-    }));
+    return dailyMeals.map((mealPlan) => {
+      const recipe = recipes?.find((r) => r.id === mealPlan.recetaId);
+      return { ...mealPlan, recipe };
+    });
   };
 
   const renderStars = (rating: number) => {
