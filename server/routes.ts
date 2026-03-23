@@ -635,8 +635,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Join family with invitation code
-  app.post("/api/families/join", isAuthenticated, async (req, res) => {
+  // Join family with invitation code — rate-limited to prevent code enumeration
+  app.post("/api/families/join", familyCodeRateLimit, isAuthenticated, async (req, res) => {
     try {
       const user = getCurrentUser(req);
       if (!user) {

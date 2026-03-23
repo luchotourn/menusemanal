@@ -64,19 +64,14 @@ export const configureSession = () => {
   });
 };
 
-// Helper to ensure session secret is secure in production
+// Ensure session secret is secure in production — crash on insecure config
 export const validateSessionConfig = () => {
   if (process.env.NODE_ENV === "production") {
-    if (!process.env.SESSION_SECRET) {
-      console.warn("⚠️  SESSION_SECRET is not set in production - using default (not recommended for production)");
-      return;
+    if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === "menu-familiar-secret-key-change-in-production") {
+      console.error("FATAL: SESSION_SECRET must be set to a unique, secure value in production.");
+      process.exit(1);
     }
-    
-    if (process.env.SESSION_SECRET === "menu-familiar-secret-key-change-in-production") {
-      console.warn("⚠️  Using default SESSION_SECRET in production is insecure - please set a unique value");
-      return;
-    }
-    
+
     if (process.env.SESSION_SECRET.length < 32) {
       console.warn("⚠️  SESSION_SECRET should be at least 32 characters long for better security");
     }

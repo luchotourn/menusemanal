@@ -28,6 +28,7 @@ export default defineConfig({
     include: [
       "**/*.{test,spec}.?(c|m)[jt]s?(x)",
       "../shared/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+      "../server/**/*.{test,spec}.?(c|m)[jt]s?(x)",
     ],
   },
   build: {

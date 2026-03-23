@@ -87,18 +87,18 @@ npm run check
   4. Ask user to review and close if satisfied
 
 - **Database Queries**: When asked to list database table contents, use this format:
-  1. Use `DATABASE_URL=postgresql://neondb_owner:npg_5Mg0pPLNfshC@ep-old-heart-a6k4918t.us-west-2.aws.neon.tech/neondb?sslmode=require npx tsx -e` with database connection
+  1. Use `DATABASE_URL=$DATABASE_URL npx tsx -e` with the database connection from the `.env` file (never hardcode credentials in this file)
   2. Format output concisely for terminal viewing - avoid overwhelming detail
   3. For recipes table: show numbered list with favorites (⭐), ratings (★☆), categories, and prep time
   4. Include summary of totals and favorites at the end
   5. Use this exact query format for recipes:
   ```bash
-  DATABASE_URL=postgresql://neondb_owner:npg_5Mg0pPLNfshC@ep-old-heart-a6k4918t.us-west-2.aws.neon.tech/neondb?sslmode=require npx tsx -e "
+  source .env && DATABASE_URL=$DATABASE_URL npx tsx -e "
   (async () => {
     const { db } = await import('./server/db.js');
     const { recipes } = await import('./shared/schema.js');
     const allRecipes = await db.select().from(recipes);
-    
+
     console.log('=== RECIPES SUMMARY ===');
     console.log();
     allRecipes.forEach((recipe, index) => {
@@ -109,7 +109,7 @@ npm run check
       const category = recipe.categoria || 'Sin categoría';
       console.log((index + 1) + '. ' + favorite + ' ' + recipe.nombre + ' [' + category + '] - ' + rating + ' ' + prep);
     });
-    
+
     console.log();
     console.log('Total recipes: ' + allRecipes.length);
     console.log();
