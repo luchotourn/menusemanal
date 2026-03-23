@@ -387,11 +387,13 @@ export class MemStorage implements IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Helper: build recipe ownership condition that includes legacy recipes (familyId IS NULL)
-  // from any family member, so new members can see pre-existing family recipes
+  // Build recipe ownership condition that includes legacy recipes (familyId IS NULL)
+  // from any family member, so new members can see pre-existing family recipes.
   private buildRecipeOwnershipCondition(userId?: number, familyId?: number) {
     if (familyId) {
-      const memberIds = db.select({ userId: familyMembers.userId }).from(familyMembers).where(eq(familyMembers.familyId, familyId));
+      const memberIds = db.select({ userId: familyMembers.userId })
+        .from(familyMembers)
+        .where(eq(familyMembers.familyId, familyId));
       return or(
         eq(recipes.familyId, familyId),
         and(isNull(recipes.familyId), inArray(recipes.userId, memberIds))
@@ -404,9 +406,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   private buildFamilyConditions(baseCondition: any, userId?: number, familyId?: number) {
-    const ownershipCondition = this.buildRecipeOwnershipCondition(userId, familyId);
-    if (ownershipCondition) {
-      return and(baseCondition, ownershipCondition);
+    const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+    if (ownership) {
+      return and(baseCondition, ownership);
     }
     return baseCondition;
   }
@@ -437,9 +439,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecipeById(id: number, userId?: number, familyId?: number): Promise<Recipe | undefined> {
-    const ownershipCondition = this.buildRecipeOwnershipCondition(userId, familyId);
-    const conditions = ownershipCondition
-      ? and(eq(recipes.id, id), ownershipCondition)
+    const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+    const conditions = ownership
+      ? and(eq(recipes.id, id), ownership)
       : eq(recipes.id, id);
 
     const [recipe] = await db.select().from(recipes).where(conditions);
@@ -447,18 +449,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecipesByCategory(categoria: string, userId?: number, familyId?: number): Promise<Recipe[]> {
-    const ownershipCondition = this.buildRecipeOwnershipCondition(userId, familyId);
-    const conditions = ownershipCondition
-      ? and(eq(recipes.categoria, categoria), ownershipCondition)
+    const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+    const conditions = ownership
+      ? and(eq(recipes.categoria, categoria), ownership)
       : eq(recipes.categoria, categoria);
 
     return await db.select().from(recipes).where(conditions);
   }
 
   async getFavoriteRecipes(userId?: number, familyId?: number): Promise<Recipe[]> {
-    const ownershipCondition = this.buildRecipeOwnershipCondition(userId, familyId);
-    const conditions = ownershipCondition
-      ? and(eq(recipes.esFavorita, 1), ownershipCondition)
+    const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+    const conditions = ownership
+      ? and(eq(recipes.esFavorita, 1), ownership)
       : eq(recipes.esFavorita, 1);
 
     return await db.select().from(recipes).where(conditions);
@@ -472,9 +474,9 @@ export class DatabaseStorage implements IStorage {
       like(recipes.categoria, lowercaseQuery)
     );
 
-    const ownershipCondition = this.buildRecipeOwnershipCondition(userId, familyId);
-    const conditions = ownershipCondition
-      ? and(searchConditions, ownershipCondition)
+    const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+    const conditions = ownership
+      ? and(searchConditions, ownership)
       : searchConditions;
 
     return await db.select().from(recipes).where(conditions);
@@ -489,14 +491,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateRecipe(id: number, updateData: Partial<InsertRecipe>, userId?: number, familyId?: number): Promise<Recipe | undefined> {
-    let conditions = eq(recipes.id, id);
-    
-    if (familyId) {
-      conditions = and(conditions, eq(recipes.familyId, familyId)) ?? conditions;
-    } else if (userId) {
-      conditions = and(conditions, eq(recipes.userId, userId)) ?? conditions;
-    }
-    
+    const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+    const conditions = ownership
+      ? and(eq(recipes.id, id), ownership)
+      : eq(recipes.id, id);
+
     const [recipe] = await db
       .update(recipes)
       .set(updateData)
@@ -507,14 +506,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRecipe(id: number, userId?: number, familyId?: number): Promise<boolean> {
     try {
-      let conditions = eq(recipes.id, id);
-      
-      if (familyId) {
-        conditions = and(conditions, eq(recipes.familyId, familyId)) ?? conditions;
-      } else if (userId) {
-        conditions = and(conditions, eq(recipes.userId, userId)) ?? conditions;
-      }
-      
+      const ownership = this.buildRecipeOwnershipCondition(userId, familyId);
+      const conditions = ownership
+        ? and(eq(recipes.id, id), ownership)
+        : eq(recipes.id, id);
+
       const result = await db.delete(recipes).where(conditions);
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
