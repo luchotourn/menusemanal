@@ -72,13 +72,13 @@ export function RecipeDetailModal({
       className="p-0"
     >
       <div>
-        <div className="p-4">
+        <div className="px-5 sm:px-6 py-4">
           {recipe.imagen && recipe.imagen.startsWith('http') && (
-            <div className="mb-6">
-              <img 
-                src={recipe.imagen} 
+            <div className="mb-5 -mx-5 sm:-mx-6">
+              <img
+                src={recipe.imagen}
                 alt={recipe.nombre}
-                className="w-full h-48 object-cover rounded-xl"
+                className="w-full h-52 object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -86,25 +86,34 @@ export function RecipeDetailModal({
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {recipe.descripcion && (
               <div>
-                <h4 className="font-medium text-app-neutral mb-2">Descripción</h4>
-                <p className="text-sm text-gray-600">{recipe.descripcion}</p>
+                <h4 className="font-semibold text-app-neutral mb-1.5 text-sm uppercase tracking-wide">Descripción</h4>
+                <p className="text-sm text-gray-600 leading-relaxed">{recipe.descripcion}</p>
               </div>
             )}
 
-            <div>
-              <h4 className="font-medium text-app-neutral mb-2">Categoría</h4>
+            <div className="flex flex-wrap items-center gap-2">
               <Badge className="bg-orange-100 text-orange-800">
                 {recipe.categoria}
               </Badge>
+              {!!recipe.tiempoPreparacion && (
+                <Badge variant="outline" className="text-gray-600">
+                  {recipe.tiempoPreparacion} min
+                </Badge>
+              )}
+              {!!recipe.porciones && (
+                <Badge variant="outline" className="text-gray-600">
+                  {recipe.porciones} porciones
+                </Badge>
+              )}
             </div>
 
             {/* Per-user family ratings */}
             {!isLoadingRatings && ratings.length > 0 && (
               <div>
-                <h4 className="font-medium text-app-neutral mb-2">Calificaciones de la familia</h4>
+                <h4 className="font-semibold text-app-neutral mb-2 text-sm uppercase tracking-wide">Calificaciones</h4>
                 <div className="space-y-1.5">
                   {ratings.map((r) => (
                     <div key={r.id} className="flex items-center gap-2">
@@ -123,12 +132,12 @@ export function RecipeDetailModal({
 
             {recipe.ingredientes && recipe.ingredientes.length > 0 && (
               <div>
-                <h4 className="font-medium text-app-neutral mb-2">Ingredientes</h4>
-                <ul className="text-sm text-gray-600 space-y-1">
+                <h4 className="font-semibold text-app-neutral mb-2 text-sm uppercase tracking-wide">Ingredientes</h4>
+                <ul className="text-sm text-gray-600 space-y-1.5">
                   {recipe.ingredientes.map((ingrediente, index) => (
                     <li key={index} className="flex items-start">
-                      <span className="text-app-primary mr-2">•</span>
-                      {ingrediente}
+                      <span className="text-app-primary mr-2 mt-0.5">•</span>
+                      <span className="leading-snug">{ingrediente}</span>
                     </li>
                   ))}
                 </ul>
@@ -137,49 +146,29 @@ export function RecipeDetailModal({
 
             {recipe.instrucciones && (
               <div>
-                <h4 className="font-medium text-app-neutral mb-2">Instrucciones</h4>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{recipe.instrucciones}</p>
-              </div>
-            )}
-
-            {!!(recipe.tiempoPreparacion || recipe.porciones) && (
-              <div className="grid grid-cols-2 gap-4">
-                {!!recipe.tiempoPreparacion && (
-                  <div>
-                    <h4 className="font-medium text-app-neutral mb-1">Tiempo</h4>
-                    <p className="text-sm text-gray-600">{recipe.tiempoPreparacion} min</p>
-                  </div>
-                )}
-                {!!recipe.porciones && (
-                  <div>
-                    <h4 className="font-medium text-app-neutral mb-1">Porciones</h4>
-                    <p className="text-sm text-gray-600">{recipe.porciones}</p>
-                  </div>
-                )}
+                <h4 className="font-semibold text-app-neutral mb-2 text-sm uppercase tracking-wide">Instrucciones</h4>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{recipe.instrucciones}</p>
               </div>
             )}
 
             {recipe.enlaceExterno && (
-              <div>
-                <h4 className="font-medium text-app-neutral mb-2">Enlaces Externos</h4>
-                <a 
-                  href={recipe.enlaceExterno}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 text-app-primary text-sm hover:underline"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  <span>Ver receta completa</span>
-                </a>
-              </div>
+              <a
+                href={recipe.enlaceExterno}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-app-primary text-sm font-medium hover:underline"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Ver receta completa
+              </a>
             )}
 
             {/* Family comments about this recipe */}
             {!isLoadingComments && comments.length > 0 && (
               <div className="border-t pt-4">
-                <h4 className="font-medium text-app-neutral mb-3 flex items-center gap-2">
+                <h4 className="font-semibold text-app-neutral mb-3 text-sm uppercase tracking-wide flex items-center gap-2">
                   <MessageCircle className="w-4 h-4 text-blue-500" />
-                  Opiniones de la familia ({comments.length})
+                  Opiniones ({comments.length})
                 </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {comments.map((c) => (
@@ -201,7 +190,7 @@ export function RecipeDetailModal({
               </div>
             )}
 
-            <div className="flex space-x-3 pt-4">
+            <div className="flex space-x-3 pt-2 pb-2">
               <Button
                 className="flex-1 bg-app-primary text-white hover:bg-app-primary/90"
                 onClick={() => onAddToWeek(recipe)}

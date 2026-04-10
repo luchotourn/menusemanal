@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, Sparkles } from "lucide-react";
 import { Header } from "@/components/header";
 import { RecipeCard } from "@/components/recipe-card";
 import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
 import { WeekSelectionModal } from "@/components/week-selection-modal";
+import { RecipeAssistantModal } from "@/components/recipe-assistant-modal";
 import { CreatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export default function Recipes() {
   const [recipeForWeek, setRecipeForWeek] = useState<Recipe | null>(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [showAssistant, setShowAssistant] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -172,10 +174,6 @@ export default function Recipes() {
       
       <main className="max-w-lg mx-auto px-4 pb-20">
         <div className="mt-6">
-          <h2 className={`text-2xl font-bold text-app-neutral transition-all duration-200 ${
-            isSearchFocused && keyboardHeight > 0 ? 'mb-2 text-lg' : 'mb-6'
-          }`}>Todas las Comidas</h2>
-          
           {/* Search and Filter - Sticky when focused on mobile */}
           <div className={`mobile-search-container ${isSearchFocused ? 'sticky top-0 z-40 mb-4 pt-2' : 'mb-6'} transition-all duration-200`}>
             <Card className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 ${isSearchFocused ? 'sticky-search' : ''}`}>
@@ -221,9 +219,9 @@ export default function Recipes() {
             </Card>
           </div>
 
-          {/* Add Recipe Button - Hide when search focused to save space */}
+          {/* Action Buttons - Hide when search focused to save space */}
           {!(isSearchFocused && keyboardHeight > 0) && (
-            <div className="mb-6">
+            <div className="mb-6 space-y-3">
               <Button
                 onClick={() => setShowAddRecipe(true)}
                 className="w-full bg-app-primary hover:bg-app-primary/90 text-white py-3 rounded-xl font-medium"
@@ -231,6 +229,24 @@ export default function Recipes() {
                 <Plus className="w-5 h-5 mr-2" />
                 Agregar Receta
               </Button>
+
+              {/* AI Recipe Assistant Banner */}
+              <Card
+                className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setShowAssistant(true)}
+              >
+                <div className="flex items-center gap-3 p-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-amber-900">Armá tu menú con IA</h4>
+                    <p className="text-xs text-amber-700">
+                      Contanos qué les gusta y te armamos una lista de recetas para empezar
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
           )}
 
@@ -260,24 +276,36 @@ export default function Recipes() {
                 <div className="text-center">
                   <div className="text-4xl mb-4">🔍</div>
                   <h3 className="text-lg font-semibold text-app-neutral mb-2">
-                    {searchQuery || selectedCategory !== "all" 
-                      ? "No se encontraron recetas" 
+                    {searchQuery || selectedCategory !== "all"
+                      ? "No se encontraron recetas"
                       : "¡Aún no tienes recetas!"
                     }
                   </h3>
                   <p className="text-gray-500 mb-4">
                     {searchQuery || selectedCategory !== "all"
                       ? "Intenta con otros términos de búsqueda o filtros"
-                      : "Comienza agregando tu primera receta deliciosa"
+                      : "Comienza agregando tu primera receta o pedile ayuda a la IA"
                     }
                   </p>
-                  <Button 
-                    className="bg-app-primary text-white hover:bg-app-primary/90"
-                    onClick={() => setShowAddRecipe(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Agregar Receta
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      className="bg-app-primary text-white hover:bg-app-primary/90"
+                      onClick={() => setShowAddRecipe(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Agregar Receta
+                    </Button>
+                    {!(searchQuery || selectedCategory !== "all") && (
+                      <Button
+                        variant="outline"
+                        className="border-amber-300 text-amber-800 hover:bg-amber-50"
+                        onClick={() => setShowAssistant(true)}
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Armá tu menú con IA
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Card>
             )}
@@ -313,6 +341,11 @@ export default function Recipes() {
         }}
         recipe={recipeForWeek}
         onConfirm={handleWeekSelectionConfirm}
+      />
+
+      <RecipeAssistantModal
+        isOpen={showAssistant}
+        onClose={() => setShowAssistant(false)}
       />
     </div>
   );
