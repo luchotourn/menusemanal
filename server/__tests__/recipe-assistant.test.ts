@@ -166,16 +166,16 @@ describe('validateConversationHistory', () => {
     expect(result[0].content).toBe('Valid');
   });
 
-  it('filters out messages with content exceeding 10000 chars', () => {
+  it('filters out messages with content exceeding 30000 chars', () => {
     const history = [
       { role: 'user' as const, content: 'Short message' },
-      { role: 'user' as const, content: 'A'.repeat(10001) },
-      { role: 'assistant' as const, content: 'A'.repeat(10000) }, // exactly at limit
+      { role: 'user' as const, content: 'A'.repeat(30001) },
+      { role: 'assistant' as const, content: 'A'.repeat(30000) }, // exactly at limit
     ];
     const result = validateConversationHistory(history);
     expect(result).toHaveLength(2);
     expect(result[0].content).toBe('Short message');
-    expect(result[1].content).toHaveLength(10000);
+    expect(result[1].content).toHaveLength(30000);
   });
 
   it('caps at MAX_CONVERSATION_TURNS * 2 messages (20)', () => {
