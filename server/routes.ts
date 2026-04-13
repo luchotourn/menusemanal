@@ -446,6 +446,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Recipe assistant routes (LLM-powered initial inventory)
+  const { suggestRecipes, refineRecipes, getRecipesForInsertion } = await import('./services/recipe-assistant');
+
+  app.post("/api/recipes/suggest", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) return res.status(401).json({ error: "Usuario no autenticado" });
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) return res.status(400).json({ error: "Debés pertenecer a una familia primero" });
+
+      const { preferences } = req.body;
+      if (!preferences || typeof preferences !== 'string') {
+        return res.status(400).json({ error: "Describí tus preferencias para que pueda ayudarte" });
+      }
+      if (preferences.length > 2000) {
+        return res.status(400).json({ error: "El texto es demasiado largo (máximo 2000 caracteres)" });
+      }
+
+      // Get existing recipe names for de-duplication
+      const existingRecipes = await storage.getAllRecipes(user.id, familyId);
+      const existingNames = existingRecipes.map(r => r.nombre);
+
+      const result = await suggestRecipes(preferences, existingNames);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Recipe suggest error:", error);
+      if (error.message?.includes('ANTHROPIC_API_KEY')) {
+        return res.status(503).json({ error: "El servicio de IA no está configurado" });
+      }
+      res.status(500).json({ error: "Error al generar sugerencias de recetas" });
+    }
+  });
+
+  app.post("/api/recipes/suggest/refine", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) return res.status(401).json({ error: "Usuario no autenticado" });
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) return res.status(400).json({ error: "Debés pertenecer a una familia primero" });
+
+      const { feedback, conversationHistory } = req.body;
+      if (!feedback || typeof feedback !== 'string') {
+        return res.status(400).json({ error: "Faltan datos para refinar la selección" });
+      }
+      if (feedback.length > 2000) {
+        return res.status(400).json({ error: "El texto es demasiado largo (máximo 2000 caracteres)" });
+      }
+
+      const existingRecipes = await storage.getAllRecipes(user.id, familyId);
+      const existingNames = existingRecipes.map(r => r.nombre);
+
+      const result = await refineRecipes(feedback, conversationHistory, existingNames);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Recipe refine error:", error);
+      res.status(500).json({ error: "Error al refinar las sugerencias" });
+    }
+  });
+
+  app.post("/api/recipes/populate", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) return res.status(401).json({ error: "Usuario no autenticado" });
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) return res.status(400).json({ error: "Debés pertenecer a una familia primero" });
+
+      const { catalogIndices } = req.body;
+      if (!Array.isArray(catalogIndices) || catalogIndices.length === 0) {
+        return res.status(400).json({ error: "No se seleccionaron recetas para agregar" });
+      }
+
+      // De-duplicate against existing recipes one more time
+      const existingRecipes = await storage.getAllRecipes(user.id, familyId);
+      const existingNames = new Set(existingRecipes.map(r => r.nombre.toLowerCase()));
+
+      const recipesToInsert = getRecipesForInsertion(catalogIndices, user.id, familyId)
+        .filter(r => !existingNames.has(r.nombre.toLowerCase()));
+
+      const created = [];
+      for (const recipeData of recipesToInsert) {
+        const recipe = await storage.createRecipe(recipeData);
+        created.push(recipe);
+      }
+
+      res.status(201).json({
+        message: `Se agregaron ${created.length} recetas a tu biblioteca`,
+        count: created.length,
+        recipes: created,
+      });
+    } catch (error) {
+      console.error("Recipe populate error:", error);
+      res.status(500).json({ error: "Error al agregar las recetas" });
+    }
+  });
+
   // Meal plan routes
   app.get("/api/meal-plans", isAuthenticated, async (req, res) => {
     try {

@@ -55,7 +55,7 @@ export const configureSession = () => {
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
     cookie: {
-      secure: isProduction, // HTTPS only in production
+      secure: isProduction && !process.env.DISABLE_SECURE_COOKIE, // HTTPS only in production (override for local testing)
       httpOnly: true, // Prevent XSS attacks
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
       sameSite: isProduction ? "strict" : "lax", // CSRF protection

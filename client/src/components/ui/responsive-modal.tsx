@@ -39,16 +39,16 @@ export function ResponsiveModal({
   if (isMobile) {
     return (
       <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent 
-          side="bottom" 
-          className={`p-0 ${className}`}
+        <SheetContent
+          side="bottom"
+          className={`p-0 flex flex-col ${className}`}
           style={{
-            maxHeight: '80vh'
+            maxHeight: '90vh'
           }}
         >
-          <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-4" />
-          
-          <SheetHeader className="px-4 pb-3 border-b border-gray-100 flex-shrink-0">
+          <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-2 flex-shrink-0" />
+
+          <SheetHeader className="px-5 pb-3 border-b border-gray-100 flex-shrink-0">
             <SheetTitle className="text-base font-semibold text-app-neutral text-left">
               {title}
             </SheetTitle>
@@ -58,8 +58,8 @@ export function ResponsiveModal({
               </p>
             )}
           </SheetHeader>
-          
-          <div className="flex-1 min-h-0 overflow-hidden">
+
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             {children}
           </div>
         </SheetContent>
