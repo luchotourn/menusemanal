@@ -188,7 +188,7 @@ export function validateConversationHistory(history: unknown): ConversationMessa
       typeof msg === 'object' &&
       (msg.role === 'user' || msg.role === 'assistant') &&
       typeof msg.content === 'string' &&
-      msg.content.length <= 10000 // Cap individual message size
+      msg.content.length <= 30000 // Cap individual message size (catalog message is ~20k)
     )
     .map(msg => ({ role: msg.role, content: msg.content })); // Strip any extra fields
 }
