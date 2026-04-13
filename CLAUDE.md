@@ -80,6 +80,13 @@ npm run check
   3. Ask: "Ready to commit. What commit message would you like to use?"
   4. Wait for user's message before committing
 
+- **Testing**: Always write tests when developing new features or fixing bugs:
+  1. Write tests using Vitest (the project's test framework) in `__tests__/` directories
+  2. Follow existing test patterns in `server/__tests__/` and `shared/__tests__/`
+  3. Cover: pure function logic, edge cases, security constraints, and mocked external APIs
+  4. Run `npm test` to verify all tests pass before considering the work done
+  5. Tests are not optional — a feature is not complete without tests
+
 - **Issue Resolution**: When resolving GitHub issues, always comment on the issue before closing it:
   1. Summarize what was implemented/fixed
   2. Mention any key technical decisions made
