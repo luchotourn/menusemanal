@@ -7,6 +7,8 @@ import {
   recipeRatings,
   mealComments,
   mealAchievements,
+  weeklyReviews,
+  type WeeklyReview,
   type Recipe,
   type InsertRecipe,
   type MealPlan,
@@ -85,6 +87,10 @@ export interface IStorage {
     totalStars: number,
     streakDays: number
   }>;
+
+  // Weekly review methods
+  getWeeklyReview(familyId: number, weekStartDate: string): Promise<WeeklyReview | undefined>;
+  submitWeeklyReview(familyId: number, weekStartDate: string, submittedBy: number): Promise<WeeklyReview>;
 
   // Waitlist methods
   addWaitlistSignup(email: string, source?: string): Promise<WaitlistSignup>;
@@ -375,6 +381,12 @@ export class MemStorage implements IStorage {
 
   async getUserStats(userId: number, familyId: number, startDate?: string): Promise<{ weeklyStars: { tried: number; veggie: number; feedback: number }; totalStars: number; streakDays: number }> {
     return { weeklyStars: { tried: 0, veggie: 0, feedback: 0 }, totalStars: 0, streakDays: 0 };
+  }
+
+  // Weekly review stubs
+  async getWeeklyReview(): Promise<WeeklyReview | undefined> { return undefined; }
+  async submitWeeklyReview(): Promise<WeeklyReview> {
+    throw new Error("MemStorage does not implement weekly reviews");
   }
 
   // Waitlist stubs
@@ -1091,6 +1103,49 @@ export class DatabaseStorage implements IStorage {
       streakDays,
     };
   }
+  // Weekly review methods
+  async getWeeklyReview(familyId: number, weekStartDate: string): Promise<WeeklyReview | undefined> {
+    const [review] = await db
+      .select()
+      .from(weeklyReviews)
+      .where(and(
+        eq(weeklyReviews.familyId, familyId),
+        eq(weeklyReviews.weekStartDate, weekStartDate)
+      ))
+      .limit(1);
+    return review || undefined;
+  }
+
+  async submitWeeklyReview(familyId: number, weekStartDate: string, submittedBy: number): Promise<WeeklyReview> {
+    const existing = await this.getWeeklyReview(familyId, weekStartDate);
+    const now = new Date();
+
+    if (existing) {
+      const [updated] = await db
+        .update(weeklyReviews)
+        .set({
+          submittedBy,
+          submittedAt: now,
+          status: "submitted",
+          updatedAt: now,
+        })
+        .where(eq(weeklyReviews.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db
+      .insert(weeklyReviews)
+      .values({
+        familyId,
+        weekStartDate,
+        submittedBy,
+        status: "submitted",
+      })
+      .returning();
+    return created;
+  }
+
   // Waitlist methods
   async addWaitlistSignup(email: string, source: string = "landing"): Promise<WaitlistSignup> {
     const [signup] = await db

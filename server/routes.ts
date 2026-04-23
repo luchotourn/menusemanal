@@ -4,14 +4,14 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, mealPlans } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, submitWeeklyReviewSchema, mealPlans } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth, db } from "./db";
 import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
-import { sendSignupNotification } from "./email";
+import { sendSignupNotification, sendWeekReviewNotification } from "./email";
 
 // Helper to parse cookies from request header (avoids adding cookie-parser dependency)
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
@@ -655,6 +655,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Plan de comida eliminado exitosamente" });
     } catch (error) {
       res.status(500).json({ error: "Error al eliminar el plan de comida" });
+    }
+  });
+
+  // Weekly review lifecycle — admin submits the week's plan for family review
+  app.get("/api/weekly-reviews", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const weekStartDate = req.query.weekStartDate;
+      if (typeof weekStartDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(weekStartDate)) {
+        return res.status(400).json({ error: "Parámetro weekStartDate inválido" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const review = await storage.getWeeklyReview(familyId, weekStartDate);
+      res.json(review ?? null);
+    } catch (error) {
+      console.error("Error fetching weekly review:", error);
+      res.status(500).json({ error: "Error al obtener el estado de revisión" });
+    }
+  });
+
+  app.post("/api/weekly-reviews", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const { weekStartDate } = submitWeeklyReviewSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0];
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const review = await storage.submitWeeklyReview(family.id, weekStartDate, user.id);
+
+      // Fire-and-forget email to family members (excluding the submitter)
+      const members = await storage.getFamilyMembers(family.id);
+      const recipients = members
+        .filter((m) => m.id !== user.id)
+        .map((m) => ({
+          email: m.email,
+          name: m.name,
+          notificationPreferences: m.notificationPreferences,
+        }));
+
+      if (recipients.length > 0) {
+        sendWeekReviewNotification({
+          familyName: family.nombre,
+          weekStartDate,
+          submitterName: user.name,
+          recipients,
+        });
+      }
+
+      res.status(201).json(review);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error submitting weekly review:", error);
+      res.status(500).json({ error: "Error al enviar la semana para revisión" });
     }
   });
 

@@ -239,6 +239,34 @@ export const mealCommentsRelations = relations(mealComments, ({ one }) => ({
   }),
 }));
 
+// Weekly review lifecycle — admin submits a week's meal plan for family review
+export const weeklyReviews = pgTable("weekly_reviews", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  weekStartDate: text("week_start_date").notNull(), // YYYY-MM-DD (Monday of the week)
+  status: text("status").notNull().default("submitted"), // "submitted"
+  submittedBy: integer("submitted_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    familyWeekIdx: uniqueIndex("weekly_reviews_family_week_idx").on(table.familyId, table.weekStartDate),
+    familyIdx: index("weekly_reviews_family_idx").on(table.familyId),
+  };
+});
+
+export const weeklyReviewsRelations = relations(weeklyReviews, ({ one }) => ({
+  family: one(families, {
+    fields: [weeklyReviews.familyId],
+    references: [families.id],
+  }),
+  submitter: one(users, {
+    fields: [weeklyReviews.submittedBy],
+    references: [users.id],
+  }),
+}));
+
 // Meal achievements table for kids gamification
 export const mealAchievements = pgTable("meal_achievements", {
   id: serial("id").primaryKey(),
@@ -377,6 +405,20 @@ export const insertMealAchievementSchema = createInsertSchema(mealAchievements, 
   updatedAt: true,
 });
 
+export const insertWeeklyReviewSchema = createInsertSchema(weeklyReviews, {
+  weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+  status: z.enum(["submitted"]).default("submitted"),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  submittedAt: true,
+});
+
+export const submitWeeklyReviewSchema = z.object({
+  weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+});
+
 export const awardStarSchema = z.object({
   mealPlanId: z.number().int().positive("El ID del plan de comida es requerido"),
   starType: z.enum(["tried_it", "ate_veggie", "left_feedback"], {
@@ -403,6 +445,9 @@ export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
 export type MealAchievement = typeof mealAchievements.$inferSelect;
 export type InsertMealAchievement = z.infer<typeof insertMealAchievementSchema>;
 export type AwardStarData = z.infer<typeof awardStarSchema>;
+export type WeeklyReview = typeof weeklyReviews.$inferSelect;
+export type InsertWeeklyReview = z.infer<typeof insertWeeklyReviewSchema>;
+export type SubmitWeeklyReviewData = z.infer<typeof submitWeeklyReviewSchema>;
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 

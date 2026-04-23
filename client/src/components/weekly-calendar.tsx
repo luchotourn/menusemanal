@@ -1,13 +1,25 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, MessageCircle, Send, CheckCircle2 } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
 import type { MealPlan, Recipe } from "@shared/schema";
 import { useMealAchievements } from "@/hooks/use-meal-achievements";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
+import { CreatorOnly } from "@/components/role-based-wrapper";
+import { useWeeklyReview } from "@/hooks/use-weekly-review";
 
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
@@ -22,6 +34,10 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     recipeId: number;
     recipeName: string;
   } | null>(null);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+
+  const weekStartStr = formatDate(currentWeekStart);
+  const { review, submit: submitReview, isSubmitting } = useWeeklyReview(weekStartStr);
 
   const { data: mealPlans, isLoading } = useQuery({
     queryKey: ["/api/meal-plans", { startDate: formatDate(currentWeekStart) }],
@@ -305,6 +321,39 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           )}
         </div>
         
+        {/* Review status + submit action */}
+        <div className="flex items-center justify-between gap-2 mt-2 mb-1">
+          {review ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Enviada para revisión
+            </span>
+          ) : (
+            <span className="text-xs text-slate-500">
+              {mealPlans && mealPlans.length > 0
+                ? `${mealPlans.length} comida${mealPlans.length === 1 ? "" : "s"} planeada${mealPlans.length === 1 ? "" : "s"}`
+                : "Sin comidas planeadas"}
+            </span>
+          )}
+
+          <CreatorOnly>
+            <Button
+              variant={review ? "outline" : "default"}
+              size="sm"
+              onClick={() => setShowSubmitConfirm(true)}
+              disabled={isSubmitting || (mealPlans?.length ?? 0) === 0}
+              className={
+                review
+                  ? "text-xs border-slate-300 text-slate-700 hover:bg-slate-100"
+                  : "text-xs bg-app-accent hover:bg-app-accent/90 text-slate-900 font-medium"
+              }
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />
+              {review ? "Reenviar" : "Enviar para revisión"}
+            </Button>
+          </CreatorOnly>
+        </div>
+
         {/* Keyboard navigation hint - hidden on mobile */}
         <div className="text-center hidden md:block">
           <p className="text-xs text-slate-600/70 font-medium">
@@ -462,6 +511,35 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
         isOpen={!!commentSheetMeal}
         onClose={() => setCommentSheetMeal(null)}
       />
+
+      {/* Submit for review confirmation */}
+      <AlertDialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {review ? "¿Reenviar esta semana para revisión?" : "¿Enviar esta semana para revisión?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se enviará un email al resto de la familia avisándoles que pueden revisar el menú de la semana del{" "}
+              {formatEnhancedWeekRange(currentWeekStart).range} y dejar sus comentarios.
+              {review && " La revisión anterior será reemplazada."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSubmitting}
+              onClick={() => {
+                submitReview();
+                setShowSubmitConfirm(false);
+              }}
+              className="bg-app-accent hover:bg-app-accent/90 text-slate-900"
+            >
+              {review ? "Reenviar" : "Enviar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
