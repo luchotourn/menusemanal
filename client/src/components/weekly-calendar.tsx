@@ -14,6 +14,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
 import type { MealPlan, Recipe } from "@shared/schema";
 import { useMealAchievements } from "@/hooks/use-meal-achievements";
@@ -324,9 +326,12 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
         {/* Review status + submit action */}
         <div className="flex items-center justify-between gap-2 mt-2 mb-1">
           {review ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            <span
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full"
+              title={`Enviada el ${new Date(review.submittedAt).toLocaleString("es-AR")}`}
+            >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Enviada para revisión
+              Enviada {formatDistanceToNow(new Date(review.submittedAt), { addSuffix: true, locale: es })}
             </span>
           ) : (
             <span className="text-xs text-slate-500">
