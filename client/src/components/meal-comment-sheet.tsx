@@ -2,10 +2,14 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { reactions } from "@/components/commentator/emoji-reactions";
-import { CommentatorOnly, CreatorOnly } from "@/components/role-based-wrapper";
+import { CommentatorOnly, CreatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { useMealComments, useRecipeRating } from "@/hooks/use-meal-comments";
-import { Send, Sparkles } from "lucide-react";
+import { useMealProposals, type MealProposalItem } from "@/hooks/use-meal-proposals";
+import { useQuery } from "@tanstack/react-query";
+import { Send, Sparkles, ArrowLeftRight, ChevronLeft, Check, X, Search } from "lucide-react";
+import type { Recipe } from "@shared/schema";
 
 interface MealCommentSheetProps {
   mealPlanId: number;
@@ -91,6 +95,203 @@ function InteractiveStarRating({
   );
 }
 
+function ProposalItem({
+  proposal,
+  isAdmin,
+  isMine,
+  isReviewing,
+  onAccept,
+  onReject,
+}: {
+  proposal: MealProposalItem;
+  isAdmin: boolean;
+  isMine: boolean;
+  isReviewing: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+}) {
+  const statusColor =
+    proposal.status === "pending"
+      ? "bg-amber-50 border-amber-200"
+      : proposal.status === "accepted"
+      ? "bg-emerald-50 border-emerald-200"
+      : "bg-gray-50 border-gray-200";
+
+  const statusLabel =
+    proposal.status === "pending"
+      ? "Pendiente"
+      : proposal.status === "accepted"
+      ? "✓ Aceptada"
+      : "✗ Rechazada";
+
+  return (
+    <div className={`rounded-xl border ${statusColor} p-3 space-y-2`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-gray-600 mb-0.5">
+            <span className="font-semibold">{proposal.proposerName}</span> propone reemplazar por:
+          </p>
+          <p className="text-sm font-semibold text-gray-900 leading-tight">
+            {proposal.proposedRecipeName}
+          </p>
+          {proposal.reason && (
+            <p className="text-xs text-gray-600 mt-1 italic leading-snug">
+              "{proposal.reason}"
+            </p>
+          )}
+        </div>
+        <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap
+          ${proposal.status === "pending" ? "bg-amber-100 text-amber-700" : ""}
+          ${proposal.status === "accepted" ? "bg-emerald-100 text-emerald-700" : ""}
+          ${proposal.status === "rejected" ? "bg-gray-200 text-gray-600" : ""}`}>
+          {statusLabel}
+        </span>
+      </div>
+
+      {isAdmin && proposal.status === "pending" && (
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            onClick={onAccept}
+            disabled={isReviewing}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+          >
+            <Check className="w-3.5 h-3.5 mr-1" />
+            Aceptar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onReject}
+            disabled={isReviewing}
+            className="flex-1 text-xs h-8 border-gray-300"
+          >
+            <X className="w-3.5 h-3.5 mr-1" />
+            Rechazar
+          </Button>
+        </div>
+      )}
+      {isMine && proposal.status === "pending" && !isAdmin && (
+        <p className="text-[11px] text-amber-700">Esperando que {proposal.status === "pending" ? "el admin" : ""} la revise</p>
+      )}
+    </div>
+  );
+}
+
+function ProposeRecipeView({
+  currentRecipeId,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+}: {
+  currentRecipeId: number;
+  onSubmit: (recipeId: number, reason: string) => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [reason, setReason] = useState("");
+
+  const { data: recipes, isLoading } = useQuery({
+    queryKey: ["/api/recipes", { search: searchQuery, propose: true }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("search", searchQuery);
+      const response = await fetch(`/api/recipes?${params}`);
+      if (!response.ok) throw new Error("Error al cargar las recetas");
+      return response.json() as Promise<Recipe[]>;
+    },
+  });
+
+  const filtered = (recipes ?? []).filter((r) => r.id !== currentRecipeId);
+
+  if (selectedRecipe) {
+    return (
+      <div className="flex flex-col flex-1 min-h-0">
+        <button
+          type="button"
+          onClick={() => setSelectedRecipe(null)}
+          className="flex items-center gap-1 text-xs text-purple-600 font-medium pb-2"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Cambiar comida
+        </button>
+        <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3 mb-3">
+          <p className="text-xs text-gray-500 mb-1">Vas a proponer reemplazar por:</p>
+          <p className="text-sm font-semibold text-gray-900">{selectedRecipe.nombre}</p>
+        </div>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="¿Por qué? (opcional)"
+          maxLength={500}
+          rows={3}
+          className="resize-none text-sm rounded-xl border-gray-200 focus:border-purple-300 focus:ring-purple-200 mb-3"
+        />
+        <div className="flex gap-2 mt-auto">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => onSubmit(selectedRecipe.id, reason.trim())}
+            disabled={isSubmitting}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            Enviar propuesta
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="flex items-center gap-1 text-xs text-purple-600 font-medium pb-2"
+      >
+        <ChevronLeft className="w-3.5 h-3.5" />
+        Volver
+      </button>
+      <p className="text-sm font-semibold text-gray-700 mb-2">Elegí una comida del recetario</p>
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar recetas..."
+          className="pl-9 text-sm rounded-xl"
+          autoComplete="off"
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-2 -mx-1 px-1">
+        {isLoading && <p className="text-xs text-gray-400 text-center py-4">Cargando...</p>}
+        {!isLoading && filtered.length === 0 && (
+          <p className="text-xs text-gray-400 text-center py-4">No hay recetas.</p>
+        )}
+        {filtered.map((recipe) => (
+          <button
+            key={recipe.id}
+            type="button"
+            onClick={() => setSelectedRecipe(recipe)}
+            className="w-full text-left rounded-xl border border-gray-200 bg-white px-3 py-2.5 hover:bg-purple-50 hover:border-purple-200 transition-colors"
+          >
+            <p className="text-sm font-semibold text-gray-900 leading-tight">{recipe.nombre}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">{recipe.categoria}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MealCommentSheet({
   mealPlanId,
   recipeId,
@@ -99,12 +300,27 @@ export function MealCommentSheet({
   onClose,
 }: MealCommentSheetProps) {
   const [commentText, setCommentText] = useState("");
+  const [view, setView] = useState<"main" | "propose">("main");
+  const { isCreator, isCommentator } = useUserRole();
+
   const { comments, isLoading, submitComment, isSubmitting } = useMealComments(
     isOpen ? mealPlanId : undefined
   );
   const { currentRating, submitRating, isSubmittingRating } = useRecipeRating(
     isOpen ? recipeId : undefined
   );
+  const {
+    proposals,
+    createProposal,
+    isCreating,
+    reviewProposal,
+    isReviewing,
+  } = useMealProposals(isOpen ? mealPlanId : undefined);
+
+  // Reset to main view whenever the sheet opens
+  useEffect(() => {
+    if (isOpen) setView("main");
+  }, [isOpen]);
 
   const canSubmit = !isSubmitting && commentText.trim().length > 0;
 
@@ -130,6 +346,10 @@ export function MealCommentSheet({
     });
   };
 
+  const visibleProposals = proposals.filter(
+    (p) => p.status !== "rejected" || isCreator
+  );
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
@@ -143,106 +363,160 @@ export function MealCommentSheet({
             {recipeName}
           </SheetTitle>
           <SheetDescription className="text-xs text-gray-400">
-            Opiniones de la familia sobre esta comida
+            {view === "main"
+              ? "Opiniones de la familia sobre esta comida"
+              : "Proponer otra comida"}
           </SheetDescription>
         </SheetHeader>
 
-        {/* Star rating section — commentators only, always visible at top */}
-        <CommentatorOnly>
-          <div className="py-3 border-b border-purple-100/60">
-            <InteractiveStarRating
-              value={currentRating}
-              onChange={handleRatingChange}
-              disabled={isSubmittingRating}
-            />
-          </div>
-        </CommentatorOnly>
+        {view === "propose" ? (
+          <ProposeRecipeView
+            currentRecipeId={recipeId}
+            isSubmitting={isCreating}
+            onCancel={() => setView("main")}
+            onSubmit={(id, reason) => {
+              createProposal(
+                { proposedRecipeId: id, reason: reason || undefined },
+                { onSuccess: () => setView("main") }
+              );
+            }}
+          />
+        ) : (
+          <>
+            {/* Star rating section — commentators only, always visible at top */}
+            <CommentatorOnly>
+              <div className="py-3 border-b border-purple-100/60">
+                <InteractiveStarRating
+                  value={currentRating}
+                  onChange={handleRatingChange}
+                  disabled={isSubmittingRating}
+                />
+              </div>
+            </CommentatorOnly>
 
-        {/* Comment list */}
-        <div className="flex-1 overflow-y-auto space-y-3 py-4 min-h-0">
-          {isLoading && (
-            <p className="text-sm text-gray-400 text-center py-4">
-              Cargando opiniones...
-            </p>
-          )}
-          {!isLoading && comments.length === 0 && (
-            <div className="text-center py-6">
-              <div className="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">💬</span>
+            {/* Proposals section */}
+            {visibleProposals.length > 0 && (
+              <div className="py-3 border-b border-purple-100/60 space-y-2">
+                <p className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                  {visibleProposals.some(p => p.status === "pending")
+                    ? "Propuestas de cambio"
+                    : "Propuestas anteriores"}
+                </p>
+                {visibleProposals.map((p) => (
+                  <ProposalItem
+                    key={p.id}
+                    proposal={p}
+                    isAdmin={isCreator}
+                    isMine={!isCreator && isCommentator}
+                    isReviewing={isReviewing}
+                    onAccept={() => reviewProposal({ proposalId: p.id, status: "accepted" })}
+                    onReject={() => reviewProposal({ proposalId: p.id, status: "rejected" })}
+                  />
+                ))}
               </div>
-              <p className="text-sm text-gray-400 font-medium">
-                Todavía no hay opiniones
-              </p>
-              <p className="text-xs text-gray-300 mt-1">
-                ¡Sé el primero en opinar!
-              </p>
-            </div>
-          )}
-          {comments.map((c) => (
-            <div key={c.id} className="flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm">
-                {c.userName?.charAt(0)?.toUpperCase() ?? "?"}
+            )}
+
+            {/* Propose CTA — commentators only */}
+            <CommentatorOnly>
+              <div className="py-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setView("propose")}
+                  className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+                >
+                  <ArrowLeftRight className="w-4 h-4 mr-2" />
+                  Proponer otra comida
+                </Button>
               </div>
-              <div className="flex-1 bg-purple-50/60 rounded-2xl px-3.5 py-2.5">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-semibold text-gray-700">
-                    {c.userName}
-                  </span>
-                  {c.emoji && (
-                    <span className="text-base leading-none">
-                      {EMOJI_MAP[c.emoji] ?? c.emoji}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-400 ml-auto">
-                    {formatTime(c.createdAt)}
-                  </span>
+            </CommentatorOnly>
+
+            {/* Comment list */}
+            <div className="flex-1 overflow-y-auto space-y-3 py-4 min-h-0">
+              {isLoading && (
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Cargando opiniones...
+                </p>
+              )}
+              {!isLoading && comments.length === 0 && (
+                <div className="text-center py-6">
+                  <div className="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-3">
+                    <span className="text-2xl">💬</span>
+                  </div>
+                  <p className="text-sm text-gray-400 font-medium">
+                    Todavía no hay opiniones
+                  </p>
+                  <p className="text-xs text-gray-300 mt-1">
+                    ¡Sé el primero en opinar!
+                  </p>
                 </div>
-                <p className="text-sm text-gray-800 leading-snug">{c.comment}</p>
+              )}
+              {comments.map((c) => (
+                <div key={c.id} className="flex gap-3 items-start">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm">
+                    {c.userName?.charAt(0)?.toUpperCase() ?? "?"}
+                  </div>
+                  <div className="flex-1 bg-purple-50/60 rounded-2xl px-3.5 py-2.5">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-semibold text-gray-700">
+                        {c.userName}
+                      </span>
+                      {c.emoji && (
+                        <span className="text-base leading-none">
+                          {EMOJI_MAP[c.emoji] ?? c.emoji}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-gray-400 ml-auto">
+                        {formatTime(c.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-800 leading-snug">{c.comment}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input area — commentators only */}
+            <CommentatorOnly>
+              <div className="border-t border-gray-100 pt-3">
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Escribe tu opinión..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    maxLength={500}
+                    rows={2}
+                    className="resize-none text-sm flex-1 rounded-xl border-gray-200 focus:border-purple-300 focus:ring-purple-200"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!canSubmit}
+                    size="icon"
+                    className="bg-purple-600 hover:bg-purple-700 text-white h-auto self-end rounded-xl shadow-md"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            </CommentatorOnly>
 
-        {/* Input area — commentators only */}
-        <CommentatorOnly>
-          <div className="border-t border-gray-100 pt-3">
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Escribe tu opinión..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                maxLength={500}
-                rows={2}
-                className="resize-none text-sm flex-1 rounded-xl border-gray-200 focus:border-purple-300 focus:ring-purple-200"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-              />
-              <Button
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                size="icon"
-                className="bg-purple-600 hover:bg-purple-700 text-white h-auto self-end rounded-xl shadow-md"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </CommentatorOnly>
-
-        {/* View-only notice for creators */}
-        <CreatorOnly>
-          {comments.length > 0 && (
-            <div className="border-t pt-3">
-              <p className="text-xs text-gray-400 text-center">
-                Solo los chicos pueden dejar opiniones
-              </p>
-            </div>
-          )}
-        </CreatorOnly>
+            {/* View-only notice for creators */}
+            <CreatorOnly>
+              {comments.length > 0 && (
+                <div className="border-t pt-3">
+                  <p className="text-xs text-gray-400 text-center">
+                    Solo los chicos pueden dejar opiniones
+                  </p>
+                </div>
+              )}
+            </CreatorOnly>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );
