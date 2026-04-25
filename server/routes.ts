@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, mealPlans } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, mealPlans } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth, db } from "./db";
 import { eq } from "drizzle-orm";
@@ -1194,6 +1194,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching recipe comments:", error);
       res.status(500).json({ error: "Error al obtener los comentarios" });
+    }
+  });
+
+  // Meal swap proposal routes — commentators propose, admin approves/rejects
+
+  // List proposals for a meal plan (any family member)
+  app.get("/api/meal-plans/:id/proposals", isAuthenticated, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const mealPlanId = parseInt(req.params.id);
+      if (isNaN(mealPlanId)) {
+        return res.status(400).json({ error: "ID de plan de comida inválido" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const mealPlan = await storage.getMealPlanById(mealPlanId, user.id, familyId);
+      if (!mealPlan) {
+        return res.status(404).json({ error: "Plan de comida no encontrado" });
+      }
+
+      const proposals = await storage.getMealProposals(mealPlanId, familyId);
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching proposals:", error);
+      res.status(500).json({ error: "Error al obtener las propuestas" });
+    }
+  });
+
+  // Create or replace a pending proposal (commentators only)
+  app.post("/api/meal-plans/:id/proposals", isAuthenticated, commentatorRateLimit, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      if (user.role !== "commentator") {
+        return res.status(403).json({ error: "Solo los miembros pueden proponer cambios" });
+      }
+
+      const mealPlanId = parseInt(req.params.id);
+      if (isNaN(mealPlanId)) {
+        return res.status(400).json({ error: "ID de plan de comida inválido" });
+      }
+
+      const { proposedRecipeId, reason } = createMealProposalSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const mealPlan = await storage.getMealPlanById(mealPlanId, user.id, familyId);
+      if (!mealPlan) {
+        return res.status(404).json({ error: "Plan de comida no encontrado" });
+      }
+
+      // Verify the proposed recipe is in the family's inventory
+      const recipe = await storage.getRecipeById(proposedRecipeId, user.id, familyId);
+      if (!recipe) {
+        return res.status(404).json({ error: "Receta propuesta no encontrada" });
+      }
+
+      // Don't allow proposing the same recipe that's already in the meal plan
+      if (mealPlan.recetaId === proposedRecipeId) {
+        return res.status(400).json({ error: "Esa receta ya está en este día" });
+      }
+
+      const proposal = await storage.upsertMealProposal(
+        mealPlanId,
+        familyId,
+        user.id,
+        proposedRecipeId,
+        reason
+      );
+
+      res.status(201).json(proposal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos de propuesta inválidos", details: error.errors });
+      }
+      console.error("Error creating proposal:", error);
+      res.status(500).json({ error: "Error al crear la propuesta" });
+    }
+  });
+
+  // Review a proposal (admin only) — accept mutates the meal plan
+  app.patch("/api/meal-plans/:id/proposals/:proposalId", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const mealPlanId = parseInt(req.params.id);
+      const proposalId = parseInt(req.params.proposalId);
+      if (isNaN(mealPlanId) || isNaN(proposalId)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const { status } = reviewMealProposalSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      // Verify the proposal belongs to the path's mealPlanId
+      const existing = await storage.getProposalById(proposalId, familyId);
+      if (!existing) {
+        return res.status(404).json({ error: "Propuesta no encontrada" });
+      }
+      if (existing.mealPlanId !== mealPlanId) {
+        return res.status(400).json({ error: "La propuesta no pertenece a este plan de comida" });
+      }
+      if (existing.status !== "pending") {
+        return res.status(400).json({ error: "Esta propuesta ya fue revisada" });
+      }
+
+      const result = await storage.reviewMealProposal(proposalId, familyId, status, user.id);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error reviewing proposal:", error);
+      res.status(500).json({ error: "Error al revisar la propuesta" });
     }
   });
 

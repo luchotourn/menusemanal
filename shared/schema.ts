@@ -239,6 +239,52 @@ export const mealCommentsRelations = relations(mealComments, ({ one }) => ({
   }),
 }));
 
+// Meal swap proposals — commentators propose replacing a planned meal with a recipe
+// from the family inventory. Admin accepts (mutates the meal plan) or rejects.
+export const mealProposals = pgTable("meal_proposals", {
+  id: serial("id").primaryKey(),
+  mealPlanId: integer("meal_plan_id").notNull().references(() => mealPlans.id, { onDelete: "cascade" }),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  proposedBy: integer("proposed_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  proposedRecipeId: integer("proposed_recipe_id").notNull().references(() => recipes.id),
+  reason: text("reason"), // optional free-text justification
+  status: text("status").notNull().default("pending"), // "pending" | "accepted" | "rejected"
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    mealPlanIdx: index("meal_proposals_meal_plan_idx").on(table.mealPlanId),
+    familyIdx: index("meal_proposals_family_idx").on(table.familyId),
+    proposedByIdx: index("meal_proposals_proposed_by_idx").on(table.proposedBy),
+    statusIdx: index("meal_proposals_status_idx").on(table.status),
+  };
+});
+
+export const mealProposalsRelations = relations(mealProposals, ({ one }) => ({
+  mealPlan: one(mealPlans, {
+    fields: [mealProposals.mealPlanId],
+    references: [mealPlans.id],
+  }),
+  family: one(families, {
+    fields: [mealProposals.familyId],
+    references: [families.id],
+  }),
+  proposer: one(users, {
+    fields: [mealProposals.proposedBy],
+    references: [users.id],
+  }),
+  proposedRecipe: one(recipes, {
+    fields: [mealProposals.proposedRecipeId],
+    references: [recipes.id],
+  }),
+  reviewer: one(users, {
+    fields: [mealProposals.reviewedBy],
+    references: [users.id],
+  }),
+}));
+
 // Meal achievements table for kids gamification
 export const mealAchievements = pgTable("meal_achievements", {
   id: serial("id").primaryKey(),
@@ -377,6 +423,28 @@ export const insertMealAchievementSchema = createInsertSchema(mealAchievements, 
   updatedAt: true,
 });
 
+export const insertMealProposalSchema = createInsertSchema(mealProposals, {
+  reason: z.string().max(500, "El motivo es demasiado largo").optional(),
+  status: z.enum(["pending", "accepted", "rejected"]).default("pending"),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  reviewedBy: true,
+  reviewedAt: true,
+});
+
+export const createMealProposalSchema = z.object({
+  proposedRecipeId: z.number().int().positive("El ID de la receta es requerido"),
+  reason: z.string().max(500, "El motivo es demasiado largo").optional(),
+});
+
+export const reviewMealProposalSchema = z.object({
+  status: z.enum(["accepted", "rejected"], {
+    required_error: "El estado es requerido",
+  }),
+});
+
 export const awardStarSchema = z.object({
   mealPlanId: z.number().int().positive("El ID del plan de comida es requerido"),
   starType: z.enum(["tried_it", "ate_veggie", "left_feedback"], {
@@ -403,6 +471,10 @@ export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
 export type MealAchievement = typeof mealAchievements.$inferSelect;
 export type InsertMealAchievement = z.infer<typeof insertMealAchievementSchema>;
 export type AwardStarData = z.infer<typeof awardStarSchema>;
+export type MealProposal = typeof mealProposals.$inferSelect;
+export type InsertMealProposal = z.infer<typeof insertMealProposalSchema>;
+export type CreateMealProposalData = z.infer<typeof createMealProposalSchema>;
+export type ReviewMealProposalData = z.infer<typeof reviewMealProposalSchema>;
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 

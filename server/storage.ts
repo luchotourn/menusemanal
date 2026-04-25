@@ -7,6 +7,8 @@ import {
   recipeRatings,
   mealComments,
   mealAchievements,
+  mealProposals,
+  type MealProposal,
   type Recipe,
   type InsertRecipe,
   type MealPlan,
@@ -86,9 +88,29 @@ export interface IStorage {
     streakDays: number
   }>;
 
+  // Meal swap proposal methods
+  getMealProposals(mealPlanId: number, familyId: number): Promise<MealProposalEnriched[]>;
+  upsertMealProposal(mealPlanId: number, familyId: number, proposedBy: number, proposedRecipeId: number, reason?: string): Promise<MealProposal>;
+  reviewMealProposal(proposalId: number, familyId: number, status: 'accepted' | 'rejected', reviewedBy: number): Promise<MealProposalReviewResult>;
+  getProposalById(proposalId: number, familyId: number): Promise<MealProposal | undefined>;
+
   // Waitlist methods
   addWaitlistSignup(email: string, source?: string): Promise<WaitlistSignup>;
   isEmailOnWaitlist(email: string): Promise<boolean>;
+}
+
+export interface MealProposalEnriched extends MealProposal {
+  proposerName: string;
+  proposedRecipeName: string;
+  proposedRecipeImage: string | null;
+  proposedRecipeCategoria: string;
+}
+
+export interface MealProposalReviewResult {
+  proposal: MealProposal;
+  /** When status='accepted', the meal plan whose recetaId was updated (and any sibling pending proposals were auto-rejected) */
+  mealPlanUpdated: boolean;
+  autoRejectedCount: number;
 }
 
 export class MemStorage implements IStorage {
@@ -376,6 +398,16 @@ export class MemStorage implements IStorage {
   async getUserStats(userId: number, familyId: number, startDate?: string): Promise<{ weeklyStars: { tried: number; veggie: number; feedback: number }; totalStars: number; streakDays: number }> {
     return { weeklyStars: { tried: 0, veggie: 0, feedback: 0 }, totalStars: 0, streakDays: 0 };
   }
+
+  // Meal proposal stubs
+  async getMealProposals(): Promise<MealProposalEnriched[]> { return []; }
+  async upsertMealProposal(): Promise<MealProposal> {
+    throw new Error("MemStorage does not implement meal proposals");
+  }
+  async reviewMealProposal(): Promise<MealProposalReviewResult> {
+    throw new Error("MemStorage does not implement meal proposals");
+  }
+  async getProposalById(): Promise<MealProposal | undefined> { return undefined; }
 
   // Waitlist stubs
   async addWaitlistSignup(email: string, source: string = "landing"): Promise<WaitlistSignup> {
@@ -1091,6 +1123,146 @@ export class DatabaseStorage implements IStorage {
       streakDays,
     };
   }
+  // Meal swap proposal methods
+  async getMealProposals(mealPlanId: number, familyId: number): Promise<MealProposalEnriched[]> {
+    const rows = await db
+      .select({
+        id: mealProposals.id,
+        mealPlanId: mealProposals.mealPlanId,
+        familyId: mealProposals.familyId,
+        proposedBy: mealProposals.proposedBy,
+        proposedRecipeId: mealProposals.proposedRecipeId,
+        reason: mealProposals.reason,
+        status: mealProposals.status,
+        reviewedBy: mealProposals.reviewedBy,
+        reviewedAt: mealProposals.reviewedAt,
+        createdAt: mealProposals.createdAt,
+        updatedAt: mealProposals.updatedAt,
+        proposerName: users.name,
+        proposedRecipeName: recipes.nombre,
+        proposedRecipeImage: recipes.imagen,
+        proposedRecipeCategoria: recipes.categoria,
+      })
+      .from(mealProposals)
+      .innerJoin(users, eq(mealProposals.proposedBy, users.id))
+      .innerJoin(recipes, eq(mealProposals.proposedRecipeId, recipes.id))
+      .where(and(
+        eq(mealProposals.mealPlanId, mealPlanId),
+        eq(mealProposals.familyId, familyId)
+      ))
+      .orderBy(mealProposals.createdAt);
+    return rows;
+  }
+
+  async upsertMealProposal(
+    mealPlanId: number,
+    familyId: number,
+    proposedBy: number,
+    proposedRecipeId: number,
+    reason?: string
+  ): Promise<MealProposal> {
+    // Replace any existing pending proposal from this user for this meal (one-active-per-user policy)
+    const [existing] = await db
+      .select()
+      .from(mealProposals)
+      .where(and(
+        eq(mealProposals.mealPlanId, mealPlanId),
+        eq(mealProposals.proposedBy, proposedBy),
+        eq(mealProposals.status, "pending")
+      ))
+      .limit(1);
+
+    const now = new Date();
+    if (existing) {
+      const [updated] = await db
+        .update(mealProposals)
+        .set({
+          proposedRecipeId,
+          reason: reason || null,
+          updatedAt: now,
+        })
+        .where(eq(mealProposals.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db
+      .insert(mealProposals)
+      .values({
+        mealPlanId,
+        familyId,
+        proposedBy,
+        proposedRecipeId,
+        reason: reason || null,
+        status: "pending",
+      })
+      .returning();
+    return created;
+  }
+
+  async getProposalById(proposalId: number, familyId: number): Promise<MealProposal | undefined> {
+    const [row] = await db
+      .select()
+      .from(mealProposals)
+      .where(and(
+        eq(mealProposals.id, proposalId),
+        eq(mealProposals.familyId, familyId)
+      ))
+      .limit(1);
+    return row || undefined;
+  }
+
+  async reviewMealProposal(
+    proposalId: number,
+    familyId: number,
+    status: 'accepted' | 'rejected',
+    reviewedBy: number
+  ): Promise<MealProposalReviewResult> {
+    const proposal = await this.getProposalById(proposalId, familyId);
+    if (!proposal) {
+      throw new Error("Proposal not found");
+    }
+    if (proposal.status !== "pending") {
+      throw new Error("Proposal already reviewed");
+    }
+
+    const now = new Date();
+    let mealPlanUpdated = false;
+    let autoRejectedCount = 0;
+
+    // Apply the review decision
+    const [updated] = await db
+      .update(mealProposals)
+      .set({ status, reviewedBy, reviewedAt: now, updatedAt: now })
+      .where(eq(mealProposals.id, proposalId))
+      .returning();
+
+    if (status === "accepted") {
+      // Mutate the meal plan to use the proposed recipe
+      const mealUpdate = await db
+        .update(mealPlans)
+        .set({ recetaId: proposal.proposedRecipeId, updatedAt: now })
+        .where(and(
+          eq(mealPlans.id, proposal.mealPlanId),
+          eq(mealPlans.familyId, familyId)
+        ));
+      mealPlanUpdated = (mealUpdate.rowCount ?? 0) > 0;
+
+      // Auto-reject any other pending proposals on the same meal
+      const autoReject = await db
+        .update(mealProposals)
+        .set({ status: "rejected", reviewedBy, reviewedAt: now, updatedAt: now })
+        .where(and(
+          eq(mealProposals.mealPlanId, proposal.mealPlanId),
+          eq(mealProposals.familyId, familyId),
+          eq(mealProposals.status, "pending")
+        ));
+      autoRejectedCount = autoReject.rowCount ?? 0;
+    }
+
+    return { proposal: updated, mealPlanUpdated, autoRejectedCount };
+  }
+
   // Waitlist methods
   async addWaitlistSignup(email: string, source: string = "landing"): Promise<WaitlistSignup> {
     const [signup] = await db
