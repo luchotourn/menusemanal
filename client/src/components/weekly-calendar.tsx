@@ -17,15 +17,20 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
-import type { MealPlan, Recipe } from "@shared/schema";
+import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { useMealAchievements } from "@/hooks/use-meal-achievements";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
 import { CreatorOnly } from "@/components/role-based-wrapper";
 import { useWeeklyReview } from "@/hooks/use-weekly-review";
 
+type MealPlanWithCommentsAndRecipe = MealPlan & {
+  recipe: Recipe | null;
+  comments: MealCommentInline[];
+};
+
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
-  onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe }) => void;
+  onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) => void;
 }
 
 export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProps) {
@@ -47,7 +52,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
       const params = new URLSearchParams({ startDate: formatDate(currentWeekStart) });
       const response = await fetch(`/api/meal-plans?${params}`);
       if (!response.ok) throw new Error("Error al cargar el plan de comidas");
-      return response.json() as Promise<(MealPlan & { recipe: Recipe | null })[]>;
+      return response.json() as Promise<MealPlanWithCommentsAndRecipe[]>;
     },
   });
 
@@ -121,6 +126,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     return dailyMeals.map((mealPlan) => ({
       ...mealPlan,
       recipe: mealPlan.recipe ?? undefined,
+      comments: mealPlan.comments ?? [],
     }));
   };
 
@@ -132,11 +138,12 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     ));
   };
 
-  // Enhanced MealCard Component with meal preview details
+  // Enhanced MealCard Component with meal preview details + inline comments
   const MealCard = ({ meal }: {
-    meal: MealPlan & { recipe?: Recipe };
+    meal: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] };
   }) => {
     const recipe = meal.recipe;
+    const comments = meal.comments ?? [];
     const { mealAchievements } = useMealAchievements(meal.id);
 
     // Get current user's achievements for this meal (first one if multiple family members)
@@ -156,18 +163,18 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
 
     return (
       <div
-        className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-200 transition-all border border-orange-200 shadow-sm h-[88px]"
+        className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-3 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-orange-200 transition-all border border-orange-200 shadow-sm min-h-[88px]"
         onClick={() => onViewMealPlan(meal)}
       >
-        <div className="flex flex-col justify-between h-full">
+        <div className="flex flex-col gap-2">
           {/* Recipe Name - Allow multiple lines */}
           <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">
             {recipe.nombre}
           </p>
 
           {/* Additional info section - show kid rating, favorite, OR achievements */}
-          <div className="flex items-center justify-between mt-2 gap-2">
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 min-h-[18px]">
               {/* Kid Rating */}
               {(recipe.calificacionNinos ?? 0) > 0 ? (
                 <div className="flex">
@@ -193,7 +200,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
                 });
               }}
               className={`
-                flex items-center justify-center w-9 h-9 rounded-full
+                flex items-center justify-center w-9 h-9 rounded-full flex-shrink-0
                 transition-all duration-150 active:scale-90 shadow-sm
                 ${userAchievement?.leftFeedback === 1
                   ? "bg-purple-200 border border-purple-300/60"
@@ -211,6 +218,22 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
               />
             </button>
           </div>
+
+          {/* Inline comments — visible to everyone (the cook reads them while preparing) */}
+          {comments.length > 0 && (
+            <div className="border-t border-orange-200/60 pt-2 space-y-1.5">
+              {comments.map((c) => (
+                <div key={c.id} className="flex items-start gap-1.5 leading-snug">
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-purple-500 text-white text-[9px] font-bold flex-shrink-0 mt-0.5">
+                    {c.userName?.charAt(0)?.toUpperCase() ?? "?"}
+                  </span>
+                  <p className="text-[11px] text-gray-700 flex-1 line-clamp-2">
+                    {c.comment}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
