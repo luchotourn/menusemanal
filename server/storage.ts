@@ -575,41 +575,47 @@ export class DatabaseStorage implements IStorage {
     .leftJoin(recipes, eq(mealPlans.recetaId, recipes.id))
     .where(conditions);
 
-    // Batch-fetch all comments for these meals so the calendar can render them inline
-    if (familyId && meals.length > 0) {
-      const mealIds = meals.map(m => m.id);
-      const commentRows = await db
-        .select({
-          id: mealComments.id,
-          mealPlanId: mealComments.mealPlanId,
-          userId: mealComments.userId,
-          comment: mealComments.comment,
-          emoji: mealComments.emoji,
-          createdAt: mealComments.createdAt,
-          userName: users.name,
-        })
-        .from(mealComments)
-        .innerJoin(users, eq(mealComments.userId, users.id))
-        .where(and(
-          eq(mealComments.familyId, familyId),
-          inArray(mealComments.mealPlanId, mealIds)
-        ))
-        .orderBy(mealComments.createdAt);
+    const commentsByMealId = await this.getCommentsForMeals(
+      meals.map(m => m.id),
+      familyId
+    );
 
-      const byMealId = new Map<number, typeof commentRows>();
-      for (const c of commentRows) {
-        const list = byMealId.get(c.mealPlanId);
-        if (list) list.push(c);
-        else byMealId.set(c.mealPlanId, [c]);
-      }
+    return meals.map(m => ({
+      ...m,
+      comments: commentsByMealId.get(m.id) ?? [],
+    })) as unknown as MealPlan[];
+  }
 
-      return meals.map(m => ({
-        ...m,
-        comments: byMealId.get(m.id) ?? [],
-      })) as unknown as MealPlan[];
+  private async getCommentsForMeals(mealIds: number[], familyId?: number) {
+    if (!familyId || mealIds.length === 0) {
+      return new Map<number, never[]>();
     }
 
-    return meals.map(m => ({ ...m, comments: [] })) as unknown as MealPlan[];
+    const commentRows = await db
+      .select({
+        id: mealComments.id,
+        mealPlanId: mealComments.mealPlanId,
+        userId: mealComments.userId,
+        comment: mealComments.comment,
+        emoji: mealComments.emoji,
+        createdAt: mealComments.createdAt,
+        userName: users.name,
+      })
+      .from(mealComments)
+      .innerJoin(users, eq(mealComments.userId, users.id))
+      .where(and(
+        eq(mealComments.familyId, familyId),
+        inArray(mealComments.mealPlanId, mealIds)
+      ))
+      .orderBy(mealComments.createdAt);
+
+    const byMealId = new Map<number, typeof commentRows>();
+    for (const c of commentRows) {
+      const list = byMealId.get(c.mealPlanId);
+      if (list) list.push(c);
+      else byMealId.set(c.mealPlanId, [c]);
+    }
+    return byMealId;
   }
 
   async getMealPlanByDate(fecha: string, userId?: number, familyId?: number): Promise<MealPlan[]> {
