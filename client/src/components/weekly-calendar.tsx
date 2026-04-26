@@ -5,18 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
-import type { MealPlan, Recipe } from "@shared/schema";
+import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { useMealAchievements } from "@/hooks/use-meal-achievements";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
-
-interface MealCommentInline {
-  id: number;
-  userId: number;
-  userName: string;
-  comment: string;
-  emoji: string | null;
-  createdAt: string;
-}
 
 type MealPlanWithCommentsAndRecipe = MealPlan & {
   recipe: Recipe | null;
@@ -25,7 +16,7 @@ type MealPlanWithCommentsAndRecipe = MealPlan & {
 
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
-  onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe }) => void;
+  onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) => void;
 }
 
 export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProps) {

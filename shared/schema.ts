@@ -400,6 +400,10 @@ export type RecipeRating = typeof recipeRatings.$inferSelect;
 export type InsertRecipeRating = z.infer<typeof insertRecipeRatingSchema>;
 export type MealComment = typeof mealComments.$inferSelect;
 export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
+export type MealCommentInline = Pick<MealComment, "id" | "userId" | "comment" | "emoji"> & {
+  userName: string;
+  createdAt: string | Date;
+};
 export type MealAchievement = typeof mealAchievements.$inferSelect;
 export type InsertMealAchievement = z.infer<typeof insertMealAchievementSchema>;
 export type AwardStarData = z.infer<typeof awardStarSchema>;
