@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Recipe, MealPlan } from "@shared/schema";
+import type { Recipe, MealPlan, MealCommentInline } from "@shared/schema";
 import { Link, useLocation } from "wouter";
 import { Users, UserPlus } from "lucide-react";
 import { useProfile } from "@/hooks/useAuth";
@@ -24,7 +24,7 @@ export default function Home() {
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
-  const [selectedMealPlan, setSelectedMealPlan] = useState<(MealPlan & { recipe?: Recipe }) | null>(null);
+  const [selectedMealPlan, setSelectedMealPlan] = useState<(MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) | null>(null);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedMealType, setSelectedMealType] = useState<string>("almuerzo");
@@ -58,7 +58,7 @@ export default function Home() {
     setShowRecipeModal(true);
   };
 
-  const handleViewMealPlan = (mealPlan: MealPlan & { recipe?: Recipe }) => {
+  const handleViewMealPlan = (mealPlan: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) => {
     setSelectedMealPlan(mealPlan);
     setShowMealPlanModal(true);
   };

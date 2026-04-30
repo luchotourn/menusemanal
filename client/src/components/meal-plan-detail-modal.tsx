@@ -6,12 +6,12 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { MealPlan, Recipe } from "@shared/schema";
+import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 
 interface MealPlanDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mealPlan: (MealPlan & { recipe?: Recipe }) | null;
+  mealPlan: (MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) | null;
   onEditRecipe: (recipe: Recipe) => void;
 }
 
@@ -70,6 +70,7 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
   if (!mealPlan?.recipe) return null;
 
   const recipe = mealPlan.recipe;
+  const comments = mealPlan.comments ?? [];
 
   return (
     <>
@@ -92,6 +93,31 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                   Planificado para <strong>{formatDate(mealPlan.fecha)}</strong> - <strong>{getMealTypeLabel(mealPlan.tipoComida)}</strong>
                 </p>
               </div>
+
+              {/* Comments — what the family is asking for on this specific day */}
+              {comments.length > 0 ? (
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-2">Comentarios</h3>
+                  <ul className="space-y-2">
+                    {comments.map((c) => (
+                      <li key={c.id} className="flex items-start gap-2">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-500 text-white text-[11px] font-bold flex-shrink-0">
+                          {c.userName?.charAt(0)?.toUpperCase() ?? "?"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-600">
+                            {c.userName}
+                            {c.emoji ? <span className="ml-1">{c.emoji}</span> : null}
+                          </p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+                            {c.comment}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               {/* Recipe Image - only show if it's a valid HTTP URL */}
               {recipe.imagen && recipe.imagen.startsWith('http') ? (
