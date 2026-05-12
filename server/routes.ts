@@ -10,7 +10,7 @@ import { checkDatabaseHealth, db } from "./db";
 import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
-import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat } from "@shared/utils";
+import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat, isPastMealDate } from "@shared/utils";
 import { sendSignupNotification, sendWeekReviewNotification } from "./email";
 
 // Helper to parse cookies from request header (avoids adding cookie-parser dependency)
@@ -1332,6 +1332,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mealPlan = await storage.getMealPlanById(mealPlanId, user.id, familyId);
       if (!mealPlan) {
         return res.status(404).json({ error: "Plan de comida no encontrado" });
+      }
+
+      // Block proposals on meals already in the past — they can't change history
+      if (isPastMealDate(mealPlan.fecha)) {
+        return res.status(400).json({ error: "No podés proponer cambios para comidas que ya pasaron" });
       }
 
       // Verify the proposed recipe is in the family's inventory

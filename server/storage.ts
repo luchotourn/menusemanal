@@ -30,7 +30,7 @@ import {
   type WaitlistSignup,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, like, or, inArray, isNull, SQL } from "drizzle-orm";
+import { eq, and, gte, lte, like, or, inArray, isNull, sql, SQL } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
@@ -117,6 +117,11 @@ export interface MealProposalReviewResult {
   /** When status='accepted', the meal plan whose recetaId was updated (and any sibling pending proposals were auto-rejected) */
   mealPlanUpdated: boolean;
   autoRejectedCount: number;
+  /** Comments deleted when accepting (they referenced the previous recipe and would mislead the cook) */
+  deletedCommentCount: number;
+  /** Achievement rows cleared on accept — keeps the "you already commented" chat-icon hint consistent
+   *  with the now-empty comment thread. The kids-gamification UI itself is no longer rendered. */
+  deletedAchievementCount: number;
 }
 
 export class MemStorage implements IStorage {
@@ -619,15 +624,67 @@ export class DatabaseStorage implements IStorage {
     .leftJoin(recipes, eq(mealPlans.recetaId, recipes.id))
     .where(conditions);
 
-    const commentsByMealId = await this.getCommentsForMeals(
-      meals.map(m => m.id),
-      familyId
-    );
+    const mealIds = meals.map(m => m.id);
+    const commentsByMealId = await this.getCommentsForMeals(mealIds, familyId);
+    const { countByMealId, latestByMealId } = await this.getPendingProposalsForMeals(mealIds);
 
     return meals.map(m => ({
       ...m,
       comments: commentsByMealId.get(m.id) ?? [],
+      pendingProposalCount: countByMealId.get(m.id) ?? 0,
+      latestPendingProposal: latestByMealId.get(m.id) ?? null,
     })) as unknown as MealPlan[];
+  }
+
+  /** Returns the most recent pending proposal per meal (for the calendar's "Cambio: <recipe>" chip)
+   *  plus a per-meal count (for the "+N" affordance when several commentators propose for the same meal). */
+  private async getPendingProposalsForMeals(mealIds: number[]) {
+    const countByMealId = new Map<number, number>();
+    const latestByMealId = new Map<number, { proposedRecipeName: string; proposerName: string; createdAt: Date }>();
+    if (mealIds.length === 0) return { countByMealId, latestByMealId };
+
+    const countRows = await db
+      .select({
+        mealPlanId: mealProposals.mealPlanId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(mealProposals)
+      .where(and(
+        inArray(mealProposals.mealPlanId, mealIds),
+        eq(mealProposals.status, "pending")
+      ))
+      .groupBy(mealProposals.mealPlanId);
+    for (const row of countRows) {
+      countByMealId.set(row.mealPlanId, Number(row.count) || 0);
+    }
+
+    if (countByMealId.size === 0) return { countByMealId, latestByMealId };
+
+    const detailRows = await db
+      .select({
+        mealPlanId: mealProposals.mealPlanId,
+        createdAt: mealProposals.createdAt,
+        proposedRecipeName: recipes.nombre,
+        proposerName: users.name,
+      })
+      .from(mealProposals)
+      .innerJoin(recipes, eq(mealProposals.proposedRecipeId, recipes.id))
+      .innerJoin(users, eq(mealProposals.proposedBy, users.id))
+      .where(and(
+        inArray(mealProposals.mealPlanId, Array.from(countByMealId.keys())),
+        eq(mealProposals.status, "pending")
+      ));
+    for (const row of detailRows) {
+      const cur = latestByMealId.get(row.mealPlanId);
+      if (!cur || row.createdAt > cur.createdAt) {
+        latestByMealId.set(row.mealPlanId, {
+          proposedRecipeName: row.proposedRecipeName,
+          proposerName: row.proposerName,
+          createdAt: row.createdAt,
+        });
+      }
+    }
+    return { countByMealId, latestByMealId };
   }
 
   private async getCommentsForMeals(mealIds: number[], familyId?: number) {
@@ -1283,6 +1340,8 @@ export class DatabaseStorage implements IStorage {
     const now = new Date();
     let mealPlanUpdated = false;
     let autoRejectedCount = 0;
+    let deletedCommentCount = 0;
+    let deletedAchievementCount = 0;
 
     // Apply the review decision
     const [updated] = await db
@@ -1312,9 +1371,30 @@ export class DatabaseStorage implements IStorage {
           eq(mealProposals.status, "pending")
         ));
       autoRejectedCount = autoReject.rowCount ?? 0;
+
+      // Drop comments — they referred to the previous recipe and would mislead the cook
+      // on the swapped meal ("sin cebolla" makes no sense once we swap pollo for ramen).
+      const deletedComments = await db
+        .delete(mealComments)
+        .where(and(
+          eq(mealComments.mealPlanId, proposal.mealPlanId),
+          eq(mealComments.familyId, familyId)
+        ));
+      deletedCommentCount = deletedComments.rowCount ?? 0;
+
+      // Drop achievement rows so the chat-icon "you already commented" hint resets along with
+      // the comments. The kids-gamification UI is no longer rendered, but the leftFeedback
+      // flag still drives the icon's filled-purple state in weekly-calendar.tsx.
+      const deletedAchievements = await db
+        .delete(mealAchievements)
+        .where(and(
+          eq(mealAchievements.mealPlanId, proposal.mealPlanId),
+          eq(mealAchievements.familyId, familyId)
+        ));
+      deletedAchievementCount = deletedAchievements.rowCount ?? 0;
     }
 
-    return { proposal: updated, mealPlanUpdated, autoRejectedCount };
+    return { proposal: updated, mealPlanUpdated, autoRejectedCount, deletedCommentCount, deletedAchievementCount };
   }
 
   // Weekly review methods

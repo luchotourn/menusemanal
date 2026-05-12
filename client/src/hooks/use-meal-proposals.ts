@@ -29,6 +29,8 @@ interface ReviewResult {
   proposal: Omit<MealProposalItem, "proposerName" | "proposedRecipeName" | "proposedRecipeImage" | "proposedRecipeCategoria">;
   mealPlanUpdated: boolean;
   autoRejectedCount: number;
+  deletedCommentCount: number;
+  deletedAchievementCount: number;
 }
 
 export function useMealProposals(mealPlanId: number | undefined) {
@@ -62,6 +64,9 @@ export function useMealProposals(mealPlanId: number | undefined) {
     onSuccess: () => {
       toast({ title: "Propuesta enviada 💡" });
       queryClient.invalidateQueries({ queryKey: ["meal-proposals", mealPlanId] });
+      // Refresh the calendar so the amber "Cambio: <recipe>" chip appears on the meal card —
+      // the commentator just submitted; they need an immediate cue the proposal landed.
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
     },
     onError: (error: Error) => {
       toast({
@@ -83,14 +88,18 @@ export function useMealProposals(mealPlanId: number | undefined) {
         }
       );
     },
-    onSuccess: (result, variables) => {
+    onSuccess: (_result, variables) => {
       toast({
         title: variables.status === "accepted" ? "Propuesta aceptada ✅" : "Propuesta rechazada",
       });
       queryClient.invalidateQueries({ queryKey: ["meal-proposals", mealPlanId] });
-      // If accepted, the meal plan's recipe changed — refresh the calendar
+      // If accepted, the meal plan's recipe changed AND its old comments + achievements
+      // were dropped — refresh the calendar (recipe + inline comments + chat-icon state)
+      // and the per-meal comment query.
       if (variables.status === "accepted") {
         queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
+        queryClient.invalidateQueries({ queryKey: ["meal-comments", mealPlanId] });
+        queryClient.invalidateQueries({ queryKey: ["achievements", "meal", mealPlanId] });
       }
     },
     onError: (error: Error) => {

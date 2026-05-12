@@ -3,23 +3,22 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { reactions } from "@/components/commentator/emoji-reactions";
-import { CommentatorOnly, CreatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { useMealComments, useRecipeRating } from "@/hooks/use-meal-comments";
-import { useMealProposals, type MealProposalItem } from "@/hooks/use-meal-proposals";
+import { useMealProposals } from "@/hooks/use-meal-proposals";
 import { useQuery } from "@tanstack/react-query";
-import { Send, Sparkles, ArrowLeftRight, ChevronLeft, Check, X, Search } from "lucide-react";
+import { Send, Sparkles, ArrowLeftRight, ChevronLeft, Search } from "lucide-react";
 import type { Recipe } from "@shared/schema";
+import { isPastMealDate } from "@shared/utils";
 
 interface MealCommentSheetProps {
   mealPlanId: number;
   recipeId: number;
   recipeName: string;
+  /** YYYY-MM-DD; when in the past, the swap-proposal CTA is hidden */
+  mealDate?: string;
   isOpen: boolean;
   onClose: () => void;
 }
-
-const EMOJI_MAP = Object.fromEntries(reactions.map(r => [r.value, r.emoji]));
 
 const STAR_LABELS = ['', 'Malo', 'Regular', 'Bueno', '¡Rico!', '¡Me encanta!'];
 
@@ -37,7 +36,6 @@ function InteractiveStarRating({
   const [hoverValue, setHoverValue] = useState(0);
   const [popStar, setPopStar] = useState<number | null>(null);
 
-  // Sync local state when server value arrives or changes
   useEffect(() => {
     setLocalValue(value);
   }, [value]);
@@ -45,7 +43,7 @@ function InteractiveStarRating({
   const handleClick = (star: number) => {
     if (disabled) return;
     const newValue = star === localValue ? 0 : star;
-    setLocalValue(newValue); // Instant visual feedback
+    setLocalValue(newValue);
     onChange(newValue);
     setPopStar(star);
     setTimeout(() => setPopStar(null), 400);
@@ -91,89 +89,6 @@ function InteractiveStarRating({
           </span>
         )}
       </div>
-    </div>
-  );
-}
-
-function ProposalItem({
-  proposal,
-  isAdmin,
-  isMine,
-  isReviewing,
-  onAccept,
-  onReject,
-}: {
-  proposal: MealProposalItem;
-  isAdmin: boolean;
-  isMine: boolean;
-  isReviewing: boolean;
-  onAccept: () => void;
-  onReject: () => void;
-}) {
-  const statusColor =
-    proposal.status === "pending"
-      ? "bg-amber-50 border-amber-200"
-      : proposal.status === "accepted"
-      ? "bg-emerald-50 border-emerald-200"
-      : "bg-gray-50 border-gray-200";
-
-  const statusLabel =
-    proposal.status === "pending"
-      ? "Pendiente"
-      : proposal.status === "accepted"
-      ? "✓ Aceptada"
-      : "✗ Rechazada";
-
-  return (
-    <div className={`rounded-xl border ${statusColor} p-3 space-y-2`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-600 mb-0.5">
-            <span className="font-semibold">{proposal.proposerName}</span> propone reemplazar por:
-          </p>
-          <p className="text-sm font-semibold text-gray-900 leading-tight">
-            {proposal.proposedRecipeName}
-          </p>
-          {proposal.reason && (
-            <p className="text-xs text-gray-600 mt-1 italic leading-snug">
-              "{proposal.reason}"
-            </p>
-          )}
-        </div>
-        <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap
-          ${proposal.status === "pending" ? "bg-amber-100 text-amber-700" : ""}
-          ${proposal.status === "accepted" ? "bg-emerald-100 text-emerald-700" : ""}
-          ${proposal.status === "rejected" ? "bg-gray-200 text-gray-600" : ""}`}>
-          {statusLabel}
-        </span>
-      </div>
-
-      {isAdmin && proposal.status === "pending" && (
-        <div className="flex gap-2 pt-1">
-          <Button
-            size="sm"
-            onClick={onAccept}
-            disabled={isReviewing}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
-          >
-            <Check className="w-3.5 h-3.5 mr-1" />
-            Aceptar
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onReject}
-            disabled={isReviewing}
-            className="flex-1 text-xs h-8 border-gray-300"
-          >
-            <X className="w-3.5 h-3.5 mr-1" />
-            Rechazar
-          </Button>
-        </div>
-      )}
-      {isMine && proposal.status === "pending" && !isAdmin && (
-        <p className="text-[11px] text-amber-700">Esperando que {proposal.status === "pending" ? "el admin" : ""} la revise</p>
-      )}
     </div>
   );
 }
@@ -292,34 +207,39 @@ function ProposeRecipeView({
   );
 }
 
+/**
+ * Commentator-only action sheet — rate, comment, or propose a swap.
+ * Read-only views (existing comments, proposal status) live in MealPlanDetailModal,
+ * which the calendar opens on card body click. This sheet is an action surface, not a feed.
+ */
 export function MealCommentSheet({
   mealPlanId,
   recipeId,
   recipeName,
+  mealDate,
   isOpen,
   onClose,
 }: MealCommentSheetProps) {
   const [commentText, setCommentText] = useState("");
   const [view, setView] = useState<"main" | "propose">("main");
-  const { isCreator, isCommentator } = useUserRole();
+  const isPastMeal = mealDate ? isPastMealDate(mealDate) : false;
 
-  const { comments, isLoading, submitComment, isSubmitting } = useMealComments(
+  const { submitComment, isSubmitting } = useMealComments(
     isOpen ? mealPlanId : undefined
   );
   const { currentRating, submitRating, isSubmittingRating } = useRecipeRating(
     isOpen ? recipeId : undefined
   );
-  const {
-    proposals,
-    createProposal,
-    isCreating,
-    reviewProposal,
-    isReviewing,
-  } = useMealProposals(isOpen ? mealPlanId : undefined);
+  const { createProposal, isCreating } = useMealProposals(
+    isOpen ? mealPlanId : undefined
+  );
 
-  // Reset to main view whenever the sheet opens
+  // Reset to main view + clear input whenever the sheet (re)opens
   useEffect(() => {
-    if (isOpen) setView("main");
+    if (isOpen) {
+      setView("main");
+      setCommentText("");
+    }
   }, [isOpen]);
 
   const canSubmit = !isSubmitting && commentText.trim().length > 0;
@@ -328,27 +248,14 @@ export function MealCommentSheet({
     if (!canSubmit) return;
     submitComment(
       { comment: commentText.trim() },
-      { onSuccess: () => setCommentText("") }
+      {
+        onSuccess: () => {
+          setCommentText("");
+          onClose();
+        },
+      }
     );
   };
-
-  const handleRatingChange = (rating: number) => {
-    submitRating(rating);
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-AR", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const visibleProposals = proposals.filter(
-    (p) => p.status !== "rejected" || isCreator
-  );
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -356,7 +263,6 @@ export function MealCommentSheet({
         side="bottom"
         className="max-h-[85vh] flex flex-col rounded-t-3xl px-4 pb-6"
       >
-        {/* Header */}
         <SheetHeader className="pt-2 pb-1">
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="w-4 h-4 text-purple-500" />
@@ -364,7 +270,7 @@ export function MealCommentSheet({
           </SheetTitle>
           <SheetDescription className="text-xs text-gray-400">
             {view === "main"
-              ? "Opiniones de la familia sobre esta comida"
+              ? "Calificá, comentá o proponé un cambio"
               : "Proponer otra comida"}
           </SheetDescription>
         </SheetHeader>
@@ -377,48 +283,56 @@ export function MealCommentSheet({
             onSubmit={(id, reason) => {
               createProposal(
                 { proposedRecipeId: id, reason: reason || undefined },
-                { onSuccess: () => setView("main") }
+                { onSuccess: () => onClose() }
               );
             }}
           />
         ) : (
-          <>
-            {/* Star rating section — commentators only, always visible at top */}
-            <CommentatorOnly>
-              <div className="py-3 border-b border-purple-100/60">
-                <InteractiveStarRating
-                  value={currentRating}
-                  onChange={handleRatingChange}
-                  disabled={isSubmittingRating}
+          <div className="flex flex-col flex-1 min-h-0 gap-4 pt-2">
+            {/* 1. Star rating */}
+            <div className="pb-3 border-b border-purple-100/60">
+              <InteractiveStarRating
+                value={currentRating}
+                onChange={(r) => submitRating(r)}
+                disabled={isSubmittingRating}
+              />
+            </div>
+
+            {/* 2. Comment input */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 tracking-wide uppercase mb-2">
+                Dejar una opinión
+              </p>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="¿Qué pensás de esta comida?"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  className="resize-none text-sm flex-1 rounded-xl border-gray-200 focus:border-purple-300 focus:ring-purple-200"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
                 />
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit}
+                  size="icon"
+                  className="bg-purple-600 hover:bg-purple-700 text-white h-auto self-end rounded-xl shadow-md"
+                  aria-label="Enviar comentario"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
               </div>
-            </CommentatorOnly>
+            </div>
 
-            {/* Proposals section */}
-            {visibleProposals.length > 0 && (
-              <div className="py-3 border-b border-purple-100/60 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
-                  {visibleProposals.some(p => p.status === "pending")
-                    ? "Propuestas de cambio"
-                    : "Propuestas anteriores"}
-                </p>
-                {visibleProposals.map((p) => (
-                  <ProposalItem
-                    key={p.id}
-                    proposal={p}
-                    isAdmin={isCreator}
-                    isMine={!isCreator && isCommentator}
-                    isReviewing={isReviewing}
-                    onAccept={() => reviewProposal({ proposalId: p.id, status: "accepted" })}
-                    onReject={() => reviewProposal({ proposalId: p.id, status: "rejected" })}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Propose CTA — commentators only */}
-            <CommentatorOnly>
-              <div className="py-3">
+            {/* 3. Propose-swap CTA — hidden for past meals (server enforces too) */}
+            {!isPastMeal && (
+              <div className="pt-1 mt-auto">
                 <Button
                   variant="outline"
                   onClick={() => setView("propose")}
@@ -428,94 +342,8 @@ export function MealCommentSheet({
                   Proponer otra comida
                 </Button>
               </div>
-            </CommentatorOnly>
-
-            {/* Comment list */}
-            <div className="flex-1 overflow-y-auto space-y-3 py-4 min-h-0">
-              {isLoading && (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  Cargando opiniones...
-                </p>
-              )}
-              {!isLoading && comments.length === 0 && (
-                <div className="text-center py-6">
-                  <div className="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-3">
-                    <span className="text-2xl">💬</span>
-                  </div>
-                  <p className="text-sm text-gray-400 font-medium">
-                    Todavía no hay opiniones
-                  </p>
-                  <p className="text-xs text-gray-300 mt-1">
-                    ¡Sé el primero en opinar!
-                  </p>
-                </div>
-              )}
-              {comments.map((c) => (
-                <div key={c.id} className="flex gap-3 items-start">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm">
-                    {c.userName?.charAt(0)?.toUpperCase() ?? "?"}
-                  </div>
-                  <div className="flex-1 bg-purple-50/60 rounded-2xl px-3.5 py-2.5">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-semibold text-gray-700">
-                        {c.userName}
-                      </span>
-                      {c.emoji && (
-                        <span className="text-base leading-none">
-                          {EMOJI_MAP[c.emoji] ?? c.emoji}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-gray-400 ml-auto">
-                        {formatTime(c.createdAt)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-800 leading-snug">{c.comment}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Input area — commentators only */}
-            <CommentatorOnly>
-              <div className="border-t border-gray-100 pt-3">
-                <div className="flex gap-2">
-                  <Textarea
-                    placeholder="Escribe tu opinión..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    maxLength={500}
-                    rows={2}
-                    className="resize-none text-sm flex-1 rounded-xl border-gray-200 focus:border-purple-300 focus:ring-purple-200"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit();
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    size="icon"
-                    className="bg-purple-600 hover:bg-purple-700 text-white h-auto self-end rounded-xl shadow-md"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CommentatorOnly>
-
-            {/* View-only notice for creators */}
-            <CreatorOnly>
-              {comments.length > 0 && (
-                <div className="border-t pt-3">
-                  <p className="text-xs text-gray-400 text-center">
-                    Solo los chicos pueden dejar opiniones
-                  </p>
-                </div>
-              )}
-            </CreatorOnly>
-          </>
+            )}
+          </div>
         )}
       </SheetContent>
     </Sheet>

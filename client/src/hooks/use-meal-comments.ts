@@ -56,6 +56,9 @@ export function useMealComments(mealPlanId: number | undefined) {
       toast({ title: "¡Comentario enviado! 💬" });
       queryClient.invalidateQueries({ queryKey: ["meal-comments", mealPlanId] });
       queryClient.invalidateQueries({ queryKey: ["achievements", "meal", mealPlanId] });
+      // Refresh the calendar so the new comment shows up inline on the meal card —
+      // the commentator just submitted; they need an immediate cue the input landed.
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
     },
     onError: (error: Error) => {
       toast({

@@ -3,6 +3,8 @@ import {
   generateInvitationCode,
   normalizeInvitationCode,
   isValidInvitationCodeFormat,
+  todayLocalDate,
+  isPastMealDate,
 } from '../utils';
 
 const XXX_XXX_PATTERN = /^[A-Z0-9]{3}-[A-Z0-9]{3}$/;
@@ -145,5 +147,39 @@ describe('isValidInvitationCodeFormat', () => {
 
   it('rejects codes with multiple dashes', () => {
     expect(isValidInvitationCodeFormat('A-B-C-D')).toBe(false);
+  });
+});
+
+describe('todayLocalDate', () => {
+  it('formats the injected clock as YYYY-MM-DD in local time', () => {
+    const local = new Date(2026, 3, 30, 14, 30); // April 30, 2026 14:30 local
+    expect(todayLocalDate(local)).toBe('2026-04-30');
+  });
+
+  it('zero-pads single-digit months and days', () => {
+    const local = new Date(2026, 0, 5, 9, 0);
+    expect(todayLocalDate(local)).toBe('2026-01-05');
+  });
+});
+
+describe('isPastMealDate', () => {
+  const today = new Date(2026, 3, 30, 12, 0); // Apr 30, 2026 mid-day local
+
+  it('returns false for today (still allowed to propose for current day)', () => {
+    expect(isPastMealDate('2026-04-30', today)).toBe(false);
+  });
+
+  it('returns true for yesterday', () => {
+    expect(isPastMealDate('2026-04-29', today)).toBe(true);
+  });
+
+  it('returns false for tomorrow', () => {
+    expect(isPastMealDate('2026-05-01', today)).toBe(false);
+  });
+
+  it('handles year boundaries', () => {
+    const newYearsDay = new Date(2027, 0, 1, 0, 1);
+    expect(isPastMealDate('2026-12-31', newYearsDay)).toBe(true);
+    expect(isPastMealDate('2027-01-01', newYearsDay)).toBe(false);
   });
 });

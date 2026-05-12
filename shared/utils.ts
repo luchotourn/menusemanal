@@ -47,7 +47,23 @@ export function normalizeInvitationCode(code: string): string {
  */
 export function isValidInvitationCodeFormat(code: string): boolean {
   const normalized = normalizeInvitationCode(code);
-  
+
   // Check XXX-XXX pattern with alphanumeric characters
   return /^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(normalized);
+}
+
+/** Returns today's date in local timezone as YYYY-MM-DD (matches meal_plans.fecha format). */
+export function todayLocalDate(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * True when the YYYY-MM-DD string refers to a date strictly before today (local).
+ * Today is NOT considered past — admins/commentators can still propose changes for the current day.
+ */
+export function isPastMealDate(fecha: string, now: Date = new Date()): boolean {
+  return fecha < todayLocalDate(now);
 }

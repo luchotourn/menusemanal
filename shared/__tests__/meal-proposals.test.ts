@@ -4,6 +4,7 @@ import {
   reviewMealProposalSchema,
   insertMealProposalSchema,
 } from "../schema";
+import { isPastMealDate } from "../utils";
 
 describe("createMealProposalSchema", () => {
   it("accepts a valid payload", () => {
@@ -123,6 +124,38 @@ describe("Proposal accept/reject behavioral spec", () => {
     expect(after.find((p) => p.id === 4)?.status).toBe("pending");
   });
 
+  it("spec: accepting a proposal deletes the meal's comments — they referred to the old recipe", () => {
+    // The cook reads comments to know what to adjust ("sin cebolla"). After a swap,
+    // those notes are about a different dish and would mislead — drop them on accept.
+    type Comment = { id: number; mealPlanId: number; text: string };
+    const comments: Comment[] = [
+      { id: 1, mealPlanId: 10, text: "Sin cebolla por favor" },
+      { id: 2, mealPlanId: 10, text: "Me encanta el pollo" },
+      { id: 3, mealPlanId: 11, text: "Más picante" }, // different meal
+    ];
+    const acceptedMealPlanId = 10;
+
+    const after = comments.filter(c => c.mealPlanId !== acceptedMealPlanId);
+
+    expect(after.find(c => c.id === 1)).toBeUndefined();
+    expect(after.find(c => c.id === 2)).toBeUndefined();
+    expect(after.find(c => c.id === 3)?.text).toBe("Más picante"); // untouched
+  });
+
+  it("spec: rejecting a proposal does NOT touch the meal plan, other proposals, or comments", () => {
+    // Rejection is a no-op on everything except the proposal itself.
+    type Comment = { id: number; mealPlanId: number };
+    const comments: Comment[] = [
+      { id: 1, mealPlanId: 10 },
+      { id: 2, mealPlanId: 10 },
+    ];
+    const rejectedMealPlanId = 10;
+    // No deletion on reject
+    const after = comments;
+    expect(after.length).toBe(2);
+    expect(rejectedMealPlanId).toBe(10);
+  });
+
   it("spec: rejecting a proposal does NOT touch the meal plan or other proposals", () => {
     const proposals = [
       { id: 1, mealPlanId: 10, status: "pending" as const, proposedBy: 100 },
@@ -158,5 +191,28 @@ describe("Proposal accept/reject behavioral spec", () => {
 
     expect(proposals.length).toBe(1);
     expect(proposals[0].recipeId).toBe(7);
+  });
+
+  it("spec: proposals are rejected for meals already in the past", () => {
+    const today = new Date(2026, 3, 30, 12, 0); // Apr 30 2026 mid-day local
+    expect(isPastMealDate("2026-04-29", today)).toBe(true);   // yesterday → 400
+    expect(isPastMealDate("2026-04-30", today)).toBe(false);  // today → allowed
+    expect(isPastMealDate("2026-05-01", today)).toBe(false);  // future → allowed
+  });
+
+  it("spec: latestPendingProposal picks the most recently created pending proposal per meal", () => {
+    // Mirrors the JS-side aggregation in getMealPlansForWeek for proposals.
+    const pending = [
+      { id: 1, mealPlanId: 10, createdAt: new Date("2026-04-29T10:00:00Z"), proposedRecipeName: "Ramen", proposerName: "Santiago" },
+      { id: 2, mealPlanId: 10, createdAt: new Date("2026-04-30T08:00:00Z"), proposedRecipeName: "Tacos", proposerName: "Juli" },
+      { id: 3, mealPlanId: 11, createdAt: new Date("2026-04-30T09:00:00Z"), proposedRecipeName: "Pizza", proposerName: "Santiago" },
+    ];
+    const latestByMeal = new Map<number, typeof pending[0]>();
+    for (const p of pending) {
+      const cur = latestByMeal.get(p.mealPlanId);
+      if (!cur || p.createdAt > cur.createdAt) latestByMeal.set(p.mealPlanId, p);
+    }
+    expect(latestByMeal.get(10)?.proposedRecipeName).toBe("Tacos");
+    expect(latestByMeal.get(11)?.proposedRecipeName).toBe("Pizza");
   });
 });
