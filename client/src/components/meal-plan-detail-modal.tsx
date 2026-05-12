@@ -1,11 +1,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Trash2, Edit3 } from "lucide-react";
+import { Trash2, Edit3, ArrowLeftRight, Check, X } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useUserRole } from "@/components/role-based-wrapper";
+import { useMealProposals } from "@/hooks/use-meal-proposals";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 
 interface MealPlanDetailModalProps {
@@ -19,6 +21,11 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isCreator } = useUserRole();
+  const { proposals, reviewProposal, isReviewing } = useMealProposals(
+    isOpen && mealPlan ? mealPlan.id : undefined
+  );
+  const pendingProposals = proposals.filter(p => p.status === "pending");
 
   const deleteMealMutation = useMutation({
     mutationFn: async (mealPlanId: number) => {
@@ -93,6 +100,66 @@ export function MealPlanDetailModal({ isOpen, onClose, mealPlan, onEditRecipe }:
                   Planificado para <strong>{formatDate(mealPlan.fecha)}</strong> - <strong>{getMealTypeLabel(mealPlan.tipoComida)}</strong>
                 </p>
               </div>
+
+              {/* Pending proposals — surfaced near the top so the admin's primary action isn't buried under recipe details. */}
+              {pendingProposals.length > 0 && (
+                <section className="rounded-xl border border-amber-300 bg-amber-50/80 p-3.5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ArrowLeftRight className="w-4 h-4 text-amber-700" />
+                    <h3 className="font-semibold text-amber-900 text-sm">
+                      {pendingProposals.length === 1
+                        ? "Cambio propuesto"
+                        : `${pendingProposals.length} cambios propuestos`}
+                    </h3>
+                  </div>
+
+                  {pendingProposals.map(p => (
+                    <div key={p.id} className="rounded-lg bg-white border border-amber-200/70 p-3 space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-600 mb-0.5">
+                          <span className="font-semibold">{p.proposerName}</span> propone reemplazar por:
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">
+                          {p.proposedRecipeName}
+                        </p>
+                        {p.reason && (
+                          <p className="text-xs text-gray-600 mt-1.5 italic leading-snug">
+                            "{p.reason}"
+                          </p>
+                        )}
+                      </div>
+
+                      {isCreator ? (
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            onClick={() => reviewProposal({ proposalId: p.id, status: "accepted" })}
+                            disabled={isReviewing}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                          >
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            Aceptar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => reviewProposal({ proposalId: p.id, status: "rejected" })}
+                            disabled={isReviewing}
+                            className="flex-1 text-xs h-8 border-gray-300"
+                          >
+                            <X className="w-3.5 h-3.5 mr-1" />
+                            Rechazar
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-700 italic">
+                          Esperando revisión del organizador
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </section>
+              )}
 
               {/* Comments — what the family is asking for on this specific day */}
               {comments.length > 0 ? (

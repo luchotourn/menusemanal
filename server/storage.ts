@@ -7,6 +7,8 @@ import {
   recipeRatings,
   mealComments,
   mealAchievements,
+  mealProposals,
+  type MealProposal,
   weeklyReviews,
   type WeeklyReview,
   type Recipe,
@@ -28,7 +30,7 @@ import {
   type WaitlistSignup,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, like, or, inArray, isNull, SQL } from "drizzle-orm";
+import { eq, and, gte, lte, like, or, inArray, isNull, sql, SQL } from "drizzle-orm";
 
 export interface IStorage {
   // Recipe methods
@@ -88,6 +90,12 @@ export interface IStorage {
     streakDays: number
   }>;
 
+  // Meal swap proposal methods
+  getMealProposals(mealPlanId: number, familyId: number): Promise<MealProposalEnriched[]>;
+  upsertMealProposal(mealPlanId: number, familyId: number, proposedBy: number, proposedRecipeId: number, reason?: string): Promise<MealProposal>;
+  reviewMealProposal(proposalId: number, familyId: number, status: 'accepted' | 'rejected', reviewedBy: number): Promise<MealProposalReviewResult>;
+  getProposalById(proposalId: number, familyId: number): Promise<MealProposal | undefined>;
+
   // Weekly review methods
   getWeeklyReview(familyId: number, weekStartDate: string): Promise<WeeklyReview | undefined>;
   submitWeeklyReview(familyId: number, weekStartDate: string, submittedBy: number): Promise<WeeklyReview>;
@@ -95,6 +103,25 @@ export interface IStorage {
   // Waitlist methods
   addWaitlistSignup(email: string, source?: string): Promise<WaitlistSignup>;
   isEmailOnWaitlist(email: string): Promise<boolean>;
+}
+
+export interface MealProposalEnriched extends MealProposal {
+  proposerName: string;
+  proposedRecipeName: string;
+  proposedRecipeImage: string | null;
+  proposedRecipeCategoria: string;
+}
+
+export interface MealProposalReviewResult {
+  proposal: MealProposal;
+  /** When status='accepted', the meal plan whose recetaId was updated (and any sibling pending proposals were auto-rejected) */
+  mealPlanUpdated: boolean;
+  autoRejectedCount: number;
+  /** Comments deleted when accepting (they referenced the previous recipe and would mislead the cook) */
+  deletedCommentCount: number;
+  /** Achievement rows cleared on accept — keeps the "you already commented" chat-icon hint consistent
+   *  with the now-empty comment thread. The kids-gamification UI itself is no longer rendered. */
+  deletedAchievementCount: number;
 }
 
 export class MemStorage implements IStorage {
@@ -383,6 +410,16 @@ export class MemStorage implements IStorage {
     return { weeklyStars: { tried: 0, veggie: 0, feedback: 0 }, totalStars: 0, streakDays: 0 };
   }
 
+  // Meal proposal stubs
+  async getMealProposals(): Promise<MealProposalEnriched[]> { return []; }
+  async upsertMealProposal(): Promise<MealProposal> {
+    throw new Error("MemStorage does not implement meal proposals");
+  }
+  async reviewMealProposal(): Promise<MealProposalReviewResult> {
+    throw new Error("MemStorage does not implement meal proposals");
+  }
+  async getProposalById(): Promise<MealProposal | undefined> { return undefined; }
+
   // Weekly review stubs
   async getWeeklyReview(): Promise<WeeklyReview | undefined> { return undefined; }
   async submitWeeklyReview(): Promise<WeeklyReview> {
@@ -587,15 +624,67 @@ export class DatabaseStorage implements IStorage {
     .leftJoin(recipes, eq(mealPlans.recetaId, recipes.id))
     .where(conditions);
 
-    const commentsByMealId = await this.getCommentsForMeals(
-      meals.map(m => m.id),
-      familyId
-    );
+    const mealIds = meals.map(m => m.id);
+    const commentsByMealId = await this.getCommentsForMeals(mealIds, familyId);
+    const { countByMealId, latestByMealId } = await this.getPendingProposalsForMeals(mealIds);
 
     return meals.map(m => ({
       ...m,
       comments: commentsByMealId.get(m.id) ?? [],
+      pendingProposalCount: countByMealId.get(m.id) ?? 0,
+      latestPendingProposal: latestByMealId.get(m.id) ?? null,
     })) as unknown as MealPlan[];
+  }
+
+  /** Returns the most recent pending proposal per meal (for the calendar's "Cambio: <recipe>" chip)
+   *  plus a per-meal count (for the "+N" affordance when several commentators propose for the same meal). */
+  private async getPendingProposalsForMeals(mealIds: number[]) {
+    const countByMealId = new Map<number, number>();
+    const latestByMealId = new Map<number, { proposedRecipeName: string; proposerName: string; createdAt: Date }>();
+    if (mealIds.length === 0) return { countByMealId, latestByMealId };
+
+    const countRows = await db
+      .select({
+        mealPlanId: mealProposals.mealPlanId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(mealProposals)
+      .where(and(
+        inArray(mealProposals.mealPlanId, mealIds),
+        eq(mealProposals.status, "pending")
+      ))
+      .groupBy(mealProposals.mealPlanId);
+    for (const row of countRows) {
+      countByMealId.set(row.mealPlanId, Number(row.count) || 0);
+    }
+
+    if (countByMealId.size === 0) return { countByMealId, latestByMealId };
+
+    const detailRows = await db
+      .select({
+        mealPlanId: mealProposals.mealPlanId,
+        createdAt: mealProposals.createdAt,
+        proposedRecipeName: recipes.nombre,
+        proposerName: users.name,
+      })
+      .from(mealProposals)
+      .innerJoin(recipes, eq(mealProposals.proposedRecipeId, recipes.id))
+      .innerJoin(users, eq(mealProposals.proposedBy, users.id))
+      .where(and(
+        inArray(mealProposals.mealPlanId, Array.from(countByMealId.keys())),
+        eq(mealProposals.status, "pending")
+      ));
+    for (const row of detailRows) {
+      const cur = latestByMealId.get(row.mealPlanId);
+      if (!cur || row.createdAt > cur.createdAt) {
+        latestByMealId.set(row.mealPlanId, {
+          proposedRecipeName: row.proposedRecipeName,
+          proposerName: row.proposerName,
+          createdAt: row.createdAt,
+        });
+      }
+    }
+    return { countByMealId, latestByMealId };
   }
 
   private async getCommentsForMeals(mealIds: number[], familyId?: number) {
@@ -1145,6 +1234,169 @@ export class DatabaseStorage implements IStorage {
       streakDays,
     };
   }
+  // Meal swap proposal methods
+  async getMealProposals(mealPlanId: number, familyId: number): Promise<MealProposalEnriched[]> {
+    const rows = await db
+      .select({
+        id: mealProposals.id,
+        mealPlanId: mealProposals.mealPlanId,
+        familyId: mealProposals.familyId,
+        proposedBy: mealProposals.proposedBy,
+        proposedRecipeId: mealProposals.proposedRecipeId,
+        reason: mealProposals.reason,
+        status: mealProposals.status,
+        reviewedBy: mealProposals.reviewedBy,
+        reviewedAt: mealProposals.reviewedAt,
+        createdAt: mealProposals.createdAt,
+        updatedAt: mealProposals.updatedAt,
+        proposerName: users.name,
+        proposedRecipeName: recipes.nombre,
+        proposedRecipeImage: recipes.imagen,
+        proposedRecipeCategoria: recipes.categoria,
+      })
+      .from(mealProposals)
+      .innerJoin(users, eq(mealProposals.proposedBy, users.id))
+      .innerJoin(recipes, eq(mealProposals.proposedRecipeId, recipes.id))
+      .where(and(
+        eq(mealProposals.mealPlanId, mealPlanId),
+        eq(mealProposals.familyId, familyId)
+      ))
+      .orderBy(mealProposals.createdAt);
+    return rows;
+  }
+
+  async upsertMealProposal(
+    mealPlanId: number,
+    familyId: number,
+    proposedBy: number,
+    proposedRecipeId: number,
+    reason?: string
+  ): Promise<MealProposal> {
+    // Replace any existing pending proposal from this user for this meal (one-active-per-user policy)
+    const [existing] = await db
+      .select()
+      .from(mealProposals)
+      .where(and(
+        eq(mealProposals.mealPlanId, mealPlanId),
+        eq(mealProposals.proposedBy, proposedBy),
+        eq(mealProposals.status, "pending")
+      ))
+      .limit(1);
+
+    const now = new Date();
+    if (existing) {
+      const [updated] = await db
+        .update(mealProposals)
+        .set({
+          proposedRecipeId,
+          reason: reason || null,
+          updatedAt: now,
+        })
+        .where(eq(mealProposals.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db
+      .insert(mealProposals)
+      .values({
+        mealPlanId,
+        familyId,
+        proposedBy,
+        proposedRecipeId,
+        reason: reason || null,
+        status: "pending",
+      })
+      .returning();
+    return created;
+  }
+
+  async getProposalById(proposalId: number, familyId: number): Promise<MealProposal | undefined> {
+    const [row] = await db
+      .select()
+      .from(mealProposals)
+      .where(and(
+        eq(mealProposals.id, proposalId),
+        eq(mealProposals.familyId, familyId)
+      ))
+      .limit(1);
+    return row || undefined;
+  }
+
+  async reviewMealProposal(
+    proposalId: number,
+    familyId: number,
+    status: 'accepted' | 'rejected',
+    reviewedBy: number
+  ): Promise<MealProposalReviewResult> {
+    const proposal = await this.getProposalById(proposalId, familyId);
+    if (!proposal) {
+      throw new Error("Proposal not found");
+    }
+    if (proposal.status !== "pending") {
+      throw new Error("Proposal already reviewed");
+    }
+
+    const now = new Date();
+    let mealPlanUpdated = false;
+    let autoRejectedCount = 0;
+    let deletedCommentCount = 0;
+    let deletedAchievementCount = 0;
+
+    // Apply the review decision
+    const [updated] = await db
+      .update(mealProposals)
+      .set({ status, reviewedBy, reviewedAt: now, updatedAt: now })
+      .where(eq(mealProposals.id, proposalId))
+      .returning();
+
+    if (status === "accepted") {
+      // Mutate the meal plan to use the proposed recipe
+      const mealUpdate = await db
+        .update(mealPlans)
+        .set({ recetaId: proposal.proposedRecipeId, updatedAt: now })
+        .where(and(
+          eq(mealPlans.id, proposal.mealPlanId),
+          eq(mealPlans.familyId, familyId)
+        ));
+      mealPlanUpdated = (mealUpdate.rowCount ?? 0) > 0;
+
+      // Auto-reject any other pending proposals on the same meal
+      const autoReject = await db
+        .update(mealProposals)
+        .set({ status: "rejected", reviewedBy, reviewedAt: now, updatedAt: now })
+        .where(and(
+          eq(mealProposals.mealPlanId, proposal.mealPlanId),
+          eq(mealProposals.familyId, familyId),
+          eq(mealProposals.status, "pending")
+        ));
+      autoRejectedCount = autoReject.rowCount ?? 0;
+
+      // Drop comments — they referred to the previous recipe and would mislead the cook
+      // on the swapped meal ("sin cebolla" makes no sense once we swap pollo for ramen).
+      const deletedComments = await db
+        .delete(mealComments)
+        .where(and(
+          eq(mealComments.mealPlanId, proposal.mealPlanId),
+          eq(mealComments.familyId, familyId)
+        ));
+      deletedCommentCount = deletedComments.rowCount ?? 0;
+
+      // Drop achievement rows so the chat-icon "you already commented" hint resets along with
+      // the comments. The kids-gamification UI is no longer rendered, but the leftFeedback
+      // flag still drives the icon's filled-purple state in weekly-calendar.tsx.
+      const deletedAchievements = await db
+        .delete(mealAchievements)
+        .where(and(
+          eq(mealAchievements.mealPlanId, proposal.mealPlanId),
+          eq(mealAchievements.familyId, familyId)
+        ));
+      deletedAchievementCount = deletedAchievements.rowCount ?? 0;
+    }
+
+    return { proposal: updated, mealPlanUpdated, autoRejectedCount, deletedCommentCount, deletedAchievementCount };
+  }
+
   // Weekly review methods
   async getWeeklyReview(familyId: number, weekStartDate: string): Promise<WeeklyReview | undefined> {
     const [review] = await db
