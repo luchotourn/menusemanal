@@ -301,6 +301,7 @@ interface FamilyMember {
   email: string;
   avatar?: string;
   role: "admin" | "member";
+  userRole: "creator" | "commentator";
   createdAt: string;
 }
 

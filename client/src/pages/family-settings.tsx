@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Plus, UserPlus, Settings as SettingsIcon, Crown, User, Trash2, LogOut, RefreshCw, Copy } from "lucide-react";
+import { Users, Plus, UserPlus, Settings as SettingsIcon, Crown, User, Trash2, LogOut, RefreshCw, Copy, Pencil, MessageCircle } from "lucide-react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -249,7 +249,7 @@ export default function FamilySettings() {
                         </Avatar>
                         
                         <div>
-                          <p className="font-medium flex items-center space-x-2">
+                          <p className="font-medium flex items-center flex-wrap gap-x-2 gap-y-1">
                             <span>{member.name}</span>
                             {member.role === "admin" && (
                               <Badge variant="secondary" className="text-xs">
@@ -257,6 +257,17 @@ export default function FamilySettings() {
                                 Admin
                               </Badge>
                             )}
+                            {member.userRole === "creator" ? (
+                              <Badge variant="outline" className="text-xs">
+                                <Pencil className="w-3 h-3 mr-1" />
+                                Planificador
+                              </Badge>
+                            ) : member.userRole === "commentator" ? (
+                              <Badge variant="outline" className="text-xs">
+                                <MessageCircle className="w-3 h-3 mr-1" />
+                                Comensal
+                              </Badge>
+                            ) : null}
                           </p>
                           <p className="text-sm text-gray-600">{member.email}</p>
                         </div>
