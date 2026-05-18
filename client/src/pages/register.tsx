@@ -272,7 +272,7 @@ export default function Register() {
                   </SelectItem>
                   <SelectItem value="commentator">
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">Observador/a</span>
+                      <span className="font-medium">Comensal</span>
                       <span className="text-xs text-gray-500">Ver planes y hacer comentarios</span>
                     </div>
                   </SelectItem>

@@ -702,10 +702,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const review = await storage.submitWeeklyReview(family.id, weekStartDate, user.id);
 
-      // Fire-and-forget email to family members (excluding the submitter)
+      // Fire-and-forget email to Comensal (commentator) family members only.
+      // Planificadores (creators) can submit/edit plans themselves, so the
+      // review notification is targeted at the family members who only
+      // comment and react.
       const members = await storage.getFamilyMembers(family.id);
       const recipients = members
-        .filter((m) => m.id !== user.id)
+        .filter((m) => m.id !== user.id && m.role === "commentator")
         .map((m) => ({
           email: m.email,
           name: m.name,
@@ -884,6 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: member.email,
         avatar: member.avatar,
         role: member.id === family?.createdBy ? "admin" : "member",
+        userRole: member.role,
         createdAt: member.createdAt
       }));
       
