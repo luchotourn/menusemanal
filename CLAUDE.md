@@ -74,11 +74,11 @@ npm run check
 
 ## Developer Preferences
 
-- **Commit Messages**: The user prefers to write their own commit messages. When ready to commit:
-  1. Stage changes with `git add .`
-  2. Show what's being committed with `git status` or `git diff --cached`
-  3. Ask: "Ready to commit. What commit message would you like to use?"
-  4. Wait for user's message before committing
+- **Commit Messages**: Claude writes commit messages automatically without
+  asking. Follow the repo's existing style (check `git log` — typically
+  `type: short summary` like `feat:`, `fix:`, `refactor:`, with an optional
+  body explaining the "why"). Stage the relevant files and commit when the
+  work is ready.
 
 - **Testing**: Always write tests when developing new features or fixing bugs:
   1. Write tests using Vitest (the project's test framework) in `__tests__/` directories
