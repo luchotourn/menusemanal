@@ -5,6 +5,7 @@ const resend = process.env.RESEND_API_KEY
   : null;
 
 const FROM_ADDRESS = "Menu Semanal <notificaciones@menusemanal.app>";
+const APP_URL = (process.env.APP_URL || "https://menusemanal.app").replace(/\/$/, "");
 
 export function sendSignupNotification(email: string, source: string): void {
   if (!resend || !process.env.NOTIFY_EMAIL) {
@@ -80,6 +81,7 @@ export function sendWeekReviewNotification(params: {
 
   const prettyDate = formatWeekStartForDisplay(params.weekStartDate);
   const subject = `El menú de la semana del ${prettyDate} está listo para revisar`;
+  const appLink = `${APP_URL}/app`;
 
   for (const recipient of optedIn) {
     const text = [
@@ -87,7 +89,8 @@ export function sendWeekReviewNotification(params: {
       ``,
       `${params.submitterName} terminó de planear el menú de la semana del ${prettyDate} para la familia ${params.familyName}.`,
       ``,
-      `Abrí la app para dejar tus comentarios o proponer cambios en las comidas.`,
+      `Abrí la app para dejar tus comentarios o proponer cambios en las comidas:`,
+      appLink,
       ``,
       `— Menu Semanal`,
     ].join("\n");

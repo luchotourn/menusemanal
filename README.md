@@ -57,6 +57,7 @@ npm run dev
 | `SESSION_SECRET` | Si | Secreto para sesiones Express |
 | `RESEND_API_KEY` | No | API key de [Resend](https://resend.com) para notificaciones de signup |
 | `NOTIFY_EMAIL` | No | Email que recibe alertas de nuevos registros en la waitlist |
+| `APP_URL` | No | URL base de la app usada en links de emails (default: `https://menusemanal.app`) |
 
 > Si `RESEND_API_KEY` o `NOTIFY_EMAIL` no están configurados, las notificaciones se omiten silenciosamente.
 

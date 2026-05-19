@@ -56,6 +56,46 @@ describe("sendWeekReviewNotification", () => {
     expect(calls[0].text).toContain("Familia Tourn");
   });
 
+  it("includes the app link in the email body", async () => {
+    sendWeekReviewNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      submitterName: "Lucho",
+      recipients: [
+        { email: "kid@example.com", name: "Kid", notificationPreferences: null },
+      ],
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const sent = mockSend.mock.calls[0][0];
+    expect(sent.text).toContain("https://menusemanal.app/app");
+  });
+
+  it("uses APP_URL env var when set, stripping trailing slash", async () => {
+    process.env.APP_URL = "https://staging.menusemanal.app/";
+    vi.resetModules();
+    const { sendWeekReviewNotification: freshSender } = await import("../email");
+
+    freshSender({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      submitterName: "Lucho",
+      recipients: [
+        { email: "kid@example.com", name: "Kid", notificationPreferences: null },
+      ],
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(mockSend.mock.calls[0][0].text).toContain("https://staging.menusemanal.app/app");
+    expect(mockSend.mock.calls[0][0].text).not.toContain("//app");
+
+    delete process.env.APP_URL;
+  });
+
   it("skips recipients who opted out of email notifications", async () => {
     sendWeekReviewNotification({
       familyName: "Familia Tourn",
