@@ -4,14 +4,14 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, submitWeeklyReviewSchema, mealPlans } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, submitWeeklyReviewSchema, submitWeeklyReviewSignoffSchema, mealPlans } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth, db } from "./db";
 import { eq } from "drizzle-orm";
 import authRouter from "./auth/routes";
-import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
+import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat, isPastMealDate } from "@shared/utils";
-import { sendSignupNotification, sendWeekReviewNotification } from "./email";
+import { sendSignupNotification, sendWeekReviewNotification, sendReviewSignoffNotification } from "./email";
 
 // Helper to parse cookies from request header (avoids adding cookie-parser dependency)
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
@@ -677,7 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Debes pertenecer a una familia" });
       }
 
-      const review = await storage.getWeeklyReview(familyId, weekStartDate);
+      const review = await storage.getWeeklyReviewWithSignoffs(familyId, weekStartDate);
       res.json(review ?? null);
     } catch (error) {
       console.error("Error fetching weekly review:", error);
@@ -731,6 +731,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error submitting weekly review:", error);
       res.status(500).json({ error: "Error al enviar la semana para revisión" });
+    }
+  });
+
+  // Commentator sign-off on a weekly review: "approved" or "changes_requested".
+  // Notifies the creator (submitter) so they know the review is complete.
+  app.post("/api/weekly-reviews/signoff", isAuthenticated, requireCommentatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const { weekStartDate, verdict, note } = submitWeeklyReviewSignoffSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0];
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      let result;
+      try {
+        result = await storage.upsertWeeklyReviewSignoff(family.id, weekStartDate, user.id, verdict, note);
+      } catch (err) {
+        if (err instanceof Error && err.message === "WEEKLY_REVIEW_NOT_FOUND") {
+          return res.status(404).json({ error: "La semana aún no fue enviada para revisión" });
+        }
+        throw err;
+      }
+
+      // Notify the submitter (creator) that the review is complete.
+      const submitter = await storage.getFamilyMembers(family.id).then(
+        (members) => members.find((m) => m.id === result.review.submittedBy)
+      );
+
+      if (submitter && submitter.id !== user.id) {
+        sendReviewSignoffNotification({
+          familyName: family.nombre,
+          weekStartDate,
+          reviewerName: user.name,
+          verdict,
+          note,
+          recipient: {
+            email: submitter.email,
+            name: submitter.name,
+            notificationPreferences: submitter.notificationPreferences,
+          },
+        });
+      }
+
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error signing off weekly review:", error);
+      res.status(500).json({ error: "Error al registrar la revisión" });
     }
   });
 
