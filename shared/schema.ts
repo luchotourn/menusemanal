@@ -285,14 +285,19 @@ export const mealProposalsRelations = relations(mealProposals, ({ one }) => ({
   }),
 }));
 
-// Weekly review lifecycle — admin submits a week's meal plan for family review
+// Weekly review lifecycle — admin submits a week's meal plan for family review.
+// Commentators sign off with a verdict (approved / changes_requested). The parent
+// status mirrors the latest signoff verdict so the creator sees one clear state.
 export const weeklyReviews = pgTable("weekly_reviews", {
   id: serial("id").primaryKey(),
   familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
   weekStartDate: text("week_start_date").notNull(), // YYYY-MM-DD (Monday of the week)
-  status: text("status").notNull().default("submitted"), // "submitted"
+  status: text("status").notNull().default("submitted"), // "submitted" | "approved" | "changes_requested"
   submittedBy: integer("submitted_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+  lastReviewedBy: integer("last_reviewed_by").references(() => users.id),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  lastReviewNote: text("last_review_note"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => {
@@ -302,7 +307,27 @@ export const weeklyReviews = pgTable("weekly_reviews", {
   };
 });
 
-export const weeklyReviewsRelations = relations(weeklyReviews, ({ one }) => ({
+// Per-commentator signoff. One row per (weeklyReview, user). When the creator
+// resubmits the week, all signoffs are cleared so the review starts fresh.
+export const weeklyReviewSignoffs = pgTable("weekly_review_signoffs", {
+  id: serial("id").primaryKey(),
+  weeklyReviewId: integer("weekly_review_id").notNull().references(() => weeklyReviews.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  verdict: text("verdict").notNull(), // "approved" | "changes_requested"
+  note: text("note"), // optional free-text comment from the commentator
+  reviewedAt: timestamp("reviewed_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    reviewUserIdx: uniqueIndex("weekly_review_signoffs_review_user_idx").on(table.weeklyReviewId, table.userId),
+    reviewIdx: index("weekly_review_signoffs_review_idx").on(table.weeklyReviewId),
+    familyIdx: index("weekly_review_signoffs_family_idx").on(table.familyId),
+  };
+});
+
+export const weeklyReviewsRelations = relations(weeklyReviews, ({ one, many }) => ({
   family: one(families, {
     fields: [weeklyReviews.familyId],
     references: [families.id],
@@ -310,6 +335,26 @@ export const weeklyReviewsRelations = relations(weeklyReviews, ({ one }) => ({
   submitter: one(users, {
     fields: [weeklyReviews.submittedBy],
     references: [users.id],
+  }),
+  lastReviewer: one(users, {
+    fields: [weeklyReviews.lastReviewedBy],
+    references: [users.id],
+  }),
+  signoffs: many(weeklyReviewSignoffs),
+}));
+
+export const weeklyReviewSignoffsRelations = relations(weeklyReviewSignoffs, ({ one }) => ({
+  weeklyReview: one(weeklyReviews, {
+    fields: [weeklyReviewSignoffs.weeklyReviewId],
+    references: [weeklyReviews.id],
+  }),
+  user: one(users, {
+    fields: [weeklyReviewSignoffs.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [weeklyReviewSignoffs.familyId],
+    references: [families.id],
   }),
 }));
 
@@ -475,16 +520,36 @@ export const reviewMealProposalSchema = z.object({
 
 export const insertWeeklyReviewSchema = createInsertSchema(weeklyReviews, {
   weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
-  status: z.enum(["submitted"]).default("submitted"),
+  status: z.enum(["submitted", "approved", "changes_requested"]).default("submitted"),
+  lastReviewNote: z.string().max(500, "El comentario es demasiado largo").optional(),
 }).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   submittedAt: true,
+  lastReviewedAt: true,
 });
 
 export const submitWeeklyReviewSchema = z.object({
   weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+});
+
+export const insertWeeklyReviewSignoffSchema = createInsertSchema(weeklyReviewSignoffs, {
+  verdict: z.enum(["approved", "changes_requested"]),
+  note: z.string().max(500, "El comentario es demasiado largo").optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  reviewedAt: true,
+});
+
+export const submitWeeklyReviewSignoffSchema = z.object({
+  weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+  verdict: z.enum(["approved", "changes_requested"], {
+    required_error: "El veredicto es requerido",
+  }),
+  note: z.string().max(500, "El comentario es demasiado largo").optional(),
 });
 
 export const awardStarSchema = z.object({
@@ -524,6 +589,15 @@ export type ReviewMealProposalData = z.infer<typeof reviewMealProposalSchema>;
 export type WeeklyReview = typeof weeklyReviews.$inferSelect;
 export type InsertWeeklyReview = z.infer<typeof insertWeeklyReviewSchema>;
 export type SubmitWeeklyReviewData = z.infer<typeof submitWeeklyReviewSchema>;
+export type WeeklyReviewSignoff = typeof weeklyReviewSignoffs.$inferSelect;
+export type InsertWeeklyReviewSignoff = z.infer<typeof insertWeeklyReviewSignoffSchema>;
+export type SubmitWeeklyReviewSignoffData = z.infer<typeof submitWeeklyReviewSignoffSchema>;
+export type WeeklyReviewSignoffEnriched = WeeklyReviewSignoff & {
+  userName: string;
+};
+export type WeeklyReviewWithSignoffs = WeeklyReview & {
+  signoffs: WeeklyReviewSignoffEnriched[];
+};
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 

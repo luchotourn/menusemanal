@@ -67,3 +67,67 @@ export function todayLocalDate(now: Date = new Date()): string {
 export function isPastMealDate(fecha: string, now: Date = new Date()): boolean {
   return fecha < todayLocalDate(now);
 }
+
+export type ReviewNoteSource = {
+  userName: string;
+  verdict: "approved" | "changes_requested";
+  note: string | null;
+};
+
+/**
+ * Selects the sign-off notes worth surfacing to the meal-plan creator.
+ * Keeps only sign-offs that carry a non-empty note, trims surrounding
+ * whitespace, and orders "changes requested" notes first so the creator
+ * reads actionable feedback before approvals.
+ *
+ * @param signoffs - The review's sign-offs (each may or may not have a note)
+ * @returns The notable sign-offs with a guaranteed non-empty, trimmed note
+ */
+export function selectReviewNotes<T extends ReviewNoteSource>(
+  signoffs: T[],
+): (T & { note: string })[] {
+  const withNotes = signoffs
+    .filter((s): s is T & { note: string } => typeof s.note === "string" && s.note.trim().length > 0)
+    .map((s) => ({ ...s, note: s.note.trim() }));
+
+  return withNotes.sort((a, b) => {
+    if (a.verdict === b.verdict) return 0;
+    return a.verdict === "changes_requested" ? -1 : 1;
+  });
+}
+
+export type ReviewerSignoff = {
+  userId: number;
+  userName: string;
+  verdict: "approved" | "changes_requested";
+  reviewedAt?: string | Date | null;
+};
+
+/**
+ * Picks the reviewer name to show next to a review's verdict.
+ *
+ * The displayed verdict ("Aprobada" / "Cambios pedidos") can be backed by
+ * several sign-offs, so we name the *relevant* one: the most recent reviewer
+ * (`lastReviewedBy`) when their verdict matches the displayed status, otherwise
+ * the latest sign-off of the matching verdict. This avoids naming whoever
+ * happens to be first in the array (e.g. an early "approved" while the week is
+ * actually "changes_requested").
+ */
+export function reviewReviewerName(
+  status: "approved" | "changes_requested" | "submitted",
+  signoffs: ReviewerSignoff[],
+  lastReviewedBy: number | null,
+  fallback = "la familia",
+): string {
+  if (status === "submitted") return fallback;
+
+  const matching = signoffs.filter((s) => s.verdict === status);
+  if (matching.length === 0) return fallback;
+
+  const byLast = matching.find((s) => s.userId === lastReviewedBy);
+  if (byLast) return byLast.userName;
+
+  const toTime = (d?: string | Date | null) => (d ? new Date(d).getTime() : 0);
+  const mostRecent = [...matching].sort((a, b) => toTime(b.reviewedAt) - toTime(a.reviewedAt))[0];
+  return mostRecent?.userName ?? fallback;
+}

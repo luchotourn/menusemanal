@@ -191,3 +191,145 @@ describe("sendWeekReviewNotification", () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 });
+
+describe("sendReviewSignoffNotification", () => {
+  const originalKey = process.env.RESEND_API_KEY;
+  let sendReviewSignoffNotification: typeof import("../email").sendReviewSignoffNotification;
+
+  beforeEach(async () => {
+    mockSend.mockReset();
+    mockSend.mockResolvedValue({ data: { id: "test-id" }, error: null });
+    process.env.RESEND_API_KEY = "test-key";
+    vi.resetModules();
+    const mod = await import("../email");
+    sendReviewSignoffNotification = mod.sendReviewSignoffNotification;
+  });
+
+  afterEach(() => {
+    if (originalKey === undefined) {
+      delete process.env.RESEND_API_KEY;
+    } else {
+      process.env.RESEND_API_KEY = originalKey;
+    }
+  });
+
+  it("sends an email to the submitter when a commentator approves", async () => {
+    sendReviewSignoffNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "approved",
+      recipient: { email: "creator@example.com", name: "Lucho", notificationPreferences: null },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const sent = mockSend.mock.calls[0][0];
+    expect(sent.to).toBe("creator@example.com");
+    expect(sent.subject).toContain("Juli");
+    expect(sent.subject).toContain("aprobó");
+    expect(sent.subject).toContain("20/04");
+    expect(sent.text).toContain("Lucho");
+    expect(sent.text).toContain("Familia Tourn");
+    expect(sent.text).toContain("aprobó");
+  });
+
+  it("sends an email when a commentator requests changes, with the subject reflecting the verdict", async () => {
+    sendReviewSignoffNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "changes_requested",
+      recipient: { email: "creator@example.com", name: "Lucho", notificationPreferences: null },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const sent = mockSend.mock.calls[0][0];
+    expect(sent.subject).toContain("pidió cambios");
+    expect(sent.text).toContain("pidió cambios");
+  });
+
+  it("includes the optional note in the email body", async () => {
+    sendReviewSignoffNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "changes_requested",
+      note: "Cambiá el martes por algo más liviano",
+      recipient: { email: "creator@example.com", name: "Lucho", notificationPreferences: null },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    const sent = mockSend.mock.calls[0][0];
+    expect(sent.text).toContain("Cambiá el martes por algo más liviano");
+  });
+
+  it("omits the note section when no note is provided", async () => {
+    sendReviewSignoffNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "approved",
+      recipient: { email: "creator@example.com", name: "Lucho", notificationPreferences: null },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    const sent = mockSend.mock.calls[0][0];
+    expect(sent.text).not.toContain("Comentario:");
+  });
+
+  it("skips when recipient has opted out of meal-plan notifications", async () => {
+    sendReviewSignoffNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "approved",
+      recipient: {
+        email: "creator@example.com",
+        name: "Lucho",
+        notificationPreferences: JSON.stringify({ email: true, mealPlans: false }),
+      },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("includes the app link in the body", async () => {
+    sendReviewSignoffNotification({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "approved",
+      recipient: { email: "creator@example.com", name: "Lucho", notificationPreferences: null },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend.mock.calls[0][0].text).toContain("https://menusemanal.app/app");
+  });
+
+  it("does nothing when RESEND_API_KEY is not set", async () => {
+    delete process.env.RESEND_API_KEY;
+    vi.resetModules();
+    const { sendReviewSignoffNotification: freshSender } = await import("../email");
+
+    freshSender({
+      familyName: "Familia Tourn",
+      weekStartDate: "2026-04-20",
+      reviewerName: "Juli",
+      verdict: "approved",
+      recipient: { email: "creator@example.com", name: "Lucho", notificationPreferences: null },
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+});

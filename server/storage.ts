@@ -10,7 +10,11 @@ import {
   mealProposals,
   type MealProposal,
   weeklyReviews,
+  weeklyReviewSignoffs,
   type WeeklyReview,
+  type WeeklyReviewSignoff,
+  type WeeklyReviewSignoffEnriched,
+  type WeeklyReviewWithSignoffs,
   type Recipe,
   type InsertRecipe,
   type MealPlan,
@@ -98,7 +102,15 @@ export interface IStorage {
 
   // Weekly review methods
   getWeeklyReview(familyId: number, weekStartDate: string): Promise<WeeklyReview | undefined>;
+  getWeeklyReviewWithSignoffs(familyId: number, weekStartDate: string): Promise<WeeklyReviewWithSignoffs | undefined>;
   submitWeeklyReview(familyId: number, weekStartDate: string, submittedBy: number): Promise<WeeklyReview>;
+  upsertWeeklyReviewSignoff(
+    familyId: number,
+    weekStartDate: string,
+    userId: number,
+    verdict: "approved" | "changes_requested",
+    note?: string
+  ): Promise<{ review: WeeklyReview; signoff: WeeklyReviewSignoff }>;
 
   // Waitlist methods
   addWaitlistSignup(email: string, source?: string): Promise<WaitlistSignup>;
@@ -422,8 +434,12 @@ export class MemStorage implements IStorage {
 
   // Weekly review stubs
   async getWeeklyReview(): Promise<WeeklyReview | undefined> { return undefined; }
+  async getWeeklyReviewWithSignoffs(): Promise<WeeklyReviewWithSignoffs | undefined> { return undefined; }
   async submitWeeklyReview(): Promise<WeeklyReview> {
     throw new Error("MemStorage does not implement weekly reviews");
+  }
+  async upsertWeeklyReviewSignoff(): Promise<{ review: WeeklyReview; signoff: WeeklyReviewSignoff }> {
+    throw new Error("MemStorage does not implement weekly review signoffs");
   }
 
   // Waitlist stubs
@@ -615,6 +631,7 @@ export class DatabaseStorage implements IStorage {
       recetaId: mealPlans.recetaId,
       notas: mealPlans.notas,
       userId: mealPlans.userId,
+      createdBy: mealPlans.createdBy,
       familyId: mealPlans.familyId,
       createdAt: mealPlans.createdAt,
       updatedAt: mealPlans.updatedAt,
@@ -1415,12 +1432,21 @@ export class DatabaseStorage implements IStorage {
     const now = new Date();
 
     if (existing) {
+      // Clear stale signoffs — a resubmit means the plan changed and prior
+      // verdicts no longer reflect the current week.
+      await db
+        .delete(weeklyReviewSignoffs)
+        .where(eq(weeklyReviewSignoffs.weeklyReviewId, existing.id));
+
       const [updated] = await db
         .update(weeklyReviews)
         .set({
           submittedBy,
           submittedAt: now,
           status: "submitted",
+          lastReviewedBy: null,
+          lastReviewedAt: null,
+          lastReviewNote: null,
           updatedAt: now,
         })
         .where(eq(weeklyReviews.id, existing.id))
@@ -1438,6 +1464,103 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return created;
+  }
+
+  async getWeeklyReviewWithSignoffs(familyId: number, weekStartDate: string): Promise<WeeklyReviewWithSignoffs | undefined> {
+    const review = await this.getWeeklyReview(familyId, weekStartDate);
+    if (!review) return undefined;
+
+    const rows = await db
+      .select({
+        id: weeklyReviewSignoffs.id,
+        weeklyReviewId: weeklyReviewSignoffs.weeklyReviewId,
+        userId: weeklyReviewSignoffs.userId,
+        familyId: weeklyReviewSignoffs.familyId,
+        verdict: weeklyReviewSignoffs.verdict,
+        note: weeklyReviewSignoffs.note,
+        reviewedAt: weeklyReviewSignoffs.reviewedAt,
+        createdAt: weeklyReviewSignoffs.createdAt,
+        updatedAt: weeklyReviewSignoffs.updatedAt,
+        userName: users.name,
+      })
+      .from(weeklyReviewSignoffs)
+      .innerJoin(users, eq(users.id, weeklyReviewSignoffs.userId))
+      .where(eq(weeklyReviewSignoffs.weeklyReviewId, review.id));
+
+    const signoffs: WeeklyReviewSignoffEnriched[] = rows.map((r) => ({
+      id: r.id,
+      weeklyReviewId: r.weeklyReviewId,
+      userId: r.userId,
+      familyId: r.familyId,
+      verdict: r.verdict,
+      note: r.note,
+      reviewedAt: r.reviewedAt,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      userName: r.userName,
+    }));
+
+    return { ...review, signoffs };
+  }
+
+  async upsertWeeklyReviewSignoff(
+    familyId: number,
+    weekStartDate: string,
+    userId: number,
+    verdict: "approved" | "changes_requested",
+    note?: string
+  ): Promise<{ review: WeeklyReview; signoff: WeeklyReviewSignoff }> {
+    const review = await this.getWeeklyReview(familyId, weekStartDate);
+    if (!review) {
+      throw new Error("WEEKLY_REVIEW_NOT_FOUND");
+    }
+
+    const now = new Date();
+
+    // Atomic upsert (one signoff per user per review). Using ON CONFLICT against
+    // the (weeklyReviewId, userId) unique index — rather than check-then-write —
+    // so concurrent requests from the same user (double-click, retry) can't race
+    // past an existence check and violate the unique constraint with a 500.
+    const [signoff] = await db
+      .insert(weeklyReviewSignoffs)
+      .values({
+        weeklyReviewId: review.id,
+        userId,
+        familyId,
+        verdict,
+        note: note ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [weeklyReviewSignoffs.weeklyReviewId, weeklyReviewSignoffs.userId],
+        set: { verdict, note: note ?? null, reviewedAt: now, updatedAt: now },
+      })
+      .returning();
+
+    // Recompute parent status: if ANY signoff requested changes, the week is
+    // "changes_requested". Otherwise if all known commentators approved, it's
+    // "approved". We don't enforce "all commentators must sign" here — that's
+    // a UI affordance, not a data invariant.
+    const allSignoffs = await db
+      .select()
+      .from(weeklyReviewSignoffs)
+      .where(eq(weeklyReviewSignoffs.weeklyReviewId, review.id));
+
+    const hasChangesRequested = allSignoffs.some(s => s.verdict === "changes_requested");
+    const newStatus = hasChangesRequested ? "changes_requested" : "approved";
+
+    const [updatedReview] = await db
+      .update(weeklyReviews)
+      .set({
+        status: newStatus,
+        lastReviewedBy: userId,
+        lastReviewedAt: now,
+        lastReviewNote: note ?? null,
+        updatedAt: now,
+      })
+      .where(eq(weeklyReviews.id, review.id))
+      .returning();
+
+    return { review: updatedReview, signoff };
   }
 
   // Waitlist methods

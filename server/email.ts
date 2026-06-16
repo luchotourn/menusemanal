@@ -112,3 +112,63 @@ export function sendWeekReviewNotification(params: {
       .catch((err) => console.error(`Failed to send week review notification to ${recipient.email}:`, err));
   }
 }
+
+export function sendReviewSignoffNotification(params: {
+  familyName: string;
+  weekStartDate: string;
+  reviewerName: string;
+  verdict: "approved" | "changes_requested";
+  note?: string;
+  recipient: ReviewRecipient;
+}): void {
+  if (!resend) {
+    console.log("Email notification skipped (RESEND_API_KEY not set)");
+    return;
+  }
+
+  if (!recipientWantsEmail(params.recipient)) {
+    console.log(`Recipient ${params.recipient.email} opted out of signoff notification`);
+    return;
+  }
+
+  const prettyDate = formatWeekStartForDisplay(params.weekStartDate);
+  const verdictLabel = params.verdict === "approved" ? "aprobó" : "pidió cambios en";
+  const subject = params.verdict === "approved"
+    ? `${params.reviewerName} aprobó el menú de la semana del ${prettyDate}`
+    : `${params.reviewerName} pidió cambios en el menú de la semana del ${prettyDate}`;
+  const appLink = `${APP_URL}/app`;
+
+  const lines = [
+    `Hola ${params.recipient.name},`,
+    ``,
+    `${params.reviewerName} ${verdictLabel} el menú de la semana del ${prettyDate} (familia ${params.familyName}).`,
+  ];
+
+  if (params.note) {
+    lines.push(``, `Comentario: ${params.note}`);
+  }
+
+  lines.push(
+    ``,
+    `Abrí la app para ver el detalle:`,
+    appLink,
+    ``,
+    `— Menu Semanal`,
+  );
+
+  resend.emails
+    .send({
+      from: FROM_ADDRESS,
+      to: params.recipient.email,
+      subject,
+      text: lines.join("\n"),
+    })
+    .then((result) => {
+      if (result.error) {
+        console.error(`Resend API error for ${params.recipient.email}:`, JSON.stringify(result.error));
+      } else {
+        console.log(`Review signoff notification sent to ${params.recipient.email}, id: ${result.data?.id}`);
+      }
+    })
+    .catch((err) => console.error(`Failed to send review signoff notification to ${params.recipient.email}:`, err));
+}
