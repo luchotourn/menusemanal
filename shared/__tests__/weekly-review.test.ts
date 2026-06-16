@@ -5,7 +5,7 @@ import {
   submitWeeklyReviewSignoffSchema,
   insertWeeklyReviewSignoffSchema,
 } from "../schema";
-import { selectReviewNotes } from "../utils";
+import { selectReviewNotes, reviewReviewerName } from "../utils";
 
 describe("submitWeeklyReviewSchema", () => {
   it("accepts a valid YYYY-MM-DD date", () => {
@@ -297,5 +297,48 @@ describe("selectReviewNotes", () => {
     const notes = selectReviewNotes([signoff("Ana", "changes_requested", "x")]);
     // note is guaranteed string here — concatenation must not produce "null"
     expect(`${notes[0].note}!`).toBe("x!");
+  });
+});
+
+describe("reviewReviewerName", () => {
+  const so = (
+    userId: number,
+    userName: string,
+    verdict: "approved" | "changes_requested",
+    reviewedAt?: string,
+  ) => ({ userId, userName, verdict, reviewedAt });
+
+  it("returns the fallback for a 'submitted' review", () => {
+    expect(reviewReviewerName("submitted", [], null)).toBe("la familia");
+  });
+
+  it("returns the fallback when no signoff matches the displayed verdict", () => {
+    // Status says approved but only a changes_requested signoff exists (degenerate).
+    expect(reviewReviewerName("approved", [so(7, "Ana", "changes_requested")], 7)).toBe("la familia");
+  });
+
+  it("prefers the most recent reviewer (lastReviewedBy) when their verdict matches", () => {
+    const signoffs = [so(7, "Ana", "approved", "2026-06-01T10:00:00Z"), so(8, "Beto", "approved", "2026-06-02T10:00:00Z")];
+    expect(reviewReviewerName("approved", signoffs, 8)).toBe("Beto");
+    expect(reviewReviewerName("approved", signoffs, 7)).toBe("Ana");
+  });
+
+  it("names a changes_requester even when a different, later signoff approved", () => {
+    // Bug #1 regression: array order / latest reviewer must not mislabel.
+    // Ana requested changes; Beto later approved → status stays changes_requested,
+    // lastReviewedBy is Beto (an approver), so we must fall back to the requester.
+    const signoffs = [
+      so(7, "Ana", "changes_requested", "2026-06-01T10:00:00Z"),
+      so(8, "Beto", "approved", "2026-06-02T10:00:00Z"),
+    ];
+    expect(reviewReviewerName("changes_requested", signoffs, 8)).toBe("Ana");
+  });
+
+  it("falls back to the most recent matching signoff when lastReviewedBy is unknown", () => {
+    const signoffs = [
+      so(7, "Ana", "changes_requested", "2026-06-01T10:00:00Z"),
+      so(9, "Caro", "changes_requested", "2026-06-03T10:00:00Z"),
+    ];
+    expect(reviewReviewerName("changes_requested", signoffs, null)).toBe("Caro");
   });
 });

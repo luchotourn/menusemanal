@@ -89,9 +89,7 @@ function applySignoff(
  */
 function applyResubmit(
   signoffs: Signoff[],
-  review: WeeklyReview,
-  submitter: number,
-  now: Date = new Date()
+  review: WeeklyReview
 ): { signoffs: Signoff[]; review: WeeklyReview } {
   return {
     signoffs: signoffs.filter((s) => s.weeklyReviewId !== review.id),
@@ -206,7 +204,7 @@ describe("Weekly review sign-off — resubmit clears signoffs", () => {
     const r2 = applySignoff(r1.signoffs, r1.review, { userId: 8, verdict: "changes_requested" });
     expect(r2.signoffs.length).toBe(2);
 
-    const after = applyResubmit(r2.signoffs, r2.review, 1);
+    const after = applyResubmit(r2.signoffs, r2.review);
 
     expect(after.signoffs.length).toBe(0);
     expect(after.review.status).toBe("submitted");
@@ -225,7 +223,7 @@ describe("Weekly review sign-off — resubmit clears signoffs", () => {
       { id: 99, weeklyReviewId: 2, userId: 7, verdict: "approved", note: null },
     ];
 
-    const after = applyResubmit(otherReviewSignoffs, r1.review, 1);
+    const after = applyResubmit(otherReviewSignoffs, r1.review);
 
     expect(after.signoffs.length).toBe(1);
     expect(after.signoffs[0].weeklyReviewId).toBe(2); // untouched
@@ -234,7 +232,7 @@ describe("Weekly review sign-off — resubmit clears signoffs", () => {
   it("after resubmit a fresh approval recomputes status correctly", () => {
     const r0 = newReview();
     const r1 = applySignoff([], r0, { userId: 7, verdict: "changes_requested" });
-    const reset = applyResubmit(r1.signoffs, r1.review, 1);
+    const reset = applyResubmit(r1.signoffs, r1.review);
     expect(reset.review.status).toBe("submitted");
 
     const r2 = applySignoff(reset.signoffs, reset.review, { userId: 7, verdict: "approved" });

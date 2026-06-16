@@ -24,7 +24,7 @@ import { MealCommentSheet } from "@/components/meal-comment-sheet";
 import { CreatorOnly, CommentatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { useWeeklyReview } from "@/hooks/use-weekly-review";
 import { useProfile } from "@/hooks/useAuth";
-import { selectReviewNotes } from "@shared/utils";
+import { selectReviewNotes, reviewReviewerName } from "@shared/utils";
 
 type LatestPendingProposal = {
   proposedRecipeName: string;
@@ -410,11 +410,9 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
               const { Icon } = tone;
 
               const label =
-                review.status === "approved"
-                  ? `Aprobada por ${review.signoffs[0]?.userName ?? "la familia"}`
-                  : review.status === "changes_requested"
-                  ? `Cambios pedidos por ${review.signoffs.find((s) => s.verdict === "changes_requested")?.userName ?? "la familia"}`
-                  : `En revisión · enviada ${formatDistanceToNow(new Date(review.submittedAt), { addSuffix: true, locale: es })}`;
+                review.status === "submitted"
+                  ? `En revisión · enviada ${formatDistanceToNow(new Date(review.submittedAt), { addSuffix: true, locale: es })}`
+                  : `${review.status === "approved" ? "Aprobada por" : "Cambios pedidos por"} ${reviewReviewerName(review.status, review.signoffs, review.lastReviewedBy)}`;
 
               const tooltip =
                 review.status === "submitted"
@@ -722,7 +720,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
       {/* Commentator sign-off confirmation */}
       <AlertDialog
         open={pendingSignoffVerdict !== null}
-        onOpenChange={(open) => { if (!open) setPendingSignoffVerdict(null); }}
+        onOpenChange={(open) => { if (!open) { setPendingSignoffVerdict(null); setSignoffNote(""); } }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>

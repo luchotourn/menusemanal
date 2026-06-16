@@ -95,3 +95,39 @@ export function selectReviewNotes<T extends ReviewNoteSource>(
     return a.verdict === "changes_requested" ? -1 : 1;
   });
 }
+
+export type ReviewerSignoff = {
+  userId: number;
+  userName: string;
+  verdict: "approved" | "changes_requested";
+  reviewedAt?: string | Date | null;
+};
+
+/**
+ * Picks the reviewer name to show next to a review's verdict.
+ *
+ * The displayed verdict ("Aprobada" / "Cambios pedidos") can be backed by
+ * several sign-offs, so we name the *relevant* one: the most recent reviewer
+ * (`lastReviewedBy`) when their verdict matches the displayed status, otherwise
+ * the latest sign-off of the matching verdict. This avoids naming whoever
+ * happens to be first in the array (e.g. an early "approved" while the week is
+ * actually "changes_requested").
+ */
+export function reviewReviewerName(
+  status: "approved" | "changes_requested" | "submitted",
+  signoffs: ReviewerSignoff[],
+  lastReviewedBy: number | null,
+  fallback = "la familia",
+): string {
+  if (status === "submitted") return fallback;
+
+  const matching = signoffs.filter((s) => s.verdict === status);
+  if (matching.length === 0) return fallback;
+
+  const byLast = matching.find((s) => s.userId === lastReviewedBy);
+  if (byLast) return byLast.userName;
+
+  const toTime = (d?: string | Date | null) => (d ? new Date(d).getTime() : 0);
+  const mostRecent = [...matching].sort((a, b) => toTime(b.reviewedAt) - toTime(a.reviewedAt))[0];
+  return mostRecent?.userName ?? fallback;
+}

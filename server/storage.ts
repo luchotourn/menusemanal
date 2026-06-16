@@ -631,6 +631,7 @@ export class DatabaseStorage implements IStorage {
       recetaId: mealPlans.recetaId,
       notas: mealPlans.notas,
       userId: mealPlans.userId,
+      createdBy: mealPlans.createdBy,
       familyId: mealPlans.familyId,
       createdAt: mealPlans.createdAt,
       updatedAt: mealPlans.updatedAt,
@@ -1516,38 +1517,24 @@ export class DatabaseStorage implements IStorage {
 
     const now = new Date();
 
-    // Upsert the signoff (one per user per review). If the user previously
-    // signed off, replace their verdict — they're updating their mind.
-    const [existing] = await db
-      .select()
-      .from(weeklyReviewSignoffs)
-      .where(and(
-        eq(weeklyReviewSignoffs.weeklyReviewId, review.id),
-        eq(weeklyReviewSignoffs.userId, userId)
-      ))
-      .limit(1);
-
-    let signoff: WeeklyReviewSignoff;
-    if (existing) {
-      const [updated] = await db
-        .update(weeklyReviewSignoffs)
-        .set({ verdict, note: note ?? null, reviewedAt: now, updatedAt: now })
-        .where(eq(weeklyReviewSignoffs.id, existing.id))
-        .returning();
-      signoff = updated;
-    } else {
-      const [created] = await db
-        .insert(weeklyReviewSignoffs)
-        .values({
-          weeklyReviewId: review.id,
-          userId,
-          familyId,
-          verdict,
-          note: note ?? null,
-        })
-        .returning();
-      signoff = created;
-    }
+    // Atomic upsert (one signoff per user per review). Using ON CONFLICT against
+    // the (weeklyReviewId, userId) unique index — rather than check-then-write —
+    // so concurrent requests from the same user (double-click, retry) can't race
+    // past an existence check and violate the unique constraint with a 500.
+    const [signoff] = await db
+      .insert(weeklyReviewSignoffs)
+      .values({
+        weeklyReviewId: review.id,
+        userId,
+        familyId,
+        verdict,
+        note: note ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [weeklyReviewSignoffs.weeklyReviewId, weeklyReviewSignoffs.userId],
+        set: { verdict, note: note ?? null, reviewedAt: now, updatedAt: now },
+      })
+      .returning();
 
     // Recompute parent status: if ANY signoff requested changes, the week is
     // "changes_requested". Otherwise if all known commentators approved, it's
