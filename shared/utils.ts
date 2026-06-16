@@ -67,3 +67,31 @@ export function todayLocalDate(now: Date = new Date()): string {
 export function isPastMealDate(fecha: string, now: Date = new Date()): boolean {
   return fecha < todayLocalDate(now);
 }
+
+export type ReviewNoteSource = {
+  userName: string;
+  verdict: "approved" | "changes_requested";
+  note: string | null;
+};
+
+/**
+ * Selects the sign-off notes worth surfacing to the meal-plan creator.
+ * Keeps only sign-offs that carry a non-empty note, trims surrounding
+ * whitespace, and orders "changes requested" notes first so the creator
+ * reads actionable feedback before approvals.
+ *
+ * @param signoffs - The review's sign-offs (each may or may not have a note)
+ * @returns The notable sign-offs with a guaranteed non-empty, trimmed note
+ */
+export function selectReviewNotes<T extends ReviewNoteSource>(
+  signoffs: T[],
+): (T & { note: string })[] {
+  const withNotes = signoffs
+    .filter((s): s is T & { note: string } => typeof s.note === "string" && s.note.trim().length > 0)
+    .map((s) => ({ ...s, note: s.note.trim() }));
+
+  return withNotes.sort((a, b) => {
+    if (a.verdict === b.verdict) return 0;
+    return a.verdict === "changes_requested" ? -1 : 1;
+  });
+}

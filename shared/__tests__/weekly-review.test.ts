@@ -5,6 +5,7 @@ import {
   submitWeeklyReviewSignoffSchema,
   insertWeeklyReviewSignoffSchema,
 } from "../schema";
+import { selectReviewNotes } from "../utils";
 
 describe("submitWeeklyReviewSchema", () => {
   it("accepts a valid YYYY-MM-DD date", () => {
@@ -241,5 +242,60 @@ describe("Weekly review signoff behavioral spec", () => {
     expect(afterResubmit.lastReviewedAt).toBeNull();
     expect(afterResubmit.lastReviewNote).toBeNull();
     expect(before.status).toBe("approved"); // sanity check on the "before" shape
+  });
+});
+
+describe("selectReviewNotes", () => {
+  const signoff = (
+    userName: string,
+    verdict: "approved" | "changes_requested",
+    note: string | null,
+  ) => ({ id: userName.length, userName, verdict, note });
+
+  it("keeps only sign-offs that carry a non-empty note", () => {
+    const notes = selectReviewNotes([
+      signoff("Ana", "changes_requested", "Falta el postre del viernes"),
+      signoff("Beto", "approved", null),
+      signoff("Caro", "approved", ""),
+    ]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].userName).toBe("Ana");
+    expect(notes[0].note).toBe("Falta el postre del viernes");
+  });
+
+  it("treats whitespace-only notes as empty and trims surrounding whitespace", () => {
+    const notes = selectReviewNotes([
+      signoff("Ana", "changes_requested", "   "),
+      signoff("Beto", "changes_requested", "  cambiar el lunes  "),
+    ]);
+    expect(notes).toHaveLength(1);
+    expect(notes[0].userName).toBe("Beto");
+    expect(notes[0].note).toBe("cambiar el lunes");
+  });
+
+  it("orders 'changes_requested' notes before 'approved' notes", () => {
+    const notes = selectReviewNotes([
+      signoff("Ana", "approved", "Me encanta"),
+      signoff("Beto", "changes_requested", "Demasiada carne"),
+    ]);
+    expect(notes.map((n) => n.userName)).toEqual(["Beto", "Ana"]);
+  });
+
+  it("returns an empty array when there are no signoffs", () => {
+    expect(selectReviewNotes([])).toEqual([]);
+  });
+
+  it("returns an empty array when no signoff has a note", () => {
+    const notes = selectReviewNotes([
+      signoff("Ana", "approved", null),
+      signoff("Beto", "changes_requested", "   "),
+    ]);
+    expect(notes).toEqual([]);
+  });
+
+  it("narrows note to a non-null string on the returned items", () => {
+    const notes = selectReviewNotes([signoff("Ana", "changes_requested", "x")]);
+    // note is guaranteed string here — concatenation must not produce "null"
+    expect(`${notes[0].note}!`).toBe("x!");
   });
 });

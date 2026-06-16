@@ -24,6 +24,7 @@ import { MealCommentSheet } from "@/components/meal-comment-sheet";
 import { CreatorOnly, CommentatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { useWeeklyReview } from "@/hooks/use-weekly-review";
 import { useProfile } from "@/hooks/useAuth";
+import { selectReviewNotes } from "@shared/utils";
 
 type LatestPendingProposal = {
   proposedRecipeName: string;
@@ -393,44 +394,69 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           )}
         </div>
         
-        {/* Review status + submit action */}
-        <div className="flex items-center justify-between gap-2 mt-2 mb-1">
+        {/* Review status + submit action.
+            The status is a single adaptive element: a compact pill when there
+            is nothing more to say, or — when commentators left notes — one
+            consolidated block whose header states the verdict once and quotes
+            the note(s) beneath it. This avoids repeating the icon/reviewer. */}
+        <div className="flex items-start justify-between gap-2 mt-2 mb-1">
           {review ? (
             (() => {
-              const pillBase = "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full";
-              if (review.status === "approved") {
-                const reviewerLabel = review.signoffs[0]?.userName ?? "la familia";
+              const tone = {
+                approved: { text: "text-emerald-700", note: "text-emerald-800", bg: "bg-emerald-50", border: "border-emerald-200", Icon: ThumbsUp },
+                changes_requested: { text: "text-amber-700", note: "text-amber-800", bg: "bg-amber-50", border: "border-amber-200", Icon: AlertTriangle },
+                submitted: { text: "text-sky-700", note: "text-sky-800", bg: "bg-sky-50", border: "border-sky-200", Icon: Clock },
+              }[review.status];
+              const { Icon } = tone;
+
+              const label =
+                review.status === "approved"
+                  ? `Aprobada por ${review.signoffs[0]?.userName ?? "la familia"}`
+                  : review.status === "changes_requested"
+                  ? `Cambios pedidos por ${review.signoffs.find((s) => s.verdict === "changes_requested")?.userName ?? "la familia"}`
+                  : `En revisión · enviada ${formatDistanceToNow(new Date(review.submittedAt), { addSuffix: true, locale: es })}`;
+
+              const tooltip =
+                review.status === "submitted"
+                  ? `Enviada el ${new Date(review.submittedAt).toLocaleString("es-AR")}`
+                  : review.lastReviewedAt
+                  ? `${review.status === "approved" ? "Aprobada" : "Cambios pedidos"} el ${new Date(review.lastReviewedAt).toLocaleString("es-AR")}`
+                  : undefined;
+
+              const notes = selectReviewNotes(review.signoffs);
+
+              // No note → compact pill.
+              if (notes.length === 0) {
                 return (
                   <span
-                    className={`${pillBase} text-emerald-700 bg-emerald-50 border border-emerald-200`}
-                    title={review.lastReviewedAt ? `Aprobada el ${new Date(review.lastReviewedAt).toLocaleString("es-AR")}` : undefined}
+                    className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${tone.text} ${tone.bg} border ${tone.border}`}
+                    title={tooltip}
                   >
-                    <ThumbsUp className="w-3.5 h-3.5" />
-                    Aprobada por {reviewerLabel}
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
                   </span>
                 );
               }
-              if (review.status === "changes_requested") {
-                const reviewerLabel = review.signoffs.find((s) => s.verdict === "changes_requested")?.userName ?? "la familia";
-                return (
-                  <span
-                    className={`${pillBase} text-amber-700 bg-amber-50 border border-amber-200`}
-                    title={review.lastReviewedAt ? `Cambios pedidos el ${new Date(review.lastReviewedAt).toLocaleString("es-AR")}` : undefined}
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Cambios pedidos por {reviewerLabel}
-                  </span>
-                );
-              }
-              // submitted (no signoffs yet)
+
+              // Has note(s) → consolidated status + feedback block. The header
+              // names the reviewer once; a single note then needs no author
+              // prefix, while multiple notes keep theirs to stay distinguishable.
+              const showAuthors = notes.length > 1;
               return (
-                <span
-                  className={`${pillBase} text-sky-700 bg-sky-50 border border-sky-200`}
-                  title={`Enviada el ${new Date(review.submittedAt).toLocaleString("es-AR")}`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  En revisión · enviada {formatDistanceToNow(new Date(review.submittedAt), { addSuffix: true, locale: es })}
-                </span>
+                <div className={`min-w-0 rounded-lg border px-3 py-2 ${tone.bg} ${tone.border}`} title={tooltip}>
+                  <div className={`flex items-center gap-1.5 text-xs font-semibold ${tone.text}`}>
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    {label}
+                  </div>
+                  <ul className="mt-1 space-y-0.5">
+                    {notes.map((s) => (
+                      <li key={s.id} className={`text-xs leading-snug break-words ${tone.note}`}>
+                        {showAuthors && <span className="font-medium">{s.userName}: </span>}
+                        <span className="italic">«{s.note}»</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               );
             })()
           ) : (
@@ -449,8 +475,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
               disabled={isSubmitting || (mealPlans?.length ?? 0) === 0}
               className={
                 review
-                  ? "text-xs border-slate-300 text-slate-700 hover:bg-slate-100"
-                  : "text-xs bg-app-accent hover:bg-app-accent/90 text-slate-900 font-medium"
+                  ? "text-xs border-slate-300 text-slate-700 hover:bg-slate-100 shrink-0"
+                  : "text-xs bg-app-accent hover:bg-app-accent/90 text-slate-900 font-medium shrink-0"
               }
             >
               <Send className="w-3.5 h-3.5 mr-1.5" />
