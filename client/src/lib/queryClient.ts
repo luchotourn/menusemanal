@@ -1,5 +1,17 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Base URL for the backend API. Empty on the web build (same-origin relative
+// paths), set to https://menusemanal.app for the Capacitor/Android build via
+// VITE_API_BASE_URL at build time. Resolved at fetch time only — query keys
+// stay relative so cache invalidation keeps matching.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+export function resolveApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path; // already absolute
+  if (!API_BASE_URL) return path; // web: keep relative
+  return `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -12,7 +24,7 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const res = await fetch(resolveApiUrl(url), {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -32,7 +44,7 @@ export async function jsonApiRequest<T = any>(
     headers?: Record<string, string>;
   }
 ): Promise<T> {
-  const res = await fetch(url, {
+  const res = await fetch(resolveApiUrl(url), {
     method: options?.method || "GET",
     headers: {
       "Content-Type": "application/json",
@@ -52,7 +64,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    const res = await fetch(resolveApiUrl(queryKey[0] as string), {
       credentials: "include",
     });
 

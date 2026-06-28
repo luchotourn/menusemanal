@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Send, Sparkles, ArrowLeftRight, ChevronLeft, Search } from "lucide-react";
 import type { Recipe } from "@shared/schema";
 import { isPastMealDate } from "@shared/utils";
+import { resolveApiUrl } from "@/lib/queryClient";
 
 interface MealCommentSheetProps {
   mealPlanId: number;
@@ -113,7 +114,7 @@ function ProposeRecipeView({
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append("search", searchQuery);
-      const response = await fetch(`/api/recipes?${params}`);
+      const response = await fetch(resolveApiUrl(`/api/recipes?${params}`), { credentials: "include" });
       if (!response.ok) throw new Error("Error al cargar las recetas");
       return response.json() as Promise<Recipe[]>;
     },

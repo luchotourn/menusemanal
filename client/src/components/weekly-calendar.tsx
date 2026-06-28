@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Calendar, MessageCircle, Send, CheckCircle2, ArrowLeftRight, ThumbsUp, AlertTriangle, Clock } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
+import { resolveApiUrl } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,7 +74,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
     queryKey: ["/api/meal-plans", { startDate: formatDate(currentWeekStart) }],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate: formatDate(currentWeekStart) });
-      const response = await fetch(`/api/meal-plans?${params}`);
+      const response = await fetch(resolveApiUrl(`/api/meal-plans?${params}`), { credentials: "include" });
       if (!response.ok) throw new Error("Error al cargar el plan de comidas");
       return response.json() as Promise<MealPlanWithCommentsAndRecipe[]>;
     },

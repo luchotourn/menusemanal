@@ -7,3 +7,19 @@ vite.config.ts.*
 .env
 .env.*
 .claude/
+
+# Local design/mockup prototypes
+meal-card-*.html
+
+# Capacitor / Android native build artifacts & secrets
+android/app/google-services.json
+android/app/release/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/capacitor-cordova-android-plugins/
+*.keystore
+*.jks
+key.properties

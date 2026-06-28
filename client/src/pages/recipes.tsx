@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, resolveApiUrl } from "@/lib/queryClient";
 import type { Recipe } from "@shared/schema";
 
 const categories = [
@@ -57,7 +57,7 @@ export default function Recipes() {
       }
       if (searchQuery) params.append("search", searchQuery);
       
-      const response = await fetch(`/api/recipes?${params}`);
+      const response = await fetch(resolveApiUrl(`/api/recipes?${params}`), { credentials: "include" });
       if (!response.ok) throw new Error("Error al cargar las recetas");
       return response.json() as Promise<Recipe[]>;
     },
