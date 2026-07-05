@@ -46,6 +46,7 @@ export interface RatingRow {
 
 export interface HistoryRow {
   fecha: string; // YYYY-MM-DD
+  tipoComida: string; // "almuerzo" | "cena"
   recetaId: number | null;
 }
 
@@ -81,6 +82,8 @@ export interface RecipeLibraryEntry {
   tiempoPreparacion: number | null;
   avgUserRating: number | null;
   timesServedLast8Weeks: number;
+  almuerzosLast8Weeks: number;
+  cenasLast8Weeks: number;
   lastServedFecha: string | null;
   commentSnippets: string[];
   proposedCount: number;
@@ -93,21 +96,29 @@ export interface RecipeLibraryEntry {
 // Pure context builders
 // ─────────────────────────────────────────────
 
-/** Aggregates serve counts and last-served date per recipe from meal-plan history rows.
- *  YYYY-MM-DD strings compare lexicographically, so no Date parsing is needed. */
-export function computeRecipeServeStats(
-  history: HistoryRow[],
-): Map<number, { timesServed: number; lastServedFecha: string }> {
-  const stats = new Map<number, { timesServed: number; lastServedFecha: string }>();
+export interface RecipeServeStats {
+  timesServed: number;
+  almuerzos: number;
+  cenas: number;
+  lastServedFecha: string;
+}
+
+/** Aggregates serve counts (total and per meal type) and last-served date per
+ *  recipe from meal-plan history rows. YYYY-MM-DD strings compare
+ *  lexicographically, so no Date parsing is needed. */
+export function computeRecipeServeStats(history: HistoryRow[]): Map<number, RecipeServeStats> {
+  const stats = new Map<number, RecipeServeStats>();
   for (const row of history) {
     if (row.recetaId == null) continue;
-    const current = stats.get(row.recetaId);
-    if (current) {
-      current.timesServed += 1;
-      if (row.fecha > current.lastServedFecha) current.lastServedFecha = row.fecha;
-    } else {
-      stats.set(row.recetaId, { timesServed: 1, lastServedFecha: row.fecha });
+    let current = stats.get(row.recetaId);
+    if (!current) {
+      current = { timesServed: 0, almuerzos: 0, cenas: 0, lastServedFecha: row.fecha };
+      stats.set(row.recetaId, current);
     }
+    current.timesServed += 1;
+    if (row.tipoComida === 'almuerzo') current.almuerzos += 1;
+    if (row.tipoComida === 'cena') current.cenas += 1;
+    if (row.fecha > current.lastServedFecha) current.lastServedFecha = row.fecha;
   }
   return stats;
 }
@@ -174,6 +185,8 @@ export function buildRecipeLibraryEntries(input: {
       tiempoPreparacion: recipe.tiempoPreparacion,
       avgUserRating: rating ? Math.round((rating.total / rating.count) * 10) / 10 : null,
       timesServedLast8Weeks: stats?.timesServed ?? 0,
+      almuerzosLast8Weeks: stats?.almuerzos ?? 0,
+      cenasLast8Weeks: stats?.cenas ?? 0,
       lastServedFecha: stats?.lastServedFecha ?? null,
       commentSnippets: (commentsByRecipe.get(recipe.id) ?? []).slice(-MAX_COMMENT_SNIPPETS),
       proposedCount: proposalAgg?.proposed ?? 0,
@@ -200,6 +213,9 @@ export function buildRecipeLine(entry: RecipeLibraryEntry): string {
       ? `servida ${entry.timesServedLast8Weeks}x en 8 semanas (última: ${entry.lastServedFecha})`
       : 'no servida en 8 semanas',
   );
+  if (entry.timesServedLast8Weeks > 0) {
+    parts.push(`almuerzos 8sem: ${entry.almuerzosLast8Weeks}`, `cenas 8sem: ${entry.cenasLast8Weeks}`);
+  }
   if (entry.commentSnippets.length > 0) {
     parts.push(`comentarios: ${entry.commentSnippets.map((snippet) => `"${snippet}"`).join(' / ')}`);
   }
@@ -281,7 +297,7 @@ export function buildWeeklyPlanUserMessage(input: WeeklyPlanPromptInput): string
   }
 
   sections.push(
-    `CASILLEROS A COMPLETAR (${input.slots.length}) — completá EXACTAMENTE estos, ni más ni menos:\n${buildSlotsSection(input.slots)}`,
+    `CASILLEROS A RESOLVER (${input.slots.length}) — respondé por EXACTAMENTE estos, cada uno en "items" o en "slotsSinComida", ni más ni menos:\n${buildSlotsSection(input.slots)}`,
   );
 
   sections.push(
@@ -305,10 +321,13 @@ Tu trabajo es armar el menú de la semana eligiendo recetas de la biblioteca de 
 
 REGLAS:
 - Respondé siempre en español rioplatense (vos, usá, elegí).
-- Completá EXACTAMENTE los casilleros pedidos: ni más, ni menos, ni otros días u horarios.
+- Respondé por EXACTAMENTE los casilleros pedidos: ni más, ni menos, ni otros días u horarios. Cada casillero va en "items" (con receta) o en "slotsSinComida" (vacío a propósito) — nunca en los dos, nunca en ninguno.
+- El perfil de la familia y las instrucciones de esta semana son OBLIGATORIOS: si piden no planificar ciertos días o comidas, NO los llenes — listá esos casilleros en "slotsSinComida" con un "motivo" corto. Nunca dejes vacío un casillero que el perfil o las instrucciones no justifiquen.
 - Usá SOLO valores de recetaId que aparezcan en la biblioteca provista. NUNCA inventes ids.
 - No repitas una receta en la misma semana. Única excepción: si la biblioteca tiene menos recetas que casilleros; en ese caso repetí lo mínimo posible y aclaralo en el resumen.
 - Evitá recetas servidas en las últimas 2 semanas, salvo que sean favoritas con calificación muy alta.
+- Respetá el tipo de comida histórico de cada plato (contadores "almuerzos 8sem" / "cenas 8sem"): un plato que solo se sirvió de cena no pasa a almuerzo (ni al revés) sin una buena razón. Si el perfil o las instrucciones lo exigen, tratalo como regla estricta.
+- Las recetas de categoría "Acompañamiento" NUNCA van solas como comida: solo pueden aparecer en "acompanamientoId", acompañando a un plato principal compatible. Sumá acompañamientos cuando combinen bien y siempre que el planificador lo pida.
 - Dale mucho peso a la calificación de los niños y a las calificaciones de la familia, pero incluí 1 o 2 elecciones más audaces para variar.
 - Equilibrá las categorías a lo largo de la semana: que no se repita el mismo tipo de plato todos los días.
 - Preferí cenas más livianas que los almuerzos.
@@ -320,16 +339,17 @@ REGLAS:
 FORMATO DE RESPUESTA:
 Una oración breve de contexto y después EXACTAMENTE un bloque JSON entre \`\`\`json y \`\`\`:
 \`\`\`json
-{"resumen": "...", "items": [{"fecha": "YYYY-MM-DD", "tipoComida": "almuerzo", "recetaId": 12, "razon": "..."}]}
-\`\`\``;
+{"resumen": "...", "items": [{"fecha": "YYYY-MM-DD", "tipoComida": "almuerzo", "recetaId": 12, "acompanamientoId": 7, "razon": "..."}], "slotsSinComida": [{"fecha": "YYYY-MM-DD", "tipoComida": "cena", "motivo": "..."}]}
+\`\`\`
+"acompanamientoId" es opcional (solo recetas de categoría "Acompañamiento"); "slotsSinComida" va vacío si planificaste todos los casilleros.`;
 
 /** Corrective follow-up when the first response missed slots or used invalid ids. */
 export function buildRetryMessage(missingSlots: WeekSlot[]): string {
-  return `Tu respuesta anterior no sirvió tal cual: dejó casilleros sin cubrir o usó recetaId que no están en la biblioteca, o repitió recetas.
-Casilleros que quedaron sin cubrir:
+  return `Tu respuesta anterior no sirvió tal cual: dejó casilleros sin resolver, usó recetaId que no están en la biblioteca, usó un "Acompañamiento" como plato principal o repitió recetas.
+Casilleros que quedaron sin resolver:
 ${buildSlotsSection(missingSlots)}
 
-Devolvé el plan COMPLETO de nuevo (todos los casilleros pedidos originalmente), usando SOLO recetaId de la biblioteca y sin repetir recetas. Un solo bloque \`\`\`json.`;
+Devolvé el plan COMPLETO de nuevo (todos los casilleros pedidos originalmente): cada casillero con una receta en "items" o, SOLO si el perfil o las instrucciones lo justifican, en "slotsSinComida" con su motivo. Usá SOLO recetaId de la biblioteca y no repitas recetas. Un solo bloque \`\`\`json.`;
 }
 
 // ─────────────────────────────────────────────
@@ -348,12 +368,33 @@ const weeklyPlanOutputSchema = z.object({
       fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       tipoComida: z.enum(['almuerzo', 'cena']),
       recetaId: z.coerce.number().int().positive(),
+      acompanamientoId: z.coerce
+        .number()
+        .int()
+        .positive()
+        .nullish()
+        .transform((value) => value ?? undefined),
       razon: z
         .string()
         .nullish()
         .transform((value) => value ?? undefined),
     }),
   ),
+  // Slots the model deliberately leaves empty (the planner's instructions said
+  // not to plan them). Absent/null tolerated for older-style responses.
+  slotsSinComida: z
+    .array(
+      z.object({
+        fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        tipoComida: z.enum(['almuerzo', 'cena']),
+        motivo: z
+          .string()
+          .nullish()
+          .transform((value) => value ?? ''),
+      }),
+    )
+    .nullish()
+    .transform((value) => value ?? []),
 });
 
 export type WeeklyPlanModelOutput = z.infer<typeof weeklyPlanOutputSchema>;
@@ -376,25 +417,43 @@ export function parseWeeklyPlanResponse(response: string): WeeklyPlanModelOutput
   return null;
 }
 
+/** The library category whose recipes can only be served as side dishes. */
+export const ACOMPANAMIENTO_CATEGORY = 'Acompañamiento';
+
+/** A slot the model deliberately left empty, with its (validated) reason. */
+export interface SkippedSlot {
+  fecha: string;
+  tipoComida: 'almuerzo' | 'cena';
+  motivo: string;
+}
+
 export interface ValidatedPlan {
   items: WeeklyPlanDraftItem[];
+  skippedSlots: SkippedSlot[];
   missingSlots: WeekSlot[];
 }
 
 /**
- * Post-validates model items against the requested slots and the family library:
- * - drops items for slots that weren't requested (extras) and duplicate slot fills;
- * - drops items whose recetaId is not in the library (invented ids);
- * - dedupes recipes within the week when the library is large enough to allow it;
- * - truncates razon to the draft item limit.
- * Returns the accepted items in canonical slot order plus the slots left unfilled.
+ * Post-validates model items and explicit skips against the requested slots
+ * and the family library (id -> categoria):
+ * - drops items/skips for slots that weren't requested (extras) and duplicate fills;
+ * - drops items whose recetaId is not in the library (invented ids) or whose
+ *   main is an "Acompañamiento" (a side is never a standalone meal);
+ * - drops a side (acompanamientoId) that is missing from the library, is not
+ *   an "Acompañamiento", or repeats a recipe — the main survives alone;
+ * - dedupes recipes (mains AND sides) within the week when the library is
+ *   large enough to allow it;
+ * - truncates razon/motivo to the draft item limit.
+ * A requested slot is satisfied when it is filled OR explicitly skipped (a
+ * fill always wins over a skip); everything else comes back in missingSlots.
  */
 export function validatePlanItems(
   items: WeeklyPlanModelOutput['items'],
+  skips: SkippedSlot[],
   requestedSlots: WeekSlot[],
-  libraryIds: Set<number>,
+  libraryCategories: Map<number, string>,
 ): ValidatedPlan {
-  const allowDuplicates = libraryIds.size < requestedSlots.length;
+  const allowDuplicates = libraryCategories.size < requestedSlots.length;
   const requestedKeys = new Set(requestedSlots.map((slot) => slotKey(slot.fecha, slot.tipoComida)));
   const acceptedBySlot = new Map<string, WeeklyPlanDraftItem>();
   const usedRecipeIds = new Set<number>();
@@ -403,27 +462,150 @@ export function validatePlanItems(
     const key = slotKey(item.fecha, item.tipoComida);
     if (!requestedKeys.has(key)) continue; // extra slot — drop
     if (acceptedBySlot.has(key)) continue; // duplicate fill for the same slot — drop
-    if (!libraryIds.has(item.recetaId)) continue; // invented recipe id — drop
+    const mainCategoria = libraryCategories.get(item.recetaId);
+    if (mainCategoria === undefined) continue; // invented recipe id — drop
+    if (mainCategoria === ACOMPANAMIENTO_CATEGORY) continue; // a side is never the meal — drop
     if (!allowDuplicates && usedRecipeIds.has(item.recetaId)) continue; // repeated recipe — drop
+
+    // The side is optional: an invalid or repeated side is dropped silently
+    // and the main still fills the slot.
+    let acompanamientoId: number | undefined;
+    if (item.acompanamientoId != null) {
+      const sideOk =
+        libraryCategories.get(item.acompanamientoId) === ACOMPANAMIENTO_CATEGORY &&
+        (allowDuplicates || !usedRecipeIds.has(item.acompanamientoId));
+      if (sideOk) acompanamientoId = item.acompanamientoId;
+    }
 
     acceptedBySlot.set(key, {
       fecha: item.fecha,
       tipoComida: item.tipoComida,
       recetaId: item.recetaId,
+      ...(acompanamientoId !== undefined ? { acompanamientoId } : {}),
       ...(item.razon?.trim() ? { razon: truncateRazon(item.razon) } : {}),
     });
     usedRecipeIds.add(item.recetaId);
+    if (acompanamientoId !== undefined) usedRecipeIds.add(acompanamientoId);
+  }
+
+  // Explicit skips satisfy whatever the items didn't fill (first skip wins).
+  const skippedBySlot = new Map<string, SkippedSlot>();
+  for (const skip of skips) {
+    const key = slotKey(skip.fecha, skip.tipoComida);
+    if (!requestedKeys.has(key)) continue; // extra slot — drop
+    if (acceptedBySlot.has(key)) continue; // filled — the fill wins
+    if (skippedBySlot.has(key)) continue; // duplicate skip — drop
+    skippedBySlot.set(key, {
+      fecha: skip.fecha,
+      tipoComida: skip.tipoComida,
+      motivo: truncateRazon(skip.motivo),
+    });
   }
 
   const orderedItems: WeeklyPlanDraftItem[] = [];
+  const skippedSlots: SkippedSlot[] = [];
   const missingSlots: WeekSlot[] = [];
   for (const slot of requestedSlots) {
-    const accepted = acceptedBySlot.get(slotKey(slot.fecha, slot.tipoComida));
-    if (accepted) orderedItems.push(accepted);
+    const key = slotKey(slot.fecha, slot.tipoComida);
+    const accepted = acceptedBySlot.get(key);
+    if (accepted) {
+      orderedItems.push(accepted);
+      continue;
+    }
+    const skipped = skippedBySlot.get(key);
+    if (skipped) skippedSlots.push(skipped);
     else missingSlots.push(slot);
   }
 
-  return { items: orderedItems, missingSlots };
+  return { items: orderedItems, skippedSlots, missingSlots };
+}
+
+/**
+ * Shared validator for human-edited draft items (the PUT items route): every
+ * main must reference a family recipe that is NOT an "Acompañamiento", and
+ * every acompanamientoId must reference a family recipe that IS one.
+ * Returns a Spanish 400 message naming the slot, or null when valid.
+ */
+export function validateDraftItemsAgainstLibrary(
+  items: Pick<WeeklyPlanDraftItem, 'fecha' | 'tipoComida' | 'recetaId' | 'acompanamientoId'>[],
+  libraryCategories: Map<number, string>,
+): string | null {
+  for (const item of items) {
+    const mainCategoria = libraryCategories.get(item.recetaId);
+    if (mainCategoria === undefined) {
+      return `La receta del ${item.tipoComida} del ${item.fecha} ya no está en tu biblioteca. Reemplazala o quitala del plan.`;
+    }
+    if (mainCategoria === ACOMPANAMIENTO_CATEGORY) {
+      return `La receta del ${item.tipoComida} del ${item.fecha} es un acompañamiento y no puede ir sola. Elegí un plato principal para ese casillero.`;
+    }
+    if (item.acompanamientoId != null) {
+      const sideCategoria = libraryCategories.get(item.acompanamientoId);
+      if (sideCategoria === undefined) {
+        return `El acompañamiento del ${item.tipoComida} del ${item.fecha} ya no está en tu biblioteca. Reemplazá esa comida o quitala del plan.`;
+      }
+      if (sideCategoria !== ACOMPANAMIENTO_CATEGORY) {
+        return `El acompañamiento del ${item.tipoComida} del ${item.fecha} no es una receta de la categoría Acompañamiento.`;
+      }
+    }
+  }
+  return null;
+}
+
+const SHORT_DAY_NAMES: Record<string, string> = {
+  lunes: 'lun',
+  martes: 'mar',
+  miércoles: 'mié',
+  jueves: 'jue',
+  viernes: 'vie',
+  sábado: 'sáb',
+  domingo: 'dom',
+};
+
+function joinSpanish(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}`;
+}
+
+/**
+ * Builds the Spanish resumen line describing deliberately skipped slots, e.g.
+ * "Dejé libre: sáb y dom (almuerzo y cena) — fin de semana sin plan, como pediste."
+ * Pure: the generate route appends it to the stored summary so the client
+ * never parses skip data. Returns null when nothing was skipped.
+ * Expects slots in canonical week order (as validatePlanItems returns them).
+ */
+export function buildSkippedSlotsResumenLine(skippedSlots: SkippedSlot[]): string | null {
+  if (skippedSlots.length === 0) return null;
+
+  // Meals skipped per day, in first-seen (canonical) order.
+  const mealsByFecha = new Map<string, Set<'almuerzo' | 'cena'>>();
+  for (const slot of skippedSlots) {
+    const meals = mealsByFecha.get(slot.fecha) ?? new Set<'almuerzo' | 'cena'>();
+    meals.add(slot.tipoComida);
+    mealsByFecha.set(slot.fecha, meals);
+  }
+
+  // Adjacent days sharing the same meal pattern collapse into one group:
+  // "sáb y dom (almuerzo y cena)".
+  const groups: { days: string[]; meals: string }[] = [];
+  for (const [fecha, meals] of Array.from(mealsByFecha.entries())) {
+    const mealsLabel = meals.size === 2 ? 'almuerzo y cena' : meals.has('almuerzo') ? 'almuerzo' : 'cena';
+    const dayName = SHORT_DAY_NAMES[dayNameFor(fecha)] ?? fecha;
+    const last = groups[groups.length - 1];
+    if (last && last.meals === mealsLabel) last.days.push(dayName);
+    else groups.push({ days: [dayName], meals: mealsLabel });
+  }
+  const daysPart = groups
+    .map((group) => `${joinSpanish(group.days)} (${group.meals})`)
+    .join('; ');
+
+  const motivos: string[] = [];
+  for (const slot of skippedSlots) {
+    const motivo = slot.motivo.trim().replace(/\.+$/, '');
+    if (motivo && !motivos.includes(motivo)) motivos.push(motivo);
+  }
+
+  const motivoPart = motivos.length > 0 ? ` — ${motivos.join('; ')}` : '';
+  return `Dejé libre: ${daysPart}${motivoPart}.`;
 }
 
 function truncateRazon(razon: string): string {
@@ -435,16 +617,37 @@ function truncateRazon(razon: string): string {
 // Apply-time merge semantics (pure — the route runs these inside its transaction)
 // ─────────────────────────────────────────────
 
+/** One meal_plans row to insert. A paired draft item expands into two rows. */
+export interface ApplyPlanRow {
+  fecha: string;
+  tipoComida: 'almuerzo' | 'cena';
+  recetaId: number;
+}
+
 export interface ApplyPlanResult {
-  toInsert: WeeklyPlanDraftItem[];
+  toInsert: ApplyPlanRow[];
   skipped: number;
   clearWeekFirst: boolean;
 }
 
+/** Expands a draft item into its meal_plans rows: main first, then the side.
+ *  (meal_plans has no slot uniqueness — two rows per slot is the established
+ *  pattern the calendar already renders.) */
+function itemToRows(item: WeeklyPlanDraftItem): ApplyPlanRow[] {
+  const rows: ApplyPlanRow[] = [
+    { fecha: item.fecha, tipoComida: item.tipoComida, recetaId: item.recetaId },
+  ];
+  if (item.acompanamientoId != null) {
+    rows.push({ fecha: item.fecha, tipoComida: item.tipoComida, recetaId: item.acompanamientoId });
+  }
+  return rows;
+}
+
 /**
- * Decides what applying a draft writes:
- * - replaceWeek: clear the family's week first and insert every draft item;
- * - fill-empty: insert only items whose slot is still free, count the rest as skipped.
+ * Decides what applying a draft writes (counts are meal_plans ROWS):
+ * - replaceWeek: clear the family's week first and insert every draft row;
+ * - fill-empty: insert only rows whose slot is still free; when a paired
+ *   item's slot is occupied BOTH its rows are skipped together.
  */
 export function planApplyOperations(
   items: WeeklyPlanDraftItem[],
@@ -452,11 +655,17 @@ export function planApplyOperations(
   replaceWeek: boolean,
 ): ApplyPlanResult {
   if (replaceWeek) {
-    return { toInsert: items, skipped: 0, clearWeekFirst: true };
+    return { toInsert: items.flatMap(itemToRows), skipped: 0, clearWeekFirst: true };
   }
   const occupiedKeys = new Set(occupied.map((slot) => slotKey(slot.fecha, slot.tipoComida)));
-  const toInsert = items.filter((item) => !occupiedKeys.has(slotKey(item.fecha, item.tipoComida)));
-  return { toInsert, skipped: items.length - toInsert.length, clearWeekFirst: false };
+  const toInsert: ApplyPlanRow[] = [];
+  let skipped = 0;
+  for (const item of items) {
+    const rows = itemToRows(item);
+    if (occupiedKeys.has(slotKey(item.fecha, item.tipoComida))) skipped += rows.length;
+    else toInsert.push(...rows);
+  }
+  return { toInsert, skipped, clearWeekFirst: false };
 }
 
 // ─────────────────────────────────────────────
@@ -466,6 +675,7 @@ export function planApplyOperations(
 export interface GeneratedWeeklyPlan {
   resumen: string;
   items: WeeklyPlanDraftItem[];
+  skippedSlots: SkippedSlot[];
   model: string;
 }
 
@@ -485,9 +695,11 @@ async function callModel(client: Anthropic, messages: Anthropic.MessageParam[]):
 }
 
 /**
- * Asks Claude to fill the requested slots with recipes from the family library.
- * Retries ONCE with a corrective follow-up when the first answer leaves slots
- * unfilled (or unusable); still-incomplete output throws GENERATION_INCOMPLETE.
+ * Asks Claude to resolve the requested slots with recipes from the family
+ * library — filling them or, when the planner's instructions demand it,
+ * explicitly skipping them via slotsSinComida. Retries ONCE with a corrective
+ * follow-up when the first answer leaves slots unresolved (neither filled nor
+ * skipped); still-unresolved output throws GENERATION_INCOMPLETE.
  */
 export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<GeneratedWeeklyPlan> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -496,7 +708,7 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
   }
 
   const client = new Anthropic({ apiKey });
-  const libraryIds = new Set(input.library.map((entry) => entry.id));
+  const libraryCategories = new Map(input.library.map((entry) => [entry.id, entry.categoria]));
   const messages: Anthropic.MessageParam[] = [
     { role: 'user', content: buildWeeklyPlanUserMessage(input) },
   ];
@@ -504,9 +716,9 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
   const firstResponse = await callModel(client, messages);
   let parsed = parseWeeklyPlanResponse(firstResponse);
   let resumen = parsed?.resumen?.trim() ?? '';
-  let validated = parsed
-    ? validatePlanItems(parsed.items, input.slots, libraryIds)
-    : { items: [], missingSlots: [...input.slots] };
+  let validated: ValidatedPlan = parsed
+    ? validatePlanItems(parsed.items, parsed.slotsSinComida, input.slots, libraryCategories)
+    : { items: [], skippedSlots: [], missingSlots: [...input.slots] };
 
   if (validated.missingSlots.length > 0) {
     // The Messages API rejects empty message content (e.g. a refusal returns
@@ -523,11 +735,17 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
     if (parsed) {
       if (parsed.resumen.trim()) resumen = parsed.resumen.trim();
       // Validate the UNION of both passes: the retry wins per slot and the
-      // items accepted in pass 1 backfill anything it left out, so a retry
-      // that (correctly) fills only the missing slots no longer discards the
-      // valid pass-1 picks. Library membership and the no-duplicate-recipes
-      // rule still apply across the whole union.
-      validated = validatePlanItems([...parsed.items, ...validated.items], input.slots, libraryIds);
+      // items (and explicit skips) accepted in pass 1 backfill anything it
+      // left out, so a retry that (correctly) resolves only the missing slots
+      // no longer discards the valid pass-1 picks. Library membership,
+      // category rules and the no-duplicate-recipes rule still apply across
+      // the whole union, and a fill always beats a skip for the same slot.
+      validated = validatePlanItems(
+        [...parsed.items, ...validated.items],
+        [...parsed.slotsSinComida, ...validated.skippedSlots],
+        input.slots,
+        libraryCategories,
+      );
     }
 
     if (validated.missingSlots.length > 0) {
@@ -535,7 +753,12 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
     }
   }
 
-  return { resumen, items: validated.items, model: WEEKLY_PLAN_MODEL };
+  return {
+    resumen,
+    items: validated.items,
+    skippedSlots: validated.skippedSlots,
+    model: WEEKLY_PLAN_MODEL,
+  };
 }
 
 /**

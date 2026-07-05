@@ -81,6 +81,27 @@ describe("weeklyPlanDraftItemSchema", () => {
     expect(() => weeklyPlanDraftItemSchema.parse({ ...validItem, recetaId: "5" })).toThrow();
   });
 
+  it("accepts an item without acompanamientoId (optional)", () => {
+    const result = weeklyPlanDraftItemSchema.parse(validItem);
+    expect(result.acompanamientoId).toBeUndefined();
+  });
+
+  it("accepts a valid acompanamientoId (paired side dish)", () => {
+    const result = weeklyPlanDraftItemSchema.parse({ ...validItem, acompanamientoId: 42 });
+    expect(result.acompanamientoId).toBe(42);
+  });
+
+  it("rejects non-positive, non-integer, non-numeric or null acompanamientoId", () => {
+    for (const acompanamientoId of [0, -3, 1.5, "42", null]) {
+      const result = weeklyPlanDraftItemSchema.safeParse({ ...validItem, acompanamientoId });
+      expect(result.success).toBe(false);
+    }
+    const withMessage = weeklyPlanDraftItemSchema.safeParse({ ...validItem, acompanamientoId: 0 });
+    if (!withMessage.success) {
+      expect(withMessage.error.issues[0].message).toBe("El ID del acompañamiento no es válido");
+    }
+  });
+
   it("accepts razon at exactly 300 chars (boundary)", () => {
     const result = weeklyPlanDraftItemSchema.parse({
       ...validItem,
@@ -256,6 +277,18 @@ describe("updateWeeklyPlanDraftItemsSchema", () => {
     expect(updateWeeklyPlanDraftItemsSchema.safeParse({ items }).success).toBe(false);
   });
 
+  it("round-trips paired items (acompanamientoId) through manual edits", () => {
+    const result = updateWeeklyPlanDraftItemsSchema.parse({
+      items: [{ ...validItem, acompanamientoId: 7 }],
+    });
+    expect(result.items[0].acompanamientoId).toBe(7);
+    expect(
+      updateWeeklyPlanDraftItemsSchema.safeParse({
+        items: [{ ...validItem, acompanamientoId: -1 }],
+      }).success
+    ).toBe(false);
+  });
+
   it("rejects when items is missing entirely", () => {
     expect(updateWeeklyPlanDraftItemsSchema.safeParse({}).success).toBe(false);
   });
@@ -348,10 +381,19 @@ describe("insertWeeklyPlanDraftSchema", () => {
     }
   });
 
-  it("rejects an empty items array and more than 14 items", () => {
-    expect(insertWeeklyPlanDraftSchema.safeParse({ ...baseDraft, items: [] }).success).toBe(false);
+  it("accepts an empty items array (a generation may skip every slot) but rejects more than 14", () => {
+    const allSkipped = insertWeeklyPlanDraftSchema.parse({ ...baseDraft, items: [] });
+    expect(allSkipped.items).toEqual([]);
     const tooMany = Array.from({ length: 15 }, () => validItem);
     expect(insertWeeklyPlanDraftSchema.safeParse({ ...baseDraft, items: tooMany }).success).toBe(false);
+  });
+
+  it("accepts paired items with acompanamientoId", () => {
+    const result = insertWeeklyPlanDraftSchema.parse({
+      ...baseDraft,
+      items: [{ ...validItem, acompanamientoId: 9 }],
+    });
+    expect(result.items[0].acompanamientoId).toBe(9);
   });
 
   it("rejects when required ownership fields are missing", () => {

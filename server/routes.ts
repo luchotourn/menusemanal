@@ -17,7 +17,22 @@ import { sendSignupNotification, sendWeekReviewNotification, sendReviewSignoffNo
 // Enriched weekly-plan-draft response shape shared by every draft endpoint:
 // the raw draft row plus, per item, the recipe card data the client renders.
 // `replaceWeek` is exposed as a real boolean (stored as 0/1); recipes deleted
-// after generation come back as `recipe: null` so the client can flag them.
+// after generation come back as `recipe: null` (or `acompanamientoRecipe:
+// null` for a deleted side) so the client can flag them.
+function toDraftRecipeSummary(recipe: Recipe | undefined) {
+  return recipe
+    ? {
+        id: recipe.id,
+        nombre: recipe.nombre,
+        categoria: recipe.categoria,
+        calificacionNinos: recipe.calificacionNinos,
+        esFavorita: recipe.esFavorita,
+        tiempoPreparacion: recipe.tiempoPreparacion,
+        imagen: recipe.imagen,
+      }
+    : null;
+}
+
 function buildEnrichedWeeklyPlanDraft(draft: WeeklyPlanDraft, recipesById: Map<number, Recipe>) {
   return {
     id: draft.id,
@@ -28,26 +43,18 @@ function buildEnrichedWeeklyPlanDraft(draft: WeeklyPlanDraft, recipesById: Map<n
     summary: draft.summary,
     model: draft.model,
     createdAt: draft.createdAt,
-    items: draft.items.map((item) => {
-      const recipe = recipesById.get(item.recetaId);
-      return {
-        fecha: item.fecha,
-        tipoComida: item.tipoComida,
-        recetaId: item.recetaId,
-        razon: item.razon,
-        recipe: recipe
-          ? {
-              id: recipe.id,
-              nombre: recipe.nombre,
-              categoria: recipe.categoria,
-              calificacionNinos: recipe.calificacionNinos,
-              esFavorita: recipe.esFavorita,
-              tiempoPreparacion: recipe.tiempoPreparacion,
-              imagen: recipe.imagen,
-            }
+    items: draft.items.map((item) => ({
+      fecha: item.fecha,
+      tipoComida: item.tipoComida,
+      recetaId: item.recetaId,
+      razon: item.razon,
+      acompanamientoId: item.acompanamientoId ?? null,
+      recipe: toDraftRecipeSummary(recipesById.get(item.recetaId)),
+      acompanamientoRecipe:
+        item.acompanamientoId != null
+          ? toDraftRecipeSummary(recipesById.get(item.acompanamientoId))
           : null,
-      };
-    }),
+    })),
   };
 }
 
@@ -831,8 +838,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Intelligent weekly plan generator routes (AI drafts the week, the human
   // reviews/edits the draft and applying it writes real meal_plans rows)
-  const { generateWeeklyPlan, buildRecipeLibraryEntries, planApplyOperations, mapAnthropicApiError } =
-    await import('./services/weekly-plan-generator');
+  const {
+    generateWeeklyPlan,
+    buildRecipeLibraryEntries,
+    planApplyOperations,
+    mapAnthropicApiError,
+    validateDraftItemsAgainstLibrary,
+    buildSkippedSlotsResumenLine,
+  } = await import('./services/weekly-plan-generator');
 
   app.post("/api/weekly-plan/generate", weeklyPlanGenerateRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
@@ -887,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tiempoPreparacion: recipe.tiempoPreparacion,
         })),
         ratings: ratings.map((rating) => ({ recipeId: rating.recipeId, rating: rating.rating })),
-        history: history.map((plan) => ({ fecha: plan.fecha, recetaId: plan.recetaId })),
+        history: history.map((plan) => ({ fecha: plan.fecha, tipoComida: plan.tipoComida, recetaId: plan.recetaId })),
         comments: comments.map((comment) => ({ recipeId: comment.recipeId, comment: comment.comment })),
         proposals: proposals.map((proposal) => ({
           proposedRecipeId: proposal.proposedRecipeId,
@@ -910,13 +923,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         instructions: instructions ?? null,
       });
 
+      // Surface deliberately skipped slots to the reviewer: the skip line is
+      // appended to the stored summary so the client renders it as plain text.
+      const skippedLine = buildSkippedSlotsResumenLine(generated.skippedSlots);
+      const summary = [generated.resumen, skippedLine]
+        .filter((part): part is string => !!part)
+        .join(' ');
+
       const draft = await storage.upsertWeeklyPlanDraft({
         familyId: family.id,
         weekStartDate,
         status: "pending",
         replaceWeek: replaceWeek ? 1 : 0,
         instructions,
-        summary: generated.resumen || null,
+        summary: summary || null,
         items: generated.items,
         model: generated.model,
         createdBy: user.id,
@@ -1007,16 +1027,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: weekError });
       }
 
-      // Revalidate every recetaId against the family library — the client is
-      // never trusted to reference recipes outside the family. Naming the slot
-      // lets the user find the stale item (e.g. a recipe deleted mid-draft).
+      // Revalidate every recetaId/acompanamientoId against the family library —
+      // the client is never trusted to reference recipes outside the family,
+      // an "Acompañamiento" can never stand alone as the meal, and a side must
+      // actually be one. The Spanish message names the slot so the user can
+      // find the stale item (e.g. a recipe deleted mid-draft).
       const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
-      const libraryIds = new Set(libraryRecipes.map((recipe) => recipe.id));
-      const invalidItem = items.find((item) => !libraryIds.has(item.recetaId));
-      if (invalidItem) {
-        return res.status(400).json({
-          error: `La receta del ${invalidItem.tipoComida} del ${invalidItem.fecha} ya no está en tu biblioteca. Reemplazala o quitala del plan.`,
-        });
+      const libraryCategories = new Map(libraryRecipes.map((recipe) => [recipe.id, recipe.categoria]));
+      const validationError = validateDraftItemsAgainstLibrary(items, libraryCategories);
+      if (validationError) {
+        return res.status(400).json({ error: validationError });
       }
 
       const draft = await storage.updateWeeklyPlanDraftItems(id, familyId, items);
@@ -1066,15 +1086,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // inside the week, one per slot (first wins). Anything else is dropped.
       const draftItems = sanitizeDraftItemsForWeek(weekStartDate, draft.items);
 
-      // Revalidate the draft's recipes: one may have been deleted since
-      // generation (meal_plans has an FK to recipes, so a stale id would make
-      // the insert fail with an opaque 500 instead of this actionable 400).
+      // Revalidate the draft's recipes (mains AND sides): one may have been
+      // deleted since generation (meal_plans has an FK to recipes, so a stale
+      // id would make the insert fail with an opaque 500 instead of this
+      // actionable 400).
       const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
       const libraryIds = new Set(libraryRecipes.map((recipe) => recipe.id));
       const missingRecipeItem = draftItems.find((item) => !libraryIds.has(item.recetaId));
       if (missingRecipeItem) {
         return res.status(400).json({
           error: `La receta del ${missingRecipeItem.tipoComida} del ${missingRecipeItem.fecha} ya no está en tu biblioteca. Reemplazala o quitala antes de aplicar.`,
+        });
+      }
+      const missingSideItem = draftItems.find(
+        (item) => item.acompanamientoId != null && !libraryIds.has(item.acompanamientoId)
+      );
+      if (missingSideItem) {
+        return res.status(400).json({
+          error: `El acompañamiento del ${missingSideItem.tipoComida} del ${missingSideItem.fecha} ya no está en tu biblioteca. Reemplazá esa comida o quitala antes de aplicar.`,
         });
       }
 

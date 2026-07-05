@@ -606,6 +606,8 @@ export const weeklyPlanDraftItemSchema = z.object({
     required_error: "El tipo de comida es requerido",
   }),
   recetaId: z.number().int().positive("El ID de la receta es requerido"),
+  // Optional side dish ("Acompañamiento") served together with the main recipe
+  acompanamientoId: z.number().int().positive("El ID del acompañamiento no es válido").optional(),
   razon: z.string().max(300, "La razón es demasiado larga").optional(),
 });
 
@@ -638,9 +640,11 @@ export const insertWeeklyPlanDraftSchema = createInsertSchema(weeklyPlanDrafts, 
   status: z.enum(["pending", "applied", "discarded"]).default("pending"),
   replaceWeek: z.number().int().min(0).max(1).default(0),
   instructions: z.string().max(2000, "Las instrucciones son demasiado largas").optional(),
+  // No minimum: a generation may leave every requested slot deliberately
+  // empty (slotsSinComida), producing a valid draft with zero items. Manual
+  // edits keep the min-1 rule via updateWeeklyPlanDraftItemsSchema.
   items: z
     .array(weeklyPlanDraftItemSchema)
-    .min(1, "El borrador debe tener al menos una comida")
     .max(14, "El borrador no puede tener más de 14 comidas"),
 }).omit({
   id: true,

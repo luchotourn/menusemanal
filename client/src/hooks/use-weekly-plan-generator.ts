@@ -21,7 +21,11 @@ export interface EnrichedDraftItem {
   tipoComida: "almuerzo" | "cena";
   recetaId: number;
   razon?: string;
+  /** Optional side dish ("Acompañamiento") served together with the main. */
+  acompanamientoId: number | null;
   recipe: DraftRecipeSummary | null;
+  /** null when there is no side or when the side recipe was deleted. */
+  acompanamientoRecipe: DraftRecipeSummary | null;
 }
 
 export interface EnrichedWeeklyPlanDraft {
@@ -133,22 +137,29 @@ export function formatDayHeading(fecha: string, dayIndex: number): string {
   return `${dayName} ${dayNumber}`;
 }
 
-/** Strips the enrichment (recipe join) down to the persistable draft items. */
+/** Strips the enrichment (recipe joins) down to the persistable draft items. */
 export function toDraftItemsPayload(
-  items: Array<{ fecha: string; tipoComida: "almuerzo" | "cena"; recetaId: number; razon?: string }>
+  items: Array<{
+    fecha: string;
+    tipoComida: "almuerzo" | "cena";
+    recetaId: number;
+    razon?: string;
+    acompanamientoId?: number | null;
+  }>
 ): WeeklyPlanDraftItem[] {
-  return items.map(({ fecha, tipoComida, recetaId, razon }) => ({
+  return items.map(({ fecha, tipoComida, recetaId, razon, acompanamientoId }) => ({
     fecha,
     tipoComida,
     recetaId,
+    ...(typeof acompanamientoId === "number" ? { acompanamientoId } : {}),
     ...(razon !== undefined ? { razon } : {}),
   }));
 }
 
 /**
  * Returns the items payload with the (fecha, tipoComida) slot swapped to a
- * different recipe. The AI's `razon` no longer applies to a manual swap, so
- * it is dropped for that item.
+ * different main recipe. The AI's `razon` no longer applies to a manual swap,
+ * so it is dropped for that item; an attached side is kept as-is.
  */
 export function swapDraftItem(
   items: EnrichedDraftItem[],
@@ -159,7 +170,12 @@ export function swapDraftItem(
   return toDraftItemsPayload(
     items.map((item) =>
       item.fecha === fecha && item.tipoComida === tipoComida
-        ? { fecha: item.fecha, tipoComida: item.tipoComida, recetaId }
+        ? {
+            fecha: item.fecha,
+            tipoComida: item.tipoComida,
+            recetaId,
+            acompanamientoId: item.acompanamientoId,
+          }
         : item
     )
   );

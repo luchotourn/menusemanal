@@ -200,9 +200,14 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
     handleApply();
   };
 
-  // A recipe deleted after generation leaves the item without recipe data;
-  // applying it would fail server-side, so the slot must be fixed first.
-  const hasDeletedRecipe = (draft?.items ?? []).some((item) => item.recipe === null);
+  // A recipe deleted after generation leaves the item without recipe data
+  // (same for a deleted side dish); applying it would fail server-side, so
+  // the slot must be fixed first.
+  const hasDeletedRecipe = (draft?.items ?? []).some(
+    (item) =>
+      item.recipe === null ||
+      (item.acompanamientoId != null && item.acompanamientoRecipe === null)
+  );
 
   const recipeGroups = groupRecipesByCategory(recipes ?? []);
 
@@ -239,6 +244,17 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                   ))}
                 </SelectContent>
               </Select>
+              {item.acompanamientoId != null &&
+                (item.acompanamientoRecipe ? (
+                  <p className="text-xs text-gray-600 mt-1 leading-snug">
+                    + {item.acompanamientoRecipe.nombre}{" "}
+                    <span className="text-gray-400">[Acompañamiento]</span>
+                  </p>
+                ) : (
+                  <p className="text-xs font-medium text-red-600 mt-1 leading-snug">
+                    Acompañamiento eliminado — quitá esta comida del plan.
+                  </p>
+                ))}
               {!item.recipe && (
                 <p className="text-xs font-medium text-red-600 mt-1 leading-snug">
                   Receta eliminada — elegí otra para este casillero.

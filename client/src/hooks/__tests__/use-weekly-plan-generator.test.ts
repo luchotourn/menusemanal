@@ -23,6 +23,7 @@ function makeItem(overrides: Partial<EnrichedDraftItem> = {}): EnrichedDraftItem
     tipoComida: "almuerzo",
     recetaId: 1,
     razon: "A los chicos les encanta",
+    acompanamientoId: null,
     recipe: {
       id: 1,
       nombre: "Milanesas con puré",
@@ -32,6 +33,7 @@ function makeItem(overrides: Partial<EnrichedDraftItem> = {}): EnrichedDraftItem
       tiempoPreparacion: 40,
       imagen: null,
     },
+    acompanamientoRecipe: null,
     ...overrides,
   };
 }
@@ -229,11 +231,19 @@ describe("toDraftItemsPayload", () => {
       },
     ]);
     expect(payload[0]).not.toHaveProperty("recipe");
+    expect(payload[0]).not.toHaveProperty("acompanamientoRecipe");
   });
 
   it("omits razon when the item has none", () => {
     const payload = toDraftItemsPayload([makeItem({ razon: undefined })]);
     expect(payload[0]).not.toHaveProperty("razon");
+  });
+
+  it("preserves a numeric acompanamientoId and omits a null one", () => {
+    const paired = toDraftItemsPayload([makeItem({ acompanamientoId: 50 })]);
+    expect(paired[0].acompanamientoId).toBe(50);
+    const unpaired = toDraftItemsPayload([makeItem({ acompanamientoId: null })]);
+    expect(unpaired[0]).not.toHaveProperty("acompanamientoId");
   });
 });
 
@@ -256,6 +266,12 @@ describe("swapDraftItem", () => {
     const payload = swapDraftItem([makeItem()], WEEK_START, "almuerzo", 99);
     expect(payload[0]).not.toHaveProperty("razon");
   });
+
+  it("keeps the attached side when swapping the main", () => {
+    const payload = swapDraftItem([makeItem({ acompanamientoId: 50 })], WEEK_START, "almuerzo", 99);
+    expect(payload[0].recetaId).toBe(99);
+    expect(payload[0].acompanamientoId).toBe(50);
+  });
 });
 
 // ─── removeDraftItem ─────────────────────────────────────────────────────────
@@ -275,6 +291,18 @@ describe("removeDraftItem", () => {
   it("returns the same items when nothing matches", () => {
     const payload = removeDraftItem([makeItem()], "2026-07-07", "cena");
     expect(payload).toHaveLength(1);
+  });
+
+  it("removes a paired item whole (main and side leave together)", () => {
+    const payload = removeDraftItem(
+      [
+        makeItem({ acompanamientoId: 50 }),
+        makeItem({ fecha: WEEK_START, tipoComida: "cena", recetaId: 2 }),
+      ],
+      WEEK_START,
+      "almuerzo"
+    );
+    expect(payload).toEqual([{ fecha: WEEK_START, tipoComida: "cena", recetaId: 2, razon: "A los chicos les encanta" }]);
   });
 });
 

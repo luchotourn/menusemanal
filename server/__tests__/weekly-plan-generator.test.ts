@@ -28,12 +28,15 @@ import {
   buildRetryMessage,
   parseWeeklyPlanResponse,
   validatePlanItems,
+  validateDraftItemsAgainstLibrary,
+  buildSkippedSlotsResumenLine,
   planApplyOperations,
   generateWeeklyPlan,
   mapAnthropicApiError,
   dayNameFor,
   type RecipeLibraryEntry,
   type WeeklyPlanPromptInput,
+  type SkippedSlot,
 } from '../services/weekly-plan-generator';
 import { generateWeeklyPlanRequestSchema } from '@shared/schema';
 import { allWeekSlots, computeEmptySlots, type WeekSlot } from '@shared/weekly-plan';
@@ -51,6 +54,8 @@ function libraryEntry(id: number, overrides: Partial<RecipeLibraryEntry> = {}): 
     tiempoPreparacion: null,
     avgUserRating: null,
     timesServedLast8Weeks: 0,
+    almuerzosLast8Weeks: 0,
+    cenasLast8Weeks: 0,
     lastServedFecha: null,
     commentSnippets: [],
     proposedCount: 0,
@@ -81,8 +86,12 @@ function textResponse(text: string) {
   return { content: [{ type: 'text', text }] };
 }
 
-function planResponse(items: unknown[], resumen = 'Semana variada y liviana.') {
-  return textResponse(`¡Listo!\n\`\`\`json\n${JSON.stringify({ resumen, items })}\n\`\`\``);
+function planResponse(
+  items: unknown[],
+  resumen = 'Semana variada y liviana.',
+  slotsSinComida: unknown[] = [],
+) {
+  return textResponse(`¡Listo!\n\`\`\`json\n${JSON.stringify({ resumen, items, slotsSinComida })}\n\`\`\``);
 }
 
 // ─────────────────────────────────────────────
@@ -147,7 +156,15 @@ describe('validatePlanItems', () => {
     { fecha: MONDAY, tipoComida: 'cena' },
     { fecha: '2026-07-07', tipoComida: 'almuerzo' },
   ];
-  const libraryIds = new Set([1, 2, 3, 4]);
+  // 1-4 are mains, 50-51 are sides ("Acompañamiento")
+  const library = new Map<number, string>([
+    [1, 'Plato Principal'],
+    [2, 'Plato Principal'],
+    [3, 'Pastas'],
+    [4, 'Ensalada'],
+    [50, 'Acompañamiento'],
+    [51, 'Acompañamiento'],
+  ]);
 
   it('accepts a complete valid plan in canonical slot order', () => {
     const result = validatePlanItems(
@@ -156,10 +173,12 @@ describe('validatePlanItems', () => {
         { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, razon: 'Rápida y rica.' },
         { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
       ],
+      [],
       slots,
-      libraryIds
+      library
     );
     expect(result.missingSlots).toEqual([]);
+    expect(result.skippedSlots).toEqual([]);
     expect(result.items.map((item) => item.recetaId)).toEqual([1, 2, 3]);
     expect(result.items[0].razon).toBe('Rápida y rica.');
   });
@@ -173,8 +192,9 @@ describe('validatePlanItems', () => {
         { fecha: '2026-07-07', tipoComida: 'cena', recetaId: 4 }, // not requested
         { fecha: '2026-08-01', tipoComida: 'almuerzo', recetaId: 4 }, // outside week
       ],
+      [],
       slots,
-      libraryIds
+      library
     );
     expect(result.items).toHaveLength(3);
     expect(result.missingSlots).toEqual([]);
@@ -187,8 +207,9 @@ describe('validatePlanItems', () => {
         { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
         { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 3 },
       ],
+      [],
       slots,
-      libraryIds
+      library
     );
     expect(result.missingSlots).toEqual([{ fecha: MONDAY, tipoComida: 'almuerzo' }]);
     expect(result.items.map((item) => item.recetaId)).toEqual([2, 3]);
@@ -201,8 +222,9 @@ describe('validatePlanItems', () => {
         { fecha: MONDAY, tipoComida: 'cena', recetaId: 1 }, // repeat — dropped
         { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 2 },
       ],
+      [],
       slots,
-      libraryIds
+      library
     );
     expect(result.missingSlots).toEqual([{ fecha: MONDAY, tipoComida: 'cena' }]);
     expect(result.items.map((item) => item.recetaId)).toEqual([1, 2]);
@@ -215,8 +237,9 @@ describe('validatePlanItems', () => {
         { fecha: MONDAY, tipoComida: 'cena', recetaId: 1 },
         { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 2 },
       ],
+      [],
       slots,
-      new Set([1, 2]) // 2 recipes, 3 slots
+      new Map([[1, 'Plato Principal'], [2, 'Plato Principal']]) // 2 recipes, 3 slots
     );
     expect(result.missingSlots).toEqual([]);
     expect(result.items.map((item) => item.recetaId)).toEqual([1, 1, 2]);
@@ -228,8 +251,9 @@ describe('validatePlanItems', () => {
         { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 },
         { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 2 },
       ],
+      [],
       [{ fecha: MONDAY, tipoComida: 'almuerzo' }],
-      libraryIds
+      library
     );
     expect(result.items).toEqual([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 }]);
   });
@@ -237,10 +261,215 @@ describe('validatePlanItems', () => {
   it('truncates over-long razon instead of invalidating the item', () => {
     const result = validatePlanItems(
       [{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, razon: 'x'.repeat(500) }],
+      [],
       [{ fecha: MONDAY, tipoComida: 'almuerzo' }],
-      libraryIds
+      library
     );
     expect(result.items[0].razon).toHaveLength(300);
+  });
+
+  // ── explicitly skipped slots ──
+  it('treats an explicitly skipped slot as satisfied, not missing', () => {
+    const result = validatePlanItems(
+      [
+        { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 },
+        { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 3 },
+      ],
+      [{ fecha: MONDAY, tipoComida: 'cena', motivo: 'Cenan afuera, como pediste.' }],
+      slots,
+      library
+    );
+    expect(result.missingSlots).toEqual([]);
+    expect(result.items.map((item) => item.recetaId)).toEqual([1, 3]);
+    expect(result.skippedSlots).toEqual([
+      { fecha: MONDAY, tipoComida: 'cena', motivo: 'Cenan afuera, como pediste.' },
+    ]);
+  });
+
+  it('accepts a plan where ALL slots are skipped (zero items is valid)', () => {
+    const skips: SkippedSlot[] = slots.map((slot) => ({ ...slot, motivo: 'Semana de viaje.' }));
+    const result = validatePlanItems([], skips, slots, library);
+    expect(result.items).toEqual([]);
+    expect(result.missingSlots).toEqual([]);
+    expect(result.skippedSlots).toHaveLength(3);
+  });
+
+  it('a fill wins over a skip for the same slot; unrequested/duplicate skips are dropped', () => {
+    const result = validatePlanItems(
+      [{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 }],
+      [
+        { fecha: MONDAY, tipoComida: 'almuerzo', motivo: 'skip que pierde contra el item' },
+        { fecha: MONDAY, tipoComida: 'cena', motivo: 'primero' },
+        { fecha: MONDAY, tipoComida: 'cena', motivo: 'duplicado — dropped' },
+        { fecha: '2026-08-01', tipoComida: 'cena', motivo: 'fuera de semana — dropped' },
+      ],
+      slots,
+      library
+    );
+    expect(result.items.map((item) => item.recetaId)).toEqual([1]);
+    expect(result.skippedSlots).toEqual([{ fecha: MONDAY, tipoComida: 'cena', motivo: 'primero' }]);
+    expect(result.missingSlots).toEqual([{ fecha: '2026-07-07', tipoComida: 'almuerzo' }]);
+  });
+
+  it('truncates an over-long motivo', () => {
+    const result = validatePlanItems(
+      [],
+      [{ fecha: MONDAY, tipoComida: 'almuerzo', motivo: 'm'.repeat(500) }],
+      [{ fecha: MONDAY, tipoComida: 'almuerzo' }],
+      library
+    );
+    expect(result.skippedSlots[0].motivo).toHaveLength(300);
+  });
+
+  // ── acompañamiento pairing ──
+  it('rejects an "Acompañamiento" as the main dish and reports the slot as missing', () => {
+    const result = validatePlanItems(
+      [{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 50 }], // side as main
+      [],
+      [{ fecha: MONDAY, tipoComida: 'almuerzo' }],
+      library
+    );
+    expect(result.items).toEqual([]);
+    expect(result.missingSlots).toEqual([{ fecha: MONDAY, tipoComida: 'almuerzo' }]);
+  });
+
+  it('accepts a valid main+side pair', () => {
+    const result = validatePlanItems(
+      [{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 }],
+      [],
+      [{ fecha: MONDAY, tipoComida: 'almuerzo' }],
+      library
+    );
+    expect(result.items).toEqual([
+      { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+    ]);
+  });
+
+  it('drops a side that is not an "Acompañamiento" (or is invented) but keeps the main', () => {
+    const result = validatePlanItems(
+      [
+        { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 2 }, // main as side
+        { fecha: MONDAY, tipoComida: 'cena', recetaId: 3, acompanamientoId: 999 }, // invented side
+      ],
+      [],
+      slots.slice(0, 2),
+      library
+    );
+    expect(result.missingSlots).toEqual([]);
+    expect(result.items).toEqual([
+      { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 },
+      { fecha: MONDAY, tipoComida: 'cena', recetaId: 3 },
+    ]);
+  });
+
+  it('includes side ids in the within-week no-duplicate check', () => {
+    const result = validatePlanItems(
+      [
+        { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+        { fecha: MONDAY, tipoComida: 'cena', recetaId: 2, acompanamientoId: 50 }, // repeated side — dropped
+        { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 3, acompanamientoId: 51 },
+      ],
+      [],
+      slots,
+      library
+    );
+    expect(result.missingSlots).toEqual([]);
+    expect(result.items).toEqual([
+      { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+      { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
+      { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 3, acompanamientoId: 51 },
+    ]);
+  });
+});
+
+// ─────────────────────────────────────────────
+// validateDraftItemsAgainstLibrary (shared with the PUT items route)
+// ─────────────────────────────────────────────
+describe('validateDraftItemsAgainstLibrary', () => {
+  const library = new Map<number, string>([
+    [1, 'Plato Principal'],
+    [2, 'Pastas'],
+    [50, 'Acompañamiento'],
+  ]);
+
+  it('returns null for valid items, paired or not', () => {
+    expect(
+      validateDraftItemsAgainstLibrary(
+        [
+          { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+          { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
+        ],
+        library
+      )
+    ).toBeNull();
+  });
+
+  it('names the slot when the main recipe is no longer in the library', () => {
+    expect(
+      validateDraftItemsAgainstLibrary([{ fecha: '2026-07-08', tipoComida: 'cena', recetaId: 999 }], library)
+    ).toBe('La receta del cena del 2026-07-08 ya no está en tu biblioteca. Reemplazala o quitala del plan.');
+  });
+
+  it('rejects a standalone "Acompañamiento" as the main dish', () => {
+    expect(
+      validateDraftItemsAgainstLibrary([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 50 }], library)
+    ).toBe(
+      `La receta del almuerzo del ${MONDAY} es un acompañamiento y no puede ir sola. Elegí un plato principal para ese casillero.`
+    );
+  });
+
+  it('names the slot when the side recipe is no longer in the library', () => {
+    expect(
+      validateDraftItemsAgainstLibrary(
+        [{ fecha: MONDAY, tipoComida: 'cena', recetaId: 1, acompanamientoId: 999 }],
+        library
+      )
+    ).toBe(
+      `El acompañamiento del cena del ${MONDAY} ya no está en tu biblioteca. Reemplazá esa comida o quitala del plan.`
+    );
+  });
+
+  it('rejects a side whose categoria is not "Acompañamiento"', () => {
+    expect(
+      validateDraftItemsAgainstLibrary(
+        [{ fecha: MONDAY, tipoComida: 'cena', recetaId: 1, acompanamientoId: 2 }],
+        library
+      )
+    ).toBe(`El acompañamiento del cena del ${MONDAY} no es una receta de la categoría Acompañamiento.`);
+  });
+});
+
+// ─────────────────────────────────────────────
+// buildSkippedSlotsResumenLine (route appends it to the stored summary)
+// ─────────────────────────────────────────────
+describe('buildSkippedSlotsResumenLine', () => {
+  it('returns null when nothing was skipped', () => {
+    expect(buildSkippedSlotsResumenLine([])).toBeNull();
+  });
+
+  it('aggregates a fully skipped weekend into one Spanish line with the motivo', () => {
+    const line = buildSkippedSlotsResumenLine([
+      { fecha: '2026-07-11', tipoComida: 'almuerzo', motivo: 'fin de semana sin plan, como pediste' },
+      { fecha: '2026-07-11', tipoComida: 'cena', motivo: 'fin de semana sin plan, como pediste' },
+      { fecha: '2026-07-12', tipoComida: 'almuerzo', motivo: 'fin de semana sin plan, como pediste' },
+      { fecha: '2026-07-12', tipoComida: 'cena', motivo: 'fin de semana sin plan, como pediste' },
+    ]);
+    expect(line).toBe('Dejé libre: sáb y dom (almuerzo y cena) — fin de semana sin plan, como pediste.');
+  });
+
+  it('separates days with different meal patterns and dedupes motivos', () => {
+    const line = buildSkippedSlotsResumenLine([
+      { fecha: '2026-07-08', tipoComida: 'cena', motivo: 'Cenan afuera.' },
+      { fecha: '2026-07-10', tipoComida: 'almuerzo', motivo: 'Cenan afuera.' },
+    ]);
+    expect(line).toBe('Dejé libre: mié (cena); vie (almuerzo) — Cenan afuera.');
+  });
+
+  it('handles empty motivos without a trailing dash', () => {
+    const line = buildSkippedSlotsResumenLine([
+      { fecha: MONDAY, tipoComida: 'almuerzo', motivo: '' },
+    ]);
+    expect(line).toBe('Dejé libre: lun (almuerzo).');
   });
 });
 
@@ -306,22 +535,58 @@ describe('planApplyOperations', () => {
     expect(result.skipped).toBe(0);
     expect(result.clearWeekFirst).toBe(false);
   });
+
+  it('expands a paired item into two rows for the same slot: main first, then side', () => {
+    const paired = [
+      { fecha: MONDAY, tipoComida: 'almuerzo' as const, recetaId: 1, acompanamientoId: 50 },
+      { fecha: MONDAY, tipoComida: 'cena' as const, recetaId: 2 },
+    ];
+    const result = planApplyOperations(paired, [], false);
+    expect(result.toInsert).toEqual([
+      { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 },
+      { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 50 },
+      { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
+    ]);
+    expect(result.skipped).toBe(0);
+  });
+
+  it('replaceWeek also expands pairs and counts rows', () => {
+    const paired = [{ fecha: MONDAY, tipoComida: 'almuerzo' as const, recetaId: 1, acompanamientoId: 50 }];
+    const result = planApplyOperations(paired, [], true);
+    expect(result.clearWeekFirst).toBe(true);
+    expect(result.toInsert).toHaveLength(2);
+  });
+
+  it('skips BOTH rows of a paired item together when its slot is occupied', () => {
+    const paired = [
+      { fecha: MONDAY, tipoComida: 'almuerzo' as const, recetaId: 1, acompanamientoId: 50 },
+      { fecha: MONDAY, tipoComida: 'cena' as const, recetaId: 2 },
+    ];
+    const result = planApplyOperations(paired, [{ fecha: MONDAY, tipoComida: 'almuerzo' }], false);
+    expect(result.toInsert).toEqual([{ fecha: MONDAY, tipoComida: 'cena', recetaId: 2 }]);
+    expect(result.skipped).toBe(2); // meal_plans rows, not draft items
+  });
 });
 
 // ─────────────────────────────────────────────
 // Context builders
 // ─────────────────────────────────────────────
 describe('computeRecipeServeStats', () => {
-  it('counts serves and keeps the latest fecha per recipe (string compare, no Date)', () => {
+  it('counts serves (total and per meal type) and keeps the latest fecha per recipe', () => {
     const stats = computeRecipeServeStats([
-      { fecha: '2026-06-01', recetaId: 1 },
-      { fecha: '2026-06-29', recetaId: 1 },
-      { fecha: '2026-06-15', recetaId: 1 },
-      { fecha: '2026-06-10', recetaId: 2 },
-      { fecha: '2026-06-10', recetaId: null }, // slot without recipe — ignored
+      { fecha: '2026-06-01', tipoComida: 'almuerzo', recetaId: 1 },
+      { fecha: '2026-06-29', tipoComida: 'cena', recetaId: 1 },
+      { fecha: '2026-06-15', tipoComida: 'almuerzo', recetaId: 1 },
+      { fecha: '2026-06-10', tipoComida: 'cena', recetaId: 2 },
+      { fecha: '2026-06-10', tipoComida: 'almuerzo', recetaId: null }, // slot without recipe — ignored
     ]);
-    expect(stats.get(1)).toEqual({ timesServed: 3, lastServedFecha: '2026-06-29' });
-    expect(stats.get(2)).toEqual({ timesServed: 1, lastServedFecha: '2026-06-10' });
+    expect(stats.get(1)).toEqual({
+      timesServed: 3,
+      almuerzos: 2,
+      cenas: 1,
+      lastServedFecha: '2026-06-29',
+    });
+    expect(stats.get(2)).toEqual({ timesServed: 1, almuerzos: 0, cenas: 1, lastServedFecha: '2026-06-10' });
     expect(stats.has(3)).toBe(false);
   });
 });
@@ -338,8 +603,8 @@ describe('buildRecipeLibraryEntries', () => {
         { recipeId: 1, rating: 4 },
       ],
       history: [
-        { fecha: '2026-06-29', recetaId: 1 },
-        { fecha: '2026-06-01', recetaId: 1 },
+        { fecha: '2026-06-29', tipoComida: 'almuerzo', recetaId: 1 },
+        { fecha: '2026-06-01', tipoComida: 'cena', recetaId: 1 },
       ],
       comments: [
         { recipeId: 1, comment: '¡Quedaron riquísimas!' },
@@ -354,6 +619,8 @@ describe('buildRecipeLibraryEntries', () => {
     const milanesas = entries.find((entry) => entry.id === 1)!;
     expect(milanesas.avgUserRating).toBe(4.5);
     expect(milanesas.timesServedLast8Weeks).toBe(2);
+    expect(milanesas.almuerzosLast8Weeks).toBe(1);
+    expect(milanesas.cenasLast8Weeks).toBe(1);
     expect(milanesas.lastServedFecha).toBe('2026-06-29');
     expect(milanesas.esFavorita).toBe(true);
     expect(milanesas.commentSnippets).toEqual(['¡Quedaron riquísimas!']);
@@ -406,6 +673,23 @@ describe('buildRecipeLine', () => {
 
   it('marks never-served recipes', () => {
     expect(buildRecipeLine(libraryEntry(1))).toContain('no servida en 8 semanas');
+  });
+
+  it('includes per-meal-type serve counts so the model can respect historical meal types', () => {
+    const line = buildRecipeLine(
+      libraryEntry(9, {
+        timesServedLast8Weeks: 4,
+        almuerzosLast8Weeks: 3,
+        cenasLast8Weeks: 1,
+        lastServedFecha: '2026-06-29',
+      })
+    );
+    expect(line).toContain('almuerzos 8sem: 3');
+    expect(line).toContain('cenas 8sem: 1');
+  });
+
+  it('omits the meal-type counters for never-served recipes', () => {
+    expect(buildRecipeLine(libraryEntry(1))).not.toContain('almuerzos 8sem');
   });
 });
 
@@ -466,7 +750,8 @@ describe('buildWeeklyPlanUserMessage', () => {
     expect(message).toContain(
       'INSTRUCCIONES PARA ESTA SEMANA (prioridad máxima):\n<instrucciones_semana>\nEl viernes comemos afuera.\n</instrucciones_semana>'
     );
-    expect(message).toContain('CASILLEROS A COMPLETAR (2)');
+    expect(message).toContain('CASILLEROS A RESOLVER (2)');
+    expect(message).toContain('"slotsSinComida"');
     expect(message).toContain('- lunes 2026-07-06 — almuerzo');
     expect(message).toContain('usá SOLO estos recetaId');
     expect(message).toContain('niños:5/5');
@@ -499,13 +784,28 @@ describe('buildWeeklyPlanUserMessage', () => {
     // never instructions that can override the rules or the output format.
     expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('NUNCA como instrucciones');
   });
+
+  it('system prompt declares the binding-skip, meal-type-history and acompañamiento rules', () => {
+    // Skips are part of the output contract and only valid when instructed.
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('"slotsSinComida"');
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('OBLIGATORIOS');
+    // Historical meal type is a soft default, hard when instructions demand it.
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('tipo de comida histórico');
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('regla estricta');
+    // Sides never stand alone and only ride along via acompanamientoId.
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('NUNCA van solas');
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('"acompanamientoId"');
+  });
 });
 
 describe('buildRetryMessage', () => {
-  it('lists the uncovered slots and demands the full plan again', () => {
+  it('lists the unresolved slots and demands the full plan again', () => {
     const message = buildRetryMessage([{ fecha: MONDAY, tipoComida: 'cena' }]);
     expect(message).toContain('- lunes 2026-07-06 — cena');
     expect(message).toContain('plan COMPLETO');
+    // The retry must keep the skip escape hatch open, but only when justified.
+    expect(message).toContain('slotsSinComida');
+    expect(message).toContain('lo justifican');
   });
 });
 
@@ -594,7 +894,7 @@ describe('generateWeeklyPlan', () => {
     expect(retryMessages).toHaveLength(3); // user, assistant, corrective user
     expect(retryMessages[1].role).toBe('assistant');
     expect(retryMessages[2].role).toBe('user');
-    expect(retryMessages[2].content).toContain('sin cubrir');
+    expect(retryMessages[2].content).toContain('sin resolver');
     expect(retryMessages[2].content).toContain('- lunes 2026-07-06 — cena');
     expect(result.items).toHaveLength(2);
   });
@@ -728,6 +1028,94 @@ describe('generateWeeklyPlan', () => {
 
     expect(mockCreate).toHaveBeenCalledTimes(2);
     expect(result.items.map((item) => item.recetaId)).toEqual([1, 2]);
+  });
+
+  // ── explicitly skipped slots ──
+  it('honors an explicitly skipped slot without retrying and returns it', async () => {
+    mockCreate.mockResolvedValueOnce(
+      planResponse(
+        [{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 }],
+        'Lunes liviano.',
+        [{ fecha: MONDAY, tipoComida: 'cena', motivo: 'Cenan afuera, como pediste.' }]
+      )
+    );
+
+    const result = await generateWeeklyPlan(promptInput());
+
+    expect(mockCreate).toHaveBeenCalledTimes(1); // an addressed slot is satisfied — no retry
+    expect(result.items).toEqual([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 }]);
+    expect(result.skippedSlots).toEqual([
+      { fecha: MONDAY, tipoComida: 'cena', motivo: 'Cenan afuera, como pediste.' },
+    ]);
+  });
+
+  it('accepts a plan where ALL slots are skipped (empty items, no retry)', async () => {
+    mockCreate.mockResolvedValueOnce(
+      planResponse([], 'Semana sin plan, como pediste.', [
+        { fecha: MONDAY, tipoComida: 'almuerzo', motivo: 'Semana de viaje.' },
+        { fecha: MONDAY, tipoComida: 'cena', motivo: 'Semana de viaje.' },
+      ])
+    );
+
+    const result = await generateWeeklyPlan(promptInput());
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(result.items).toEqual([]);
+    expect(result.skippedSlots).toHaveLength(2);
+    expect(result.resumen).toBe('Semana sin plan, como pediste.');
+  });
+
+  it('treats pass-1 skips as satisfied in the retry union', async () => {
+    // Pass 1 skips the cena but leaves the almuerzo unresolved; the retry
+    // fills ONLY the almuerzo — the pass-1 skip must still count.
+    mockCreate
+      .mockResolvedValueOnce(
+        planResponse([], 'Primera pasada.', [
+          { fecha: MONDAY, tipoComida: 'cena', motivo: 'Cenan afuera.' },
+        ])
+      )
+      .mockResolvedValueOnce(planResponse([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 2 }]));
+
+    const result = await generateWeeklyPlan(promptInput());
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const retryMessages = mockCreate.mock.calls[1][0].messages;
+    expect(retryMessages[2].content).toContain('- lunes 2026-07-06 — almuerzo');
+    expect(retryMessages[2].content).not.toContain('- lunes 2026-07-06 — cena'); // already skipped
+    expect(result.items).toEqual([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 2 }]);
+    expect(result.skippedSlots).toEqual([{ fecha: MONDAY, tipoComida: 'cena', motivo: 'Cenan afuera.' }]);
+  });
+
+  it('still throws GENERATION_INCOMPLETE when a slot is neither filled nor skipped after the retry', async () => {
+    mockCreate
+      .mockResolvedValueOnce(planResponse([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 }]))
+      .mockResolvedValueOnce(planResponse([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 }]));
+
+    await expect(generateWeeklyPlan(promptInput())).rejects.toThrow('GENERATION_INCOMPLETE');
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  // ── acompañamiento pairing ──
+  it('keeps a valid main+side pair and rejects a standalone side via the retry', async () => {
+    const input = promptInput({
+      library: [libraryEntry(1), libraryEntry(2), libraryEntry(50, { categoria: 'Acompañamiento' })],
+    });
+    mockCreate
+      .mockResolvedValueOnce(
+        planResponse([
+          { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+          { fecha: MONDAY, tipoComida: 'cena', recetaId: 50 }, // side as a standalone meal — invalid
+        ])
+      )
+      .mockResolvedValueOnce(planResponse([{ fecha: MONDAY, tipoComida: 'cena', recetaId: 2 }]));
+
+    const result = await generateWeeklyPlan(input);
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.items).toEqual([
+      { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+      { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
+    ]);
   });
 });
 
