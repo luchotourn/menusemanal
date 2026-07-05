@@ -259,6 +259,27 @@ export const weeklyPlanGenerateRateLimit = rateLimit({
   }
 });
 
+// Rate limiting for per-slot AI re-suggestions (cheaper than a full plan but
+// still an LLM call; taps can be rapid-fire). Keyed like the generate limiter.
+export const weeklyPlanResuggestRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each user to 20 re-suggestions per window
+  message: "Pediste demasiadas sugerencias seguidas. Esperá unos minutos e intentá de nuevo.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  keyGenerator: (req) => {
+    const user = req.user as User | undefined;
+    return user?.id != null ? `user:${user.id}` : ipKeyGenerator(req.ip ?? "");
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Pediste muchas sugerencias seguidas. Esperá 15 minutos e intentá de nuevo.",
+      error: "TOO_MANY_REQUESTS"
+    });
+  }
+});
+
 // Rate limiting specific to commentator actions (more restrictive)
 export const commentatorRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes

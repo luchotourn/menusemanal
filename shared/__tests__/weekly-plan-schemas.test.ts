@@ -3,6 +3,7 @@ import {
   weeklyPlanDraftItemSchema,
   generateWeeklyPlanRequestSchema,
   updateWeeklyPlanDraftItemsSchema,
+  resuggestSlotRequestSchema,
   plannerPromptSchema,
   insertWeeklyPlanDraftSchema,
 } from "../schema";
@@ -291,6 +292,49 @@ describe("updateWeeklyPlanDraftItemsSchema", () => {
 
   it("rejects when items is missing entirely", () => {
     expect(updateWeeklyPlanDraftItemsSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// resuggestSlotRequestSchema
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("resuggestSlotRequestSchema", () => {
+  const validRequest = { fecha: "2026-07-06", tipoComida: "cena" as const };
+
+  it("accepts a valid slot and defaults avoidRecipeIds to []", () => {
+    const result = resuggestSlotRequestSchema.parse(validRequest);
+    expect(result.fecha).toBe("2026-07-06");
+    expect(result.tipoComida).toBe("cena");
+    expect(result.avoidRecipeIds).toEqual([]);
+  });
+
+  it("accepts an explicit avoid list at the 50-id boundary", () => {
+    const avoidRecipeIds = Array.from({ length: 50 }, (_, index) => index + 1);
+    const result = resuggestSlotRequestSchema.parse({ ...validRequest, avoidRecipeIds });
+    expect(result.avoidRecipeIds).toHaveLength(50);
+  });
+
+  it("rejects more than 50 ids with the Spanish message", () => {
+    const avoidRecipeIds = Array.from({ length: 51 }, (_, index) => index + 1);
+    const result = resuggestSlotRequestSchema.safeParse({ ...validRequest, avoidRecipeIds });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Demasiadas recetas para evitar");
+    }
+  });
+
+  it("rejects non-positive, non-integer or non-numeric avoid ids", () => {
+    for (const bad of [[0], [-1], [1.5], ["7"]]) {
+      expect(resuggestSlotRequestSchema.safeParse({ ...validRequest, avoidRecipeIds: bad }).success).toBe(false);
+    }
+  });
+
+  it("rejects malformed or impossible fechas and unknown tipoComida", () => {
+    expect(resuggestSlotRequestSchema.safeParse({ ...validRequest, fecha: "06/07/2026" }).success).toBe(false);
+    expect(resuggestSlotRequestSchema.safeParse({ ...validRequest, fecha: "2026-02-30" }).success).toBe(false);
+    expect(resuggestSlotRequestSchema.safeParse({ ...validRequest, tipoComida: "merienda" }).success).toBe(false);
+    expect(resuggestSlotRequestSchema.safeParse({ fecha: "2026-07-06" }).success).toBe(false);
   });
 });
 

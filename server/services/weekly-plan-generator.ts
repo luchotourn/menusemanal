@@ -379,6 +379,67 @@ ${buildSlotsSection(missingSlots)}
 Devolvé el plan COMPLETO de nuevo (todos los casilleros pedidos originalmente): cada casillero con una receta en "items" o, SOLO si el perfil o las instrucciones lo justifican, en "slotsSinComida" con su motivo. Usá SOLO recetaId de la biblioteca y no repitas recetas. Un solo bloque \`\`\`json.`;
 }
 
+export interface ResuggestSlotPromptInput {
+  weekStartDate: string;
+  slot: WeekSlot;
+  library: RecipeLibraryEntry[];
+  recentReviews: ReviewVerdict[];
+  signoffNotes: SignoffNote[];
+  plannerPrompt: string | null;
+  instructions: string | null;
+  /** The draft's current picks for the OTHER slots (dedupe context). */
+  otherItems: { recetaId: number; acompanamientoId?: number }[];
+  /** Ids never to suggest for this slot: the current pick + already-rejected ones. */
+  avoidRecipeIds: number[];
+}
+
+/** Volatile tail for a single-slot re-suggestion. Pure. Sent AFTER the exact
+ *  same cached stable prefix generateWeeklyPlan uses, so the expensive
+ *  system+profile+library prefix is read from cache instead of reprocessed. */
+export function buildResuggestVolatileSection(input: ResuggestSlotPromptInput): string {
+  const nameById = new Map(input.library.map((entry) => [entry.id, entry.nombre]));
+  const describe = (id: number) => `[${id}] ${nameById.get(id) ?? 'receta'}`;
+  const sections: string[] = [];
+
+  if (input.instructions?.trim()) {
+    sections.push(
+      `INSTRUCCIONES PARA ESTA SEMANA (prioridad máxima):\n<instrucciones_semana>\n${input.instructions.trim()}\n</instrucciones_semana>`,
+    );
+  }
+
+  sections.push(
+    `PEDIDO: sugerí UNA (1) receta distinta para reemplazar la sugerencia de un solo casillero.\nCASILLERO A REEMPLAZAR: ${dayNameFor(input.slot.fecha)} ${input.slot.fecha} — ${input.slot.tipoComida}`,
+  );
+
+  if (input.otherItems.length > 0) {
+    const lines = input.otherItems.map((item) => {
+      const side = item.acompanamientoId != null ? ` + ${describe(item.acompanamientoId)}` : '';
+      return `- ${describe(item.recetaId)}${side}`;
+    });
+    sections.push(
+      `YA ELEGIDOS EN OTROS CASILLEROS (no repitas ninguno, ni como principal ni como acompañamiento):\n${lines.join('\n')}`,
+    );
+  }
+
+  if (input.avoidRecipeIds.length > 0) {
+    sections.push(
+      `NO SUGIERAS ESTAS RECETAS (el plato actual y los ya descartados para este casillero):\n${input.avoidRecipeIds
+        .map((id) => `- ${describe(id)}`)
+        .join('\n')}`,
+    );
+  }
+
+  sections.push(
+    'Aplicá las reglas de siempre: usá SOLO recetaId de la biblioteca, respetá el tipo de comida histórico del plato (contadores "almuerzos 8sem" / "cenas 8sem") y las recetas de categoría "Acompañamiento" solo pueden ir en "acompanamientoId", junto a un principal.',
+  );
+
+  sections.push(
+    `FORMATO DE RESPUESTA para este pedido: una oración breve y después EXACTAMENTE un bloque JSON entre \`\`\`json y \`\`\` con UNA sola receta (nada de "items" ni "slotsSinComida" esta vez):\n\`\`\`json\n{"recetaId": 12, "acompanamientoId": 7, "razon": "..."}\n\`\`\`\n"acompanamientoId" es opcional; "razon" en voseo, UNA sola oración corta.`,
+  );
+
+  return sections.join('\n\n');
+}
+
 // ─────────────────────────────────────────────
 // Output parsing & validation
 // ─────────────────────────────────────────────
@@ -440,6 +501,38 @@ export function parseWeeklyPlanResponse(response: string): WeeklyPlanModelOutput
   } catch {
     // Don't fall back to looser extraction — it could fabricate a wrong plan
     console.warn('Failed to parse weekly plan JSON from LLM response');
+  }
+  return null;
+}
+
+// Single-recipe output for a per-slot re-suggestion, tolerant like plan items.
+const resuggestOutputSchema = z.object({
+  recetaId: z.coerce.number().int().positive(),
+  acompanamientoId: z.coerce
+    .number()
+    .int()
+    .positive()
+    .nullish()
+    .transform((value) => value ?? undefined),
+  razon: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? undefined),
+});
+
+export type ResuggestModelOutput = z.infer<typeof resuggestOutputSchema>;
+
+/** Extracts the single re-suggested recipe from the LLM response. Same strict
+ *  fenced-JSON posture as parseWeeklyPlanResponse: null on any malformation. */
+export function parseResuggestResponse(response: string): ResuggestModelOutput | null {
+  const jsonMatch = response.match(/```json\s*\n?([\s\S]*?)\n?\s*```/);
+  if (!jsonMatch) return null;
+
+  try {
+    const result = resuggestOutputSchema.safeParse(JSON.parse(jsonMatch[1]));
+    if (result.success) return result.data;
+  } catch {
+    console.warn('Failed to parse resuggest JSON from LLM response');
   }
   return null;
 }
@@ -576,6 +669,71 @@ export function validateDraftItemsAgainstLibrary(
     }
   }
   return null;
+}
+
+/**
+ * Grandfathering for manual draft edits: an item identical (slot + main +
+ * side) to one already stored was valid at generation time — a recipe's
+ * categoria may have changed since, and re-validating it would lock the user
+ * out of editing every OTHER slot. Returns only the new/modified items, which
+ * are the ones the PUT route must validate. razon changes don't affect
+ * validity, so they don't count as modifications. The APPLY route keeps
+ * validating every item strictly — this is for edit-time only.
+ */
+export function filterChangedDraftItems(
+  items: WeeklyPlanDraftItem[],
+  existingItems: WeeklyPlanDraftItem[],
+): WeeklyPlanDraftItem[] {
+  const signature = (item: WeeklyPlanDraftItem) =>
+    `${slotKey(item.fecha, item.tipoComida)}|${item.recetaId}|${item.acompanamientoId ?? ''}`;
+  const existingSignatures = new Set(existingItems.map(signature));
+  return items.filter((item) => !existingSignatures.has(signature(item)));
+}
+
+/**
+ * Validates the single re-suggested recipe for a slot:
+ * - main must be a library recipe that is NOT an "Acompañamiento";
+ * - main must not be in the avoid list (current pick / already rejected) nor
+ *   already used by another slot (as main or side);
+ * - an invalid, avoided or duplicate side drops silently, keeping the main.
+ * Returns the ready-to-store draft item, or null when unusable.
+ */
+export function validateResuggestedItem(
+  candidate: ResuggestModelOutput,
+  slot: WeekSlot,
+  otherItems: { recetaId: number; acompanamientoId?: number }[],
+  avoidRecipeIds: number[],
+  libraryCategories: Map<number, string>,
+): WeeklyPlanDraftItem | null {
+  const usedIds = new Set<number>();
+  for (const item of otherItems) {
+    usedIds.add(item.recetaId);
+    if (item.acompanamientoId != null) usedIds.add(item.acompanamientoId);
+  }
+  const avoid = new Set(avoidRecipeIds);
+
+  const mainCategoria = libraryCategories.get(candidate.recetaId);
+  if (mainCategoria === undefined) return null; // invented recipe id
+  if (mainCategoria === ACOMPANAMIENTO_CATEGORY) return null; // a side is never the meal
+  if (avoid.has(candidate.recetaId)) return null; // current pick or already rejected
+  if (usedIds.has(candidate.recetaId)) return null; // duplicate within the week
+
+  let acompanamientoId: number | undefined;
+  if (candidate.acompanamientoId != null) {
+    const sideOk =
+      libraryCategories.get(candidate.acompanamientoId) === ACOMPANAMIENTO_CATEGORY &&
+      !usedIds.has(candidate.acompanamientoId) &&
+      !avoid.has(candidate.acompanamientoId);
+    if (sideOk) acompanamientoId = candidate.acompanamientoId;
+  }
+
+  return {
+    fecha: slot.fecha,
+    tipoComida: slot.tipoComida,
+    recetaId: candidate.recetaId,
+    ...(acompanamientoId !== undefined ? { acompanamientoId } : {}),
+    ...(candidate.razon?.trim() ? { razon: truncateRazon(candidate.razon) } : {}),
+  };
 }
 
 const SHORT_DAY_NAMES: Record<string, string> = {
@@ -819,6 +977,62 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
     skippedSlots: validated.skippedSlots,
     model: WEEKLY_PLAN_MODEL,
   };
+}
+
+export interface ResuggestedSlotResult {
+  item: WeeklyPlanDraftItem;
+  model: string;
+}
+
+/**
+ * Asks Claude for ONE replacement recipe for a single slot of a pending
+ * draft. Reuses generateWeeklyPlan's cached prefix (identical system block +
+ * byte-identical stable user section), so the call only pays for the small
+ * volatile tail. Single attempt, no corrective retry — unusable output throws
+ * RESUGGEST_FAILED (the user can just tap again).
+ */
+export async function resuggestSlot(input: ResuggestSlotPromptInput): Promise<ResuggestedSlotResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY environment variable is not set');
+  }
+
+  const client = new Anthropic({ apiKey });
+  const libraryCategories = new Map(input.library.map((entry) => [entry.id, entry.categoria]));
+
+  // Byte-identical stable prefix to generateWeeklyPlan's for the same week:
+  // slots/instructions never enter the stable section, so passing the target
+  // slot here cannot perturb it.
+  const { stable } = buildWeeklyPlanUserSections({
+    weekStartDate: input.weekStartDate,
+    slots: [input.slot],
+    library: input.library,
+    recentReviews: input.recentReviews,
+    signoffNotes: input.signoffNotes,
+    plannerPrompt: input.plannerPrompt,
+    instructions: input.instructions,
+  });
+
+  const messages: Anthropic.MessageParam[] = [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: buildResuggestVolatileSection(input) },
+      ],
+    },
+  ];
+
+  const response = await callModel(client, messages, 'resuggest');
+  const parsed = parseResuggestResponse(response);
+  const item = parsed
+    ? validateResuggestedItem(parsed, input.slot, input.otherItems, input.avoidRecipeIds, libraryCategories)
+    : null;
+  if (!item) {
+    throw new Error('RESUGGEST_FAILED');
+  }
+
+  return { item, model: WEEKLY_PLAN_MODEL };
 }
 
 /**

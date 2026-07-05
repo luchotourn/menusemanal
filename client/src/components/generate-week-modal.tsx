@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +33,8 @@ import {
   formatDayHeading,
   swapDraftItem,
   removeDraftItem,
+  accumulateAvoidIds,
+  isMainAcompanamiento,
   type EnrichedDraftItem,
 } from "@/hooks/use-weekly-plan-generator";
 
@@ -60,6 +62,11 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
   const [promptDirty, setPromptDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+  // Per-slot "Otra sugerencia" memory: every id already shown for a slot goes
+  // into its avoid list so repeated taps keep bringing NEW dishes.
+  const [rejectedBySlot, setRejectedBySlot] = useState<Record<string, number[]>>({});
+  const [resuggestingSlot, setResuggestingSlot] = useState<string | null>(null);
+  const [openSwapSlot, setOpenSwapSlot] = useState<string | null>(null);
 
   const {
     draft,
@@ -69,6 +76,8 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
     isGenerating,
     updateItems,
     isUpdatingItems,
+    resuggest,
+    isResuggesting,
     apply,
     isApplying,
     discard,
@@ -109,6 +118,9 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
       setPromptDirty(false);
       setShowDiscardConfirm(false);
       setShowReplaceConfirm(false);
+      setRejectedBySlot({});
+      setResuggestingSlot(null);
+      setOpenSwapSlot(null);
     }
   }, [open]);
 
@@ -163,12 +175,25 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
   };
 
   const handleSwap = (item: EnrichedDraftItem, recetaId: number) => {
-    if (!draft || isUpdatingItems) return;
+    if (!draft || isUpdatingItems || isResuggesting) return;
     if (recetaId === item.recetaId) return;
     updateItems({
       draftId: draft.id,
       items: swapDraftItem(draft.items, item.fecha, item.tipoComida, recetaId),
     });
+  };
+
+  const handleResuggest = (item: EnrichedDraftItem) => {
+    if (!draft || isUpdatingItems || isResuggesting) return;
+    const key = slotKey(item.fecha, item.tipoComida);
+    // The current pick joins the slot's avoid list so the AI brings something new.
+    const avoidRecipeIds = accumulateAvoidIds(rejectedBySlot[key], item.recetaId);
+    setRejectedBySlot((previous) => ({ ...previous, [key]: avoidRecipeIds }));
+    setResuggestingSlot(key);
+    resuggest(
+      { draftId: draft.id, fecha: item.fecha, tipoComida: item.tipoComida, avoidRecipeIds },
+      { onSettled: () => setResuggestingSlot(null) }
+    );
   };
 
   const handleRemove = (item: EnrichedDraftItem) => {
@@ -200,50 +225,77 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
     handleApply();
   };
 
-  // A recipe deleted after generation leaves the item without recipe data
-  // (same for a deleted side dish); applying it would fail server-side, so
-  // the slot must be fixed first.
-  const hasDeletedRecipe = (draft?.items ?? []).some(
+  // Items that block applying: a deleted main or side, or a main whose
+  // categoria became "Acompañamiento" after generation (a side can never
+  // stand alone). "Otra sugerencia" or the swap combobox are the fix paths.
+  const hasBlockedItem = (draft?.items ?? []).some(
     (item) =>
       item.recipe === null ||
-      (item.acompanamientoId != null && item.acompanamientoRecipe === null)
+      (item.acompanamientoId != null && item.acompanamientoRecipe === null) ||
+      isMainAcompanamiento(item)
   );
 
-  const recipeGroups = groupRecipesByCategory(recipes ?? []);
+  // Manual-swap options: sides can never be a slot's main dish, so offering
+  // them here would only earn a server-side 400.
+  const recipeGroups = groupRecipesByCategory(
+    (recipes ?? []).filter((recipe) => recipe.categoria !== "Acompañamiento")
+  );
 
   const renderSlotRow = (label: string, fecha: string, tipoComida: "almuerzo" | "cena", item: EnrichedDraftItem | null) => {
     if (!draft) return null;
+    const key = slotKey(fecha, tipoComida);
+    const isRowResuggesting = resuggestingSlot === key;
     return (
       <div>
         <span className="text-xs text-gray-500">{label}</span>
         {item ? (
           <div className="mt-1 flex items-start gap-1.5">
             <div className="flex-1 min-w-0">
-              <Select
-                value={String(item.recetaId)}
-                onValueChange={(value) => handleSwap(item, parseInt(value, 10))}
-                disabled={isUpdatingItems}
-              >
-                <SelectTrigger className="h-9 text-sm bg-white">
-                  <SelectValue placeholder={item.recipe?.nombre ?? "Elegí una receta"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Keep the current pick selectable even if it's missing from the library list */}
-                  {item.recipe && !(recipes ?? []).some((r) => r.id === item.recetaId) && (
-                    <SelectItem value={String(item.recetaId)}>{item.recipe.nombre}</SelectItem>
-                  )}
-                  {recipeGroups.map((group) => (
-                    <SelectGroup key={group.categoria}>
-                      <SelectLabel>{group.categoria}</SelectLabel>
-                      {group.recipes.map((recipe) => (
-                        <SelectItem key={recipe.id} value={String(recipe.id)}>
-                          {recipe.nombre}
-                        </SelectItem>
+              {/* Searchable swap combobox (the modal sits at z-[60]; portal content needs z-[70]) */}
+              <Popover open={openSwapSlot === key} onOpenChange={(isOpen) => setOpenSwapSlot(isOpen ? key : null)}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openSwapSlot === key}
+                    aria-label={`Cambiar la receta del ${label.toLowerCase()}`}
+                    disabled={isUpdatingItems || isRowResuggesting}
+                    className="h-9 w-full justify-between px-3 text-sm font-normal bg-white"
+                  >
+                    <span className="truncate">
+                      {isRowResuggesting ? "Buscando otra idea…" : item.recipe?.nombre ?? "Elegí una receta"}
+                    </span>
+                    <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="z-[70] w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar receta…" />
+                    <CommandList>
+                      <CommandEmpty>No encontramos recetas con ese nombre.</CommandEmpty>
+                      {recipeGroups.map((group) => (
+                        <CommandGroup key={group.categoria} heading={group.categoria}>
+                          {group.recipes.map((recipe) => (
+                            <CommandItem
+                              key={recipe.id}
+                              value={`${recipe.nombre} ${recipe.id}`}
+                              onSelect={() => {
+                                setOpenSwapSlot(null);
+                                handleSwap(item, recipe.id);
+                              }}
+                            >
+                              <span className="truncate">{recipe.nombre}</span>
+                              {recipe.id === item.recetaId && (
+                                <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-amber-600" />
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
                       ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {item.acompanamientoId != null &&
                 (item.acompanamientoRecipe ? (
                   <p className="text-xs text-gray-600 mt-1 leading-snug">
@@ -260,15 +312,35 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                   Receta eliminada — elegí otra para este casillero.
                 </p>
               )}
+              {isMainAcompanamiento(item) && (
+                <p className="text-xs font-medium text-red-600 mt-1 leading-snug">
+                  Esta receta ahora es un acompañamiento y no puede ir sola. Elegí un plato principal.
+                </p>
+              )}
               {!draft.replaceWeek && occupiedKeys.has(slotKey(item.fecha, item.tipoComida)) && (
                 <p className="text-xs font-medium text-amber-700 mt-1 leading-snug">
                   Ya planificado — esta sugerencia no se va a aplicar.
                 </p>
               )}
-              {item.razon && (
+              {item.razon && !isRowResuggesting && (
                 <p className="text-xs text-gray-500 italic mt-1 leading-snug">{item.razon}</p>
               )}
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1.5 h-auto mt-1 text-gray-400 hover:text-amber-600 flex-shrink-0"
+              onClick={() => handleResuggest(item)}
+              disabled={isUpdatingItems || isResuggesting}
+              title="Pedirle otra sugerencia a la IA"
+              aria-label={`Pedir otra sugerencia para el ${label.toLowerCase()}`}
+            >
+              {isRowResuggesting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -388,8 +460,8 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
               </Button>
               <Button
                 onClick={handleApplyClick}
-                disabled={isApplying || isDiscarding || isUpdatingItems || draft.items.length === 0 || hasDeletedRecipe}
-                title={hasDeletedRecipe ? "Hay una receta eliminada en el plan: reemplazala o quitala" : undefined}
+                disabled={isApplying || isDiscarding || isUpdatingItems || isResuggesting || draft.items.length === 0 || hasBlockedItem}
+                title={hasBlockedItem ? "Hay una comida que necesita arreglo: reemplazala o quitala" : undefined}
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
                 {isApplying ? (

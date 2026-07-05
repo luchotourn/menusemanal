@@ -28,16 +28,22 @@ import {
   buildWeeklyPlanUserMessage,
   buildWeeklyPlanUserSections,
   buildRetryMessage,
+  buildResuggestVolatileSection,
   parseWeeklyPlanResponse,
+  parseResuggestResponse,
   validatePlanItems,
   validateDraftItemsAgainstLibrary,
+  validateResuggestedItem,
+  filterChangedDraftItems,
   buildSkippedSlotsResumenLine,
   planApplyOperations,
   generateWeeklyPlan,
+  resuggestSlot,
   mapAnthropicApiError,
   dayNameFor,
   type RecipeLibraryEntry,
   type WeeklyPlanPromptInput,
+  type ResuggestSlotPromptInput,
   type SkippedSlot,
 } from '../services/weekly-plan-generator';
 import { generateWeeklyPlanRequestSchema } from '@shared/schema';
@@ -1168,6 +1174,252 @@ describe('generateWeeklyPlan', () => {
       { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
       { fecha: MONDAY, tipoComida: 'cena', recetaId: 2 },
     ]);
+  });
+});
+
+// ─────────────────────────────────────────────
+// filterChangedDraftItems (PUT grandfathering — FIX for the edit lock)
+// ─────────────────────────────────────────────
+describe('filterChangedDraftItems', () => {
+  const stored = [
+    { fecha: MONDAY, tipoComida: 'almuerzo' as const, recetaId: 24, razon: 'Rica sopa.' }, // categoria changed since generation
+    { fecha: MONDAY, tipoComida: 'cena' as const, recetaId: 2, acompanamientoId: 50 },
+  ];
+
+  it('excludes items identical to stored ones (unchanged invalid item stays tolerated)', () => {
+    // Editing only the cena leaves the (now invalid) almuerzo untouched — it
+    // must NOT reach validation, so the edit isn't locked by the stale item.
+    const edited = [
+      { fecha: MONDAY, tipoComida: 'almuerzo' as const, recetaId: 24, razon: 'Rica sopa.' },
+      { fecha: MONDAY, tipoComida: 'cena' as const, recetaId: 3, acompanamientoId: 50 },
+    ];
+    const changed = filterChangedDraftItems(edited, stored);
+    expect(changed).toEqual([{ fecha: MONDAY, tipoComida: 'cena', recetaId: 3, acompanamientoId: 50 }]);
+  });
+
+  it('a modified main or side counts as changed and still gets validated', () => {
+    expect(
+      filterChangedDraftItems([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 99 }], stored)
+    ).toHaveLength(1);
+    expect(
+      filterChangedDraftItems([{ fecha: MONDAY, tipoComida: 'cena', recetaId: 2, acompanamientoId: 51 }], stored)
+    ).toHaveLength(1);
+    // Dropping the side is also a change
+    expect(filterChangedDraftItems([{ fecha: MONDAY, tipoComida: 'cena', recetaId: 2 }], stored)).toHaveLength(1);
+  });
+
+  it('razon-only differences are not modifications (validity is unaffected)', () => {
+    expect(
+      filterChangedDraftItems([{ fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 24 }], stored)
+    ).toEqual([]);
+  });
+
+  it('returns everything when there is no stored counterpart (new slots, empty draft)', () => {
+    const items = [{ fecha: '2026-07-07', tipoComida: 'almuerzo' as const, recetaId: 1 }];
+    expect(filterChangedDraftItems(items, stored)).toEqual(items);
+    expect(filterChangedDraftItems(items, [])).toEqual(items);
+  });
+});
+
+// ─────────────────────────────────────────────
+// Per-slot re-suggestion ("Otra sugerencia")
+// ─────────────────────────────────────────────
+
+function resuggestInput(overrides: Partial<ResuggestSlotPromptInput> = {}): ResuggestSlotPromptInput {
+  return {
+    weekStartDate: MONDAY,
+    slot: { fecha: MONDAY, tipoComida: 'cena' },
+    library: [
+      libraryEntry(1, { nombre: 'Milanesas' }),
+      libraryEntry(2, { nombre: 'Guiso de lentejas' }),
+      libraryEntry(3, { nombre: 'Tarta de verdura' }),
+      libraryEntry(50, { nombre: 'Puré', categoria: 'Acompañamiento' }),
+    ],
+    recentReviews: [],
+    signoffNotes: [],
+    plannerPrompt: null,
+    instructions: null,
+    otherItems: [{ recetaId: 1 }],
+    avoidRecipeIds: [2],
+    ...overrides,
+  };
+}
+
+describe('parseResuggestResponse', () => {
+  it('extracts a single recipe suggestion, tolerating null razon and string ids', () => {
+    const parsed = parseResuggestResponse(
+      '¡Va otra!\n```json\n{"recetaId": "3", "acompanamientoId": null, "razon": null}\n```'
+    );
+    expect(parsed).toEqual({ recetaId: 3, acompanamientoId: undefined, razon: undefined });
+  });
+
+  it('returns null without a json block or with an unusable shape', () => {
+    expect(parseResuggestResponse('No pude, perdón.')).toBeNull();
+    expect(parseResuggestResponse('```json\n{"items": []}\n```')).toBeNull();
+    expect(parseResuggestResponse('```json\n{"recetaId": -1}\n```')).toBeNull();
+  });
+});
+
+describe('validateResuggestedItem', () => {
+  const library = new Map<number, string>([
+    [1, 'Plato Principal'],
+    [2, 'Plato Principal'],
+    [3, 'Pastas'],
+    [50, 'Acompañamiento'],
+    [51, 'Acompañamiento'],
+  ]);
+  const slot: WeekSlot = { fecha: MONDAY, tipoComida: 'cena' };
+  const otherItems = [{ recetaId: 1, acompanamientoId: 51 }];
+
+  it('accepts a fresh main (with optional valid side) and stamps the slot', () => {
+    const item = validateResuggestedItem(
+      { recetaId: 3, acompanamientoId: 50, razon: 'Va con puré.' },
+      slot,
+      otherItems,
+      [2],
+      library
+    );
+    expect(item).toEqual({
+      fecha: MONDAY,
+      tipoComida: 'cena',
+      recetaId: 3,
+      acompanamientoId: 50,
+      razon: 'Va con puré.',
+    });
+  });
+
+  it('rejects avoided, duplicate, invented and side-category mains', () => {
+    expect(validateResuggestedItem({ recetaId: 2 }, slot, otherItems, [2], library)).toBeNull(); // avoided
+    expect(validateResuggestedItem({ recetaId: 1 }, slot, otherItems, [2], library)).toBeNull(); // used as another main
+    expect(validateResuggestedItem({ recetaId: 51 }, slot, otherItems, [2], library)).toBeNull(); // used as another side… and a side
+    expect(validateResuggestedItem({ recetaId: 999 }, slot, otherItems, [2], library)).toBeNull(); // invented
+    expect(validateResuggestedItem({ recetaId: 50 }, slot, [], [], library)).toBeNull(); // side as the meal
+  });
+
+  it('drops an invalid or already-used side but keeps the main', () => {
+    expect(validateResuggestedItem({ recetaId: 3, acompanamientoId: 2 }, slot, otherItems, [], library)).toEqual({
+      fecha: MONDAY,
+      tipoComida: 'cena',
+      recetaId: 3,
+    }); // side is not an Acompañamiento
+    expect(validateResuggestedItem({ recetaId: 3, acompanamientoId: 51 }, slot, otherItems, [], library)).toEqual({
+      fecha: MONDAY,
+      tipoComida: 'cena',
+      recetaId: 3,
+    }); // side already used by another slot
+  });
+});
+
+describe('buildResuggestVolatileSection', () => {
+  it('names the slot, the other picks and the avoid list, and asks for ONE recipe', () => {
+    const section = buildResuggestVolatileSection(
+      resuggestInput({
+        instructions: 'Cenas livianas.',
+        otherItems: [{ recetaId: 1, acompanamientoId: 50 }],
+        avoidRecipeIds: [2],
+      })
+    );
+    expect(section).toContain('CASILLERO A REEMPLAZAR: lunes 2026-07-06 — cena');
+    expect(section).toContain('<instrucciones_semana>\nCenas livianas.\n</instrucciones_semana>');
+    expect(section).toContain('[1] Milanesas + [50] Puré');
+    expect(section).toContain('NO SUGIERAS ESTAS RECETAS');
+    expect(section).toContain('[2] Guiso de lentejas');
+    expect(section).toContain('UNA (1) receta');
+    expect(section).toContain('{"recetaId": 12, "acompanamientoId": 7, "razon": "..."}');
+    // The full library must NOT leak into the volatile tail — it lives in the cached prefix.
+    expect(section).not.toContain('<biblioteca>');
+  });
+});
+
+describe('resuggestSlot', () => {
+  const originalApiKey = process.env.ANTHROPIC_API_KEY;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    if (originalApiKey === undefined) {
+      delete process.env.ANTHROPIC_API_KEY;
+    } else {
+      process.env.ANTHROPIC_API_KEY = originalApiKey;
+    }
+  });
+
+  const singleResponse = (payload: unknown) =>
+    textResponse(`¡Probemos con esto!\n\`\`\`json\n${JSON.stringify(payload)}\n\`\`\``);
+
+  it('throws without an API key, before calling the API', async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    await expect(resuggestSlot(resuggestInput())).rejects.toThrow(/ANTHROPIC_API_KEY/);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns the validated replacement and reuses the generate call\'s cached prefix byte-for-byte', async () => {
+    mockCreate.mockResolvedValueOnce(singleResponse({ recetaId: 3, razon: 'Cambio liviano.' }));
+
+    const input = resuggestInput();
+    const result = await resuggestSlot(input);
+
+    expect(mockCreate).toHaveBeenCalledTimes(1); // single attempt, no retry
+    expect(result.item).toEqual({ fecha: MONDAY, tipoComida: 'cena', recetaId: 3, razon: 'Cambio liviano.' });
+    expect(result.model).toBe(WEEKLY_PLAN_MODEL);
+
+    const call = mockCreate.mock.calls[0][0];
+    // Same cached system block as generateWeeklyPlan…
+    expect(call.system).toEqual([
+      { type: 'text', text: WEEKLY_PLAN_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+    ]);
+    // …and a byte-identical stable user section (the cache is a prefix match).
+    const expectedStable = buildWeeklyPlanUserSections({
+      weekStartDate: input.weekStartDate,
+      slots: [input.slot],
+      library: input.library,
+      recentReviews: input.recentReviews,
+      signoffNotes: input.signoffNotes,
+      plannerPrompt: input.plannerPrompt,
+      instructions: input.instructions,
+    }).stable;
+    const blocks = call.messages[0].content;
+    expect(blocks[0]).toEqual({ type: 'text', text: expectedStable, cache_control: { type: 'ephemeral' } });
+    expect(blocks[1].cache_control).toBeUndefined();
+    expect(blocks[1].text).toContain('CASILLERO A REEMPLAZAR');
+  });
+
+  it('throws RESUGGEST_FAILED when the model suggests an avoided recipe', async () => {
+    mockCreate.mockResolvedValueOnce(singleResponse({ recetaId: 2 })); // in avoidRecipeIds
+    await expect(resuggestSlot(resuggestInput())).rejects.toThrow('RESUGGEST_FAILED');
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws RESUGGEST_FAILED when the suggestion duplicates another slot (main or side)', async () => {
+    mockCreate.mockResolvedValueOnce(singleResponse({ recetaId: 1 })); // main of another slot
+    await expect(
+      resuggestSlot(resuggestInput({ otherItems: [{ recetaId: 1, acompanamientoId: 50 }] }))
+    ).rejects.toThrow('RESUGGEST_FAILED');
+
+    mockCreate.mockResolvedValueOnce(singleResponse({ recetaId: 50 })); // side of another slot (and a side)
+    await expect(
+      resuggestSlot(resuggestInput({ otherItems: [{ recetaId: 1, acompanamientoId: 50 }] }))
+    ).rejects.toThrow('RESUGGEST_FAILED');
+  });
+
+  it('keeps a valid side and silently drops an invalid one', async () => {
+    mockCreate.mockResolvedValueOnce(singleResponse({ recetaId: 3, acompanamientoId: 50 }));
+    const withSide = await resuggestSlot(resuggestInput());
+    expect(withSide.item.acompanamientoId).toBe(50);
+
+    mockCreate.mockResolvedValueOnce(singleResponse({ recetaId: 3, acompanamientoId: 1 })); // not a side
+    const withoutSide = await resuggestSlot(resuggestInput());
+    expect(withoutSide.item.acompanamientoId).toBeUndefined();
+    expect(withoutSide.item.recetaId).toBe(3);
+  });
+
+  it('throws RESUGGEST_FAILED on unparseable output (no retry)', async () => {
+    mockCreate.mockResolvedValueOnce(textResponse('No hay JSON acá.'));
+    await expect(resuggestSlot(resuggestInput())).rejects.toThrow('RESUGGEST_FAILED');
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });
 

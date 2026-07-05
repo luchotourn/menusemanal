@@ -10,6 +10,8 @@ import {
   swapDraftItem,
   removeDraftItem,
   groupRecipesByCategory,
+  accumulateAvoidIds,
+  isMainAcompanamiento,
   type EnrichedDraftItem,
 } from "../use-weekly-plan-generator";
 
@@ -303,6 +305,51 @@ describe("removeDraftItem", () => {
       "almuerzo"
     );
     expect(payload).toEqual([{ fecha: WEEK_START, tipoComida: "cena", recetaId: 2, razon: "A los chicos les encanta" }]);
+  });
+});
+
+// ─── accumulateAvoidIds ("Otra sugerencia" memory) ───────────────────────────
+
+describe("accumulateAvoidIds", () => {
+  it("starts a list from the current pick", () => {
+    expect(accumulateAvoidIds(undefined, 7)).toEqual([7]);
+  });
+
+  it("accumulates across taps and dedupes", () => {
+    const afterFirst = accumulateAvoidIds(undefined, 7);
+    const afterSecond = accumulateAvoidIds(afterFirst, 12);
+    expect(afterSecond).toEqual([7, 12]);
+    // Re-suggesting back to an already-rejected id doesn't duplicate it
+    expect(accumulateAvoidIds(afterSecond, 7)).toEqual([7, 12]);
+  });
+
+  it("caps at the server limit of 50, dropping the oldest rejections", () => {
+    const previous = Array.from({ length: 50 }, (_, index) => index + 1); // 1..50
+    const result = accumulateAvoidIds(previous, 99);
+    expect(result).toHaveLength(50);
+    expect(result).not.toContain(1); // oldest dropped
+    expect(result[result.length - 1]).toBe(99); // newest kept
+  });
+});
+
+// ─── isMainAcompanamiento (blocked-item detection) ───────────────────────────
+
+describe("isMainAcompanamiento", () => {
+  it("flags an item whose main recipe is an Acompañamiento", () => {
+    const item = makeItem({
+      recipe: { ...makeItem().recipe!, categoria: "Acompañamiento" },
+    });
+    expect(isMainAcompanamiento(item)).toBe(true);
+  });
+
+  it("does not flag normal mains, deleted recipes, or side-only enrichment", () => {
+    expect(isMainAcompanamiento(makeItem())).toBe(false); // Plato Principal
+    expect(isMainAcompanamiento(makeItem({ recipe: null }))).toBe(false); // deleted → handled by its own flag
+    const paired = makeItem({
+      acompanamientoId: 50,
+      acompanamientoRecipe: { ...makeItem().recipe!, id: 50, categoria: "Acompañamiento" },
+    });
+    expect(isMainAcompanamiento(paired)).toBe(false); // the SIDE being an Acompañamiento is correct
   });
 });
 

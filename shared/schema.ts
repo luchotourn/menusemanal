@@ -620,6 +620,22 @@ export const generateWeeklyPlanRequestSchema = z.object({
   replaceWeek: z.boolean().optional().default(false),
 });
 
+export const resuggestSlotRequestSchema = z.object({
+  fecha: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+    .refine(isValidDateString, "Fecha inválida"),
+  tipoComida: z.enum(["almuerzo", "cena"], {
+    required_error: "El tipo de comida es requerido",
+  }),
+  // Recipes the user already rejected for this slot (plus the current pick)
+  avoidRecipeIds: z
+    .array(z.number().int().positive("El ID de la receta no es válido"))
+    .max(50, "Demasiadas recetas para evitar")
+    .optional()
+    .default([]),
+});
+
 export const updateWeeklyPlanDraftItemsSchema = z.object({
   items: z
     .array(weeklyPlanDraftItemSchema)

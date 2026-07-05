@@ -4,12 +4,12 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, submitWeeklyReviewSchema, submitWeeklyReviewSignoffSchema, mealPlans, weeklyPlanDrafts, generateWeeklyPlanRequestSchema, updateWeeklyPlanDraftItemsSchema, plannerPromptSchema, type WeeklyPlanDraft, type Recipe } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, submitWeeklyReviewSchema, submitWeeklyReviewSignoffSchema, mealPlans, weeklyPlanDrafts, generateWeeklyPlanRequestSchema, updateWeeklyPlanDraftItemsSchema, resuggestSlotRequestSchema, plannerPromptSchema, type WeeklyPlanDraft, type Recipe } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth, db } from "./db";
 import { eq, and, gte, lte } from "drizzle-orm";
 import authRouter from "./auth/routes";
-import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit, weeklyPlanGenerateRateLimit } from "./auth/middleware";
+import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit, weeklyPlanGenerateRateLimit, weeklyPlanResuggestRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat, isPastMealDate } from "@shared/utils";
 import { allWeekSlots, computeEmptySlots, addDaysToDateString, validateDraftItemsForWeek, sanitizeDraftItemsForWeek } from "@shared/weekly-plan";
 import { sendSignupNotification, sendWeekReviewNotification, sendReviewSignoffNotification } from "./email";
@@ -850,12 +850,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // reviews/edits the draft and applying it writes real meal_plans rows)
   const {
     generateWeeklyPlan,
+    resuggestSlot,
     buildRecipeLibraryEntries,
     planApplyOperations,
     mapAnthropicApiError,
     validateDraftItemsAgainstLibrary,
+    filterChangedDraftItems,
     buildSkippedSlotsResumenLine,
   } = await import('./services/weekly-plan-generator');
+
+  // Shared prompt context for generate AND per-slot re-suggestion. The two
+  // calls must feed the service IDENTICAL data for the same week — the cached
+  // prompt prefix is a byte-level prefix match, so any drift between them
+  // would silently break cache reuse.
+  async function loadWeeklyPlanContext(userId: number, familyId: number, weekStartDate: string) {
+    // Family feedback context: 8 weeks of serving history plus the durable
+    // preference signals (ratings, comments, proposals, review verdicts).
+    const historyFrom = addDaysToDateString(weekStartDate, -56);
+    const historyTo = addDaysToDateString(weekStartDate, -1);
+    const [libraryRecipes, history, ratings, comments, proposals, recentReviews, currentReview] = await Promise.all([
+      storage.getAllRecipes(userId, familyId),
+      storage.getMealPlanHistoryRange(familyId, historyFrom, historyTo),
+      storage.getRecipeRatingsByFamily(familyId),
+      storage.getMealCommentsByFamily(familyId),
+      storage.getMealProposalsByFamily(familyId),
+      storage.getWeeklyReviewsRange(familyId, historyFrom, historyTo),
+      storage.getWeeklyReviewWithSignoffs(familyId, weekStartDate),
+    ]);
+
+    const library = buildRecipeLibraryEntries({
+      recipes: libraryRecipes.map((recipe) => ({
+        id: recipe.id,
+        nombre: recipe.nombre,
+        categoria: recipe.categoria,
+        calificacionNinos: recipe.calificacionNinos,
+        esFavorita: recipe.esFavorita,
+        tiempoPreparacion: recipe.tiempoPreparacion,
+      })),
+      ratings: ratings.map((rating) => ({ recipeId: rating.recipeId, rating: rating.rating })),
+      history: history.map((plan) => ({ fecha: plan.fecha, tipoComida: plan.tipoComida, recetaId: plan.recetaId })),
+      comments: comments.map((comment) => ({ recipeId: comment.recipeId, comment: comment.comment })),
+      proposals: proposals.map((proposal) => ({
+        proposedRecipeId: proposal.proposedRecipeId,
+        status: proposal.status,
+        reason: proposal.reason,
+      })),
+    });
+
+    return {
+      libraryRecipes,
+      library,
+      recentReviews: recentReviews.map((review) => ({ weekStartDate: review.weekStartDate, status: review.status })),
+      signoffNotes: (currentReview?.signoffs ?? []).map((signoff) => ({
+        userName: signoff.userName,
+        verdict: signoff.verdict,
+        note: signoff.note,
+      })),
+    };
+  }
 
   app.post("/api/weekly-plan/generate", weeklyPlanGenerateRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
     try {
@@ -872,8 +924,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Debes pertenecer a una familia" });
       }
 
-      const libraryRecipes = await storage.getAllRecipes(user.id, family.id);
-      if (libraryRecipes.length === 0) {
+      const context = await loadWeeklyPlanContext(user.id, family.id, weekStartDate);
+      if (context.libraryRecipes.length === 0) {
         return res.status(400).json({ error: "Necesitás recetas en tu biblioteca para generar un plan." });
       }
 
@@ -887,48 +939,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'La semana ya está completa. Activá "Regenerar toda la semana" para reemplazarla.' });
       }
 
-      // Family feedback context: 8 weeks of serving history plus the durable
-      // preference signals (ratings, comments, proposals, review verdicts).
-      const historyFrom = addDaysToDateString(weekStartDate, -56);
-      const historyTo = addDaysToDateString(weekStartDate, -1);
-      const [history, ratings, comments, proposals, recentReviews, currentReview] = await Promise.all([
-        storage.getMealPlanHistoryRange(family.id, historyFrom, historyTo),
-        storage.getRecipeRatingsByFamily(family.id),
-        storage.getMealCommentsByFamily(family.id),
-        storage.getMealProposalsByFamily(family.id),
-        storage.getWeeklyReviewsRange(family.id, historyFrom, historyTo),
-        storage.getWeeklyReviewWithSignoffs(family.id, weekStartDate),
-      ]);
-
-      const library = buildRecipeLibraryEntries({
-        recipes: libraryRecipes.map((recipe) => ({
-          id: recipe.id,
-          nombre: recipe.nombre,
-          categoria: recipe.categoria,
-          calificacionNinos: recipe.calificacionNinos,
-          esFavorita: recipe.esFavorita,
-          tiempoPreparacion: recipe.tiempoPreparacion,
-        })),
-        ratings: ratings.map((rating) => ({ recipeId: rating.recipeId, rating: rating.rating })),
-        history: history.map((plan) => ({ fecha: plan.fecha, tipoComida: plan.tipoComida, recetaId: plan.recetaId })),
-        comments: comments.map((comment) => ({ recipeId: comment.recipeId, comment: comment.comment })),
-        proposals: proposals.map((proposal) => ({
-          proposedRecipeId: proposal.proposedRecipeId,
-          status: proposal.status,
-          reason: proposal.reason,
-        })),
-      });
-
       const generated = await generateWeeklyPlan({
         weekStartDate,
         slots,
-        library,
-        recentReviews: recentReviews.map((review) => ({ weekStartDate: review.weekStartDate, status: review.status })),
-        signoffNotes: (currentReview?.signoffs ?? []).map((signoff) => ({
-          userName: signoff.userName,
-          verdict: signoff.verdict,
-          note: signoff.note,
-        })),
+        library: context.library,
+        recentReviews: context.recentReviews,
+        signoffNotes: context.signoffNotes,
         plannerPrompt: family.plannerPrompt ?? null,
         instructions: instructions ?? null,
       });
@@ -952,7 +968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: user.id,
       });
 
-      const recipesById = new Map(libraryRecipes.map((recipe) => [recipe.id, recipe]));
+      const recipesById = new Map(context.libraryRecipes.map((recipe) => [recipe.id, recipe]));
       res.json(buildEnrichedWeeklyPlanDraft(draft, recipesById));
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -1037,14 +1053,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: weekError });
       }
 
-      // Revalidate every recetaId/acompanamientoId against the family library —
-      // the client is never trusted to reference recipes outside the family,
-      // an "Acompañamiento" can never stand alone as the meal, and a side must
-      // actually be one. The Spanish message names the slot so the user can
-      // find the stale item (e.g. a recipe deleted mid-draft).
+      // Revalidate recetaId/acompanamientoId against the family library — the
+      // client is never trusted to reference recipes outside the family, an
+      // "Acompañamiento" can never stand alone as the meal, and a side must
+      // actually be one. Items identical to ones already stored are
+      // grandfathered (valid at generation time; a recipe's categoria may have
+      // changed since) so one stale item never locks the user out of editing
+      // the OTHER slots. The apply route still validates everything strictly.
       const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
       const libraryCategories = new Map(libraryRecipes.map((recipe) => [recipe.id, recipe.categoria]));
-      const validationError = validateDraftItemsAgainstLibrary(items, libraryCategories);
+      const changedItems = filterChangedDraftItems(items, existingDraft.items);
+      const validationError = validateDraftItemsAgainstLibrary(changedItems, libraryCategories);
       if (validationError) {
         return res.status(400).json({ error: validationError });
       }
@@ -1062,6 +1081,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Weekly plan draft items update error:", error);
       res.status(500).json({ error: "Error al actualizar el borrador del plan semanal" });
+    }
+  });
+
+  // Per-slot re-suggestion: asks the AI for ONE replacement dish for a single
+  // slot of the pending draft, avoiding the current pick and everything the
+  // user already rejected for that slot. Replaces the item in place and
+  // returns the same enriched draft shape as the PUT items route.
+  app.post("/api/weekly-plan/draft/:id/resuggest", weeklyPlanResuggestRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const { fecha, tipoComida, avoidRecipeIds } = resuggestSlotRequestSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0]; // Single family per user
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const draft = await storage.getWeeklyPlanDraftById(id, family.id);
+      if (!draft || draft.status !== "pending") {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      const targetIndex = draft.items.findIndex(
+        (item) => item.fecha === fecha && item.tipoComida === tipoComida
+      );
+      if (targetIndex === -1) {
+        return res.status(400).json({ error: "Ese casillero no tiene una sugerencia para reemplazar." });
+      }
+      const currentItem = draft.items[targetIndex];
+
+      const context = await loadWeeklyPlanContext(user.id, family.id, draft.weekStartDate);
+
+      const otherItems = draft.items
+        .filter((_, index) => index !== targetIndex)
+        .map((item) => ({
+          recetaId: item.recetaId,
+          ...(item.acompanamientoId != null ? { acompanamientoId: item.acompanamientoId } : {}),
+        }));
+      // Belt and braces: never re-suggest the current pick, even if the
+      // client forgot to include it in the avoid list.
+      const avoid = Array.from(new Set([...avoidRecipeIds, currentItem.recetaId]));
+
+      const result = await resuggestSlot({
+        weekStartDate: draft.weekStartDate,
+        slot: { fecha, tipoComida },
+        library: context.library,
+        recentReviews: context.recentReviews,
+        signoffNotes: context.signoffNotes,
+        plannerPrompt: family.plannerPrompt ?? null,
+        instructions: draft.instructions ?? null,
+        otherItems,
+        avoidRecipeIds: avoid,
+      });
+
+      const newItems = draft.items.map((item, index) => (index === targetIndex ? result.item : item));
+      const updated = await storage.updateWeeklyPlanDraftItems(id, family.id, newItems);
+      if (!updated) {
+        // A concurrent apply/discard/regenerate won the race
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      const recipesById = new Map(context.libraryRecipes.map((recipe) => [recipe.id, recipe]));
+      res.json(buildEnrichedWeeklyPlanDraft(updated, recipesById));
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Weekly plan resuggest error:", error);
+      if (error?.message?.includes('ANTHROPIC_API_KEY')) {
+        return res.status(503).json({ error: "El servicio de IA no está configurado" });
+      }
+      if (error?.message === 'RESUGGEST_FAILED') {
+        return res.status(502).json({ error: "La IA no pudo sugerir otro plato. Intentá de nuevo." });
+      }
+      const aiError = mapAnthropicApiError(error);
+      if (aiError) {
+        return res.status(aiError.status).json({ error: aiError.message });
+      }
+      res.status(500).json({ error: "Error al sugerir otro plato" });
     }
   });
 

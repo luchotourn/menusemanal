@@ -45,6 +45,28 @@ export interface ApplyDraftResult {
   skipped: number;
 }
 
+// Mirrors the server's resuggestSlotRequestSchema cap.
+const MAX_AVOID_RECIPE_IDS = 50;
+
+/**
+ * Accumulates the per-slot avoid list for "Otra sugerencia": adds the current
+ * pick before asking for a replacement, dedupes, and caps at the server's
+ * limit (dropping the OLDEST rejections first — recent ones matter more).
+ */
+export function accumulateAvoidIds(previous: number[] | undefined, currentRecetaId: number): number[] {
+  const merged = Array.from(new Set([...(previous ?? []), currentRecetaId]));
+  return merged.slice(Math.max(0, merged.length - MAX_AVOID_RECIPE_IDS));
+}
+
+/**
+ * True when the item's MAIN recipe is an "Acompañamiento" (e.g. its category
+ * changed after generation) — a side can never stand alone as the meal, so
+ * the item must be replaced before the draft can be applied.
+ */
+export function isMainAcompanamiento(item: Pick<EnrichedDraftItem, "recipe">): boolean {
+  return item.recipe?.categoria === "Acompañamiento";
+}
+
 // ─── Pure helpers (exported for unit tests) ─────────────────────────────────
 
 /**
@@ -316,6 +338,37 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
     },
   });
 
+  const resuggestMutation = useMutation({
+    mutationFn: async ({
+      draftId,
+      fecha,
+      tipoComida,
+      avoidRecipeIds,
+    }: {
+      draftId: number;
+      fecha: string;
+      tipoComida: "almuerzo" | "cena";
+      avoidRecipeIds: number[];
+    }) => {
+      return await jsonApiRequest<EnrichedWeeklyPlanDraft>(`/api/weekly-plan/draft/${draftId}/resuggest`, {
+        method: "POST",
+        body: JSON.stringify({ fecha, tipoComida, avoidRecipeIds }),
+      });
+    },
+    onSuccess: (data) => {
+      // The new pick lands in the cached draft; success is visible in the row.
+      queryClient.setQueryData(draftKey, data);
+    },
+    onError: (error: Error) => {
+      if (handleStaleDraftError(error)) return;
+      toast({
+        title: "No pudimos traer otra sugerencia",
+        description: describeWeeklyPlanError(error, "Intentá de nuevo."),
+        variant: "destructive",
+      });
+    },
+  });
+
   const applyMutation = useMutation({
     mutationFn: async (draftId: number) => {
       return await jsonApiRequest<ApplyDraftResult>(`/api/weekly-plan/draft/${draftId}/apply`, {
@@ -391,6 +444,8 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
     isGenerating: generateMutation.isPending,
     updateItems: updateItemsMutation.mutate,
     isUpdatingItems: updateItemsMutation.isPending,
+    resuggest: resuggestMutation.mutate,
+    isResuggesting: resuggestMutation.isPending,
     apply: applyMutation.mutate,
     isApplying: applyMutation.isPending,
     discard: discardMutation.mutate,
