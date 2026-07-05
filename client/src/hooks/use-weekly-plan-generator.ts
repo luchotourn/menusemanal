@@ -79,9 +79,24 @@ export function describeWeeklyPlanError(error: unknown, fallback: string): strin
     return "El servicio de IA no está disponible en este momento. Verificá que la API key esté configurada.";
   }
   if (status === 429) {
-    return "Hiciste demasiadas generaciones seguidas. Esperá un momento e intentá de nuevo.";
+    return "Hiciste demasiadas generaciones seguidas. Esperá unos minutos e intentá de nuevo.";
   }
   return extractServerErrorMessage(message) ?? fallback;
+}
+
+/**
+ * Success-toast copy for an applied draft. Surfaces the suggestions the server
+ * skipped (their slot got occupied after generation) so the user knows the
+ * review screen and the calendar can differ.
+ */
+export function describeApplyResult({ applied, skipped }: ApplyDraftResult): string {
+  const appliedPart = `Se agregaron ${applied} comida${applied === 1 ? "" : "s"} al plan.`;
+  if (skipped <= 0) return appliedPart;
+  const skippedPart =
+    skipped === 1
+      ? "1 sugerencia no se aplicó porque ese casillero ya estaba ocupado."
+      : `${skipped} sugerencias no se aplicaron porque esos casilleros ya estaban ocupados.`;
+  return `${appliedPart} ${skippedPart}`;
 }
 
 export interface DraftDayGroup<T> {
@@ -202,6 +217,24 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
 
   const draftKey = ["/api/weekly-plan/draft", { weekStartDate }] as const;
 
+  /**
+   * A 404 from apply/discard/update means the draft no longer exists server-side
+   * (e.g. resolved from another device). The draft query is fresh forever, so
+   * without clearing the cache here the UI would keep offering a ghost draft
+   * whose every action 404s. Returns true when the error was handled.
+   */
+  const handleStaleDraftError = (error: Error): boolean => {
+    if (parseErrorStatus(error.message) !== 404) return false;
+    queryClient.setQueryData(draftKey, null);
+    queryClient.invalidateQueries({ queryKey: ["/api/weekly-plan/draft"] });
+    toast({
+      title: "Este borrador ya no existe",
+      description: "Puede que lo hayas aplicado o descartado desde otro dispositivo. Generá un plan nuevo cuando quieras.",
+      variant: "destructive",
+    });
+    return true;
+  };
+
   const draftQuery = useQuery<EnrichedWeeklyPlanDraft | null>({
     queryKey: draftKey,
     queryFn: async () => {
@@ -224,13 +257,17 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
   const generateMutation = useMutation({
     mutationFn: async ({ instructions, replaceWeek }: { instructions?: string; replaceWeek?: boolean }) => {
       if (!weekStartDate) throw new Error("No se seleccionó una semana");
-      return await jsonApiRequest<EnrichedWeeklyPlanDraft>("/api/weekly-plan/generate", {
+      const data = await jsonApiRequest<EnrichedWeeklyPlanDraft>("/api/weekly-plan/generate", {
         method: "POST",
         body: JSON.stringify({ weekStartDate, instructions, replaceWeek }),
       });
+      // Capture the requested week: the user may navigate the calendar while
+      // the generation is in flight, and onSuccess must never write this
+      // draft under another week's cache key.
+      return { requestedWeek: weekStartDate, data };
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(draftKey, data);
+    onSuccess: ({ requestedWeek, data }) => {
+      queryClient.setQueryData(["/api/weekly-plan/draft", { weekStartDate: requestedWeek }], data);
       queryClient.invalidateQueries({ queryKey: ["/api/weekly-plan/draft"] });
       toast({ title: "¡Plan generado! ✨", description: "Revisalo y ajustá lo que quieras." });
     },
@@ -254,6 +291,7 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
       queryClient.setQueryData(draftKey, data);
     },
     onError: (error: Error) => {
+      if (handleStaleDraftError(error)) return;
       toast({
         title: "Error al actualizar el borrador",
         description: describeWeeklyPlanError(error, "Intentá de nuevo."),
@@ -274,10 +312,11 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["/api/weekly-plan/draft"] });
       toast({
         title: "Semana lista 🎉",
-        description: `Se agregaron ${data.applied} comida${data.applied === 1 ? "" : "s"} al plan.`,
+        description: describeApplyResult(data),
       });
     },
     onError: (error: Error) => {
+      if (handleStaleDraftError(error)) return;
       toast({
         title: "Error al aplicar la semana",
         description: describeWeeklyPlanError(error, "Intentá de nuevo."),
@@ -298,6 +337,7 @@ export function useWeeklyPlanGenerator(weekStartDate: string | undefined) {
       toast({ title: "Borrador descartado" });
     },
     onError: (error: Error) => {
+      if (handleStaleDraftError(error)) return;
       toast({
         title: "Error al descartar el borrador",
         description: describeWeeklyPlanError(error, "Intentá de nuevo."),

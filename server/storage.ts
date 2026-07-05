@@ -37,6 +37,7 @@ import {
   waitlistSignups,
   type WaitlistSignup,
 } from "@shared/schema";
+import { addDaysToDateString, isValidDateString } from "@shared/weekly-plan";
 import { db } from "./db";
 import { eq, and, gte, lte, like, or, inArray, isNull, sql, SQL } from "drizzle-orm";
 
@@ -654,15 +655,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMealPlansForWeek(startDate: string, userId?: number, familyId?: number): Promise<MealPlan[]> {
-    const start = new Date(startDate);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    // Format end date correctly in local timezone
-    const year = end.getFullYear();
-    const month = String(end.getMonth() + 1).padStart(2, '0');
-    const day = String(end.getDate()).padStart(2, '0');
-    const endDateStr = `${year}-${month}-${day}`;
+    // Pure string math (UTC-only): mixing new Date('YYYY-MM-DD') (UTC midnight)
+    // with local getters ended the week on Saturday on UTC-negative servers,
+    // silently dropping Sunday. Invalid startDate degrades to an empty range
+    // instead of throwing, matching the old graceful behavior.
+    const endDateStr = isValidDateString(startDate)
+      ? addDaysToDateString(startDate, 6)
+      : startDate;
 
     let conditions = and(
       gte(mealPlans.fecha, startDate),

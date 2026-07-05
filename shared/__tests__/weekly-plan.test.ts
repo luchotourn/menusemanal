@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   isMonday,
+  isValidDateString,
   addDaysToDateString,
   getWeekDateStrings,
   allWeekSlots,
   computeEmptySlots,
+  validateDraftItemsForWeek,
+  sanitizeDraftItemsForWeek,
   slotKey,
   type WeekSlot,
 } from "../weekly-plan";
@@ -58,6 +61,30 @@ describe("isMonday", () => {
     expect(isMonday("2026-7-6")).toBe(false);
     expect(isMonday("06-07-2026")).toBe(false);
     expect(isMonday("2026-07-06T00:00:00Z")).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isValidDateString
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("isValidDateString", () => {
+  it("accepts real calendar dates", () => {
+    expect(isValidDateString("2026-07-06")).toBe(true);
+    expect(isValidDateString("2024-02-29")).toBe(true); // leap day
+    expect(isValidDateString("2026-12-31")).toBe(true);
+  });
+
+  it("rejects impossible calendar dates that pass the regex", () => {
+    expect(isValidDateString("2026-02-31")).toBe(false);
+    expect(isValidDateString("2026-13-45")).toBe(false);
+    expect(isValidDateString("2023-02-29")).toBe(false); // not a leap year
+  });
+
+  it("rejects malformed strings", () => {
+    expect(isValidDateString("")).toBe(false);
+    expect(isValidDateString("2026-7-6")).toBe(false);
+    expect(isValidDateString("no-es-fecha")).toBe(false);
   });
 });
 
@@ -271,5 +298,88 @@ describe("computeEmptySlots", () => {
     expect(empty).toHaveLength(13);
     const emptyKeys = empty.map((slot) => slotKey(slot.fecha, slot.tipoComida));
     expect(emptyKeys).not.toContain(slotKey("2026-07-01", "cena"));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// validateDraftItemsForWeek
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("validateDraftItemsForWeek", () => {
+  const monday = "2026-07-06";
+
+  it("returns null for items inside the week with unique slots", () => {
+    const items = [
+      { fecha: "2026-07-06", tipoComida: "almuerzo" },
+      { fecha: "2026-07-06", tipoComida: "cena" },
+      { fecha: "2026-07-12", tipoComida: "cena" }, // Sunday boundary
+    ];
+    expect(validateDraftItemsForWeek(monday, items)).toBeNull();
+  });
+
+  it("rejects an item outside the week (both directions)", () => {
+    expect(
+      validateDraftItemsForWeek(monday, [{ fecha: "2026-07-13", tipoComida: "almuerzo" }])
+    ).toBe("Alguna comida cae fuera de la semana del borrador");
+    expect(
+      validateDraftItemsForWeek(monday, [{ fecha: "2026-07-05", tipoComida: "cena" }])
+    ).toBe("Alguna comida cae fuera de la semana del borrador");
+  });
+
+  it("rejects garbage dates that a regex would accept", () => {
+    expect(
+      validateDraftItemsForWeek(monday, [{ fecha: "2026-02-31", tipoComida: "almuerzo" }])
+    ).toBe("Alguna comida cae fuera de la semana del borrador");
+  });
+
+  it("rejects two items for the same (fecha, tipoComida) slot", () => {
+    const items = [
+      { fecha: "2026-07-06", tipoComida: "cena" },
+      { fecha: "2026-07-06", tipoComida: "cena" },
+    ];
+    expect(validateDraftItemsForWeek(monday, items)).toBe(
+      "Hay más de una comida para el mismo casillero"
+    );
+  });
+
+  it("accepts an empty items list", () => {
+    expect(validateDraftItemsForWeek(monday, [])).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sanitizeDraftItemsForWeek
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("sanitizeDraftItemsForWeek", () => {
+  const monday = "2026-07-06";
+
+  it("keeps valid items untouched and in order", () => {
+    const items = [
+      { fecha: "2026-07-06", tipoComida: "almuerzo", recetaId: 1 },
+      { fecha: "2026-07-07", tipoComida: "cena", recetaId: 2 },
+    ];
+    expect(sanitizeDraftItemsForWeek(monday, items)).toEqual(items);
+  });
+
+  it("drops items outside the week (including garbage dates)", () => {
+    const items = [
+      { fecha: "2026-02-31", tipoComida: "almuerzo", recetaId: 1 },
+      { fecha: "2026-07-13", tipoComida: "cena", recetaId: 2 },
+      { fecha: "2026-07-06", tipoComida: "cena", recetaId: 3 },
+    ];
+    expect(sanitizeDraftItemsForWeek(monday, items)).toEqual([
+      { fecha: "2026-07-06", tipoComida: "cena", recetaId: 3 },
+    ]);
+  });
+
+  it("dedupes slots keeping the first item, matching the review UI", () => {
+    const items = [
+      { fecha: "2026-07-06", tipoComida: "cena", recetaId: 1 },
+      { fecha: "2026-07-06", tipoComida: "cena", recetaId: 2 },
+    ];
+    expect(sanitizeDraftItemsForWeek(monday, items)).toEqual([
+      { fecha: "2026-07-06", tipoComida: "cena", recetaId: 1 },
+    ]);
   });
 });

@@ -243,7 +243,7 @@ export const waitlistRateLimit = rateLimit({
 export const weeklyPlanGenerateRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Limit each user to 10 generations per window
-  message: "Generaste demasiados planes seguidos. Por favor esperá un momento.",
+  message: "Generaste demasiados planes seguidos. Esperá unos minutos e intentá de nuevo.",
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,

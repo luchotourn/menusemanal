@@ -11,7 +11,7 @@ import { eq, and, gte, lte } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit, weeklyPlanGenerateRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat, isPastMealDate } from "@shared/utils";
-import { allWeekSlots, computeEmptySlots, addDaysToDateString } from "@shared/weekly-plan";
+import { allWeekSlots, computeEmptySlots, addDaysToDateString, validateDraftItemsForWeek, sanitizeDraftItemsForWeek } from "@shared/weekly-plan";
 import { sendSignupNotification, sendWeekReviewNotification, sendReviewSignoffNotification } from "./email";
 
 // Enriched weekly-plan-draft response shape shared by every draft endpoint:
@@ -831,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Intelligent weekly plan generator routes (AI drafts the week, the human
   // reviews/edits the draft and applying it writes real meal_plans rows)
-  const { generateWeeklyPlan, buildRecipeLibraryEntries, planApplyOperations } =
+  const { generateWeeklyPlan, buildRecipeLibraryEntries, planApplyOperations, mapAnthropicApiError } =
     await import('./services/weekly-plan-generator');
 
   app.post("/api/weekly-plan/generate", weeklyPlanGenerateRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
@@ -935,6 +935,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error?.message === 'GENERATION_INCOMPLETE') {
         return res.status(502).json({ error: "La IA no pudo generar un plan completo. Intentá de nuevo." });
       }
+      const aiError = mapAnthropicApiError(error);
+      if (aiError) {
+        return res.status(aiError.status).json({ error: aiError.message });
+      }
       res.status(500).json({ error: "Error al generar el plan semanal" });
     }
   });
@@ -991,12 +995,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Debes pertenecer a una familia" });
       }
 
+      const existingDraft = await storage.getWeeklyPlanDraftById(id, familyId);
+      if (!existingDraft || existingDraft.status !== "pending") {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      // Every item must fall inside the draft's week and fill a distinct slot —
+      // otherwise apply would write rows the review screen never showed.
+      const weekError = validateDraftItemsForWeek(existingDraft.weekStartDate, items);
+      if (weekError) {
+        return res.status(400).json({ error: weekError });
+      }
+
       // Revalidate every recetaId against the family library — the client is
-      // never trusted to reference recipes outside the family.
+      // never trusted to reference recipes outside the family. Naming the slot
+      // lets the user find the stale item (e.g. a recipe deleted mid-draft).
       const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
       const libraryIds = new Set(libraryRecipes.map((recipe) => recipe.id));
-      if (items.some((item) => !libraryIds.has(item.recetaId))) {
-        return res.status(400).json({ error: "Alguna receta no pertenece a tu biblioteca" });
+      const invalidItem = items.find((item) => !libraryIds.has(item.recetaId));
+      if (invalidItem) {
+        return res.status(400).json({
+          error: `La receta del ${invalidItem.tipoComida} del ${invalidItem.fecha} ya no está en tu biblioteca. Reemplazala o quitala del plan.`,
+        });
       }
 
       const draft = await storage.updateWeeklyPlanDraftItems(id, familyId, items);
@@ -1042,6 +1062,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const weekEndDate = addDaysToDateString(weekStartDate, 6);
       const replaceWeek = draft.replaceWeek === 1;
 
+      // Defense in depth: apply exactly what the review screen shows — items
+      // inside the week, one per slot (first wins). Anything else is dropped.
+      const draftItems = sanitizeDraftItemsForWeek(weekStartDate, draft.items);
+
+      // Revalidate the draft's recipes: one may have been deleted since
+      // generation (meal_plans has an FK to recipes, so a stale id would make
+      // the insert fail with an opaque 500 instead of this actionable 400).
+      const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
+      const libraryIds = new Set(libraryRecipes.map((recipe) => recipe.id));
+      const missingRecipeItem = draftItems.find((item) => !libraryIds.has(item.recetaId));
+      if (missingRecipeItem) {
+        return res.status(400).json({
+          error: `La receta del ${missingRecipeItem.tipoComida} del ${missingRecipeItem.fecha} ya no está en tu biblioteca. Reemplazala o quitala antes de aplicar.`,
+        });
+      }
+
       // All-or-nothing: the week re-read, the optional clear, the inserts and
       // the status flip run in a single transaction (drizzle's neon-serverless
       // Pool driver supports interactive transactions), so a crash mid-apply
@@ -1062,7 +1098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .from(mealPlans)
               .where(weekCondition);
 
-        const operations = planApplyOperations(draft.items, occupied, replaceWeek);
+        const operations = planApplyOperations(draftItems, occupied, replaceWeek);
 
         if (operations.clearWeekFirst) {
           await tx.delete(mealPlans).where(weekCondition);

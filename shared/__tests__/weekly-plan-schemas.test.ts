@@ -47,6 +47,16 @@ describe("weeklyPlanDraftItemSchema", () => {
     expect(() => weeklyPlanDraftItemSchema.parse({ ...validItem, fecha: "" })).toThrow();
   });
 
+  it("rejects impossible calendar dates that pass the regex", () => {
+    for (const fecha of ["2026-02-31", "2026-13-45", "2023-02-29"]) {
+      const result = weeklyPlanDraftItemSchema.safeParse({ ...validItem, fecha });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe("Fecha inválida");
+      }
+    }
+  });
+
   it("rejects unknown tipoComida values with a Spanish message", () => {
     const result = weeklyPlanDraftItemSchema.safeParse({
       ...validItem,

@@ -2,7 +2,7 @@ import { pgTable, text, serial, integer, timestamp, index, uniqueIndex, varchar,
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
-import { isMonday } from "./weekly-plan";
+import { isMonday, isValidDateString } from "./weekly-plan";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -598,7 +598,10 @@ export const awardStarSchema = z.object({
 
 // Intelligent weekly plan generator schemas
 export const weeklyPlanDraftItemSchema = z.object({
-  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+  fecha: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+    .refine(isValidDateString, "Fecha inválida"),
   tipoComida: z.enum(["almuerzo", "cena"], {
     required_error: "El tipo de comida es requerido",
   }),

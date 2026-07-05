@@ -31,6 +31,11 @@ function parseUtcDate(dateStr: string): Date | null {
   return date;
 }
 
+/** Returns true when the string is a well-formed, real calendar YYYY-MM-DD date. */
+export function isValidDateString(dateStr: string): boolean {
+  return parseUtcDate(dateStr) !== null;
+}
+
 /** Returns true when the YYYY-MM-DD string is a valid date that falls on a Monday. */
 export function isMonday(dateStr: string): boolean {
   const date = parseUtcDate(dateStr);
@@ -68,6 +73,49 @@ export function allWeekSlots(weekStartDate: string): WeekSlot[] {
 /** Stable key identifying a (fecha, tipoComida) slot. */
 export function slotKey(fecha: string, tipoComida: string): string {
   return `${fecha}|${tipoComida}`;
+}
+
+/**
+ * Validates draft items against their draft's week: every fecha must fall
+ * within the Monday-Sunday week and no (fecha, tipoComida) slot may repeat.
+ * Returns a Spanish error message, or null when the items are valid.
+ */
+export function validateDraftItemsForWeek(
+  weekStartDate: string,
+  items: { fecha: string; tipoComida: string }[]
+): string | null {
+  const weekDates = new Set(getWeekDateStrings(weekStartDate));
+  const seenSlots = new Set<string>();
+  for (const item of items) {
+    if (!weekDates.has(item.fecha)) {
+      return "Alguna comida cae fuera de la semana del borrador";
+    }
+    const key = slotKey(item.fecha, item.tipoComida);
+    if (seenSlots.has(key)) {
+      return "Hay más de una comida para el mismo casillero";
+    }
+    seenSlots.add(key);
+  }
+  return null;
+}
+
+/**
+ * Keeps only the items that fall inside the week, one per (fecha, tipoComida)
+ * slot (first wins) — exactly what the review UI renders, so applying a draft
+ * never writes rows the review never showed.
+ */
+export function sanitizeDraftItemsForWeek<T extends { fecha: string; tipoComida: string }>(
+  weekStartDate: string,
+  items: T[]
+): T[] {
+  const weekDates = new Set(getWeekDateStrings(weekStartDate));
+  const seenSlots = new Set<string>();
+  return items.filter((item) => {
+    const key = slotKey(item.fecha, item.tipoComida);
+    if (!weekDates.has(item.fecha) || seenSlots.has(key)) return false;
+    seenSlots.add(key);
+    return true;
+  });
 }
 
 /**

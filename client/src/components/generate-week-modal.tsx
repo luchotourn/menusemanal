@@ -59,6 +59,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
   const [promptDraft, setPromptDraft] = useState("");
   const [promptDirty, setPromptDirty] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
 
   const {
     draft,
@@ -95,15 +96,19 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
     enabled: open && step === "review",
   });
 
-  // Reset one-shot state whenever the modal opens.
+  // Reset one-shot state whenever the modal opens. A generation may still be
+  // in flight from a previous open (the component stays mounted while closed),
+  // so land on the progress screen instead of an intent form with a dead
+  // button; the pending mutation's callbacks then move to review/intent.
   useEffect(() => {
     if (open) {
-      setStep("intent");
+      setStep(isGenerating ? "generating" : "intent");
       setInstructions("");
       setReplaceWeek(false);
       setProfileOpen(false);
       setPromptDirty(false);
       setShowDiscardConfirm(false);
+      setShowReplaceConfirm(false);
     }
   }, [open]);
 
@@ -184,6 +189,21 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
     apply(draft.id, { onSuccess: () => onOpenChange(false) });
   };
 
+  const handleApplyClick = () => {
+    if (!draft) return;
+    // Replacing the week deletes every planned meal and, in cascade, its
+    // comments, stars and swap proposals — never apply that silently.
+    if (draft.replaceWeek) {
+      setShowReplaceConfirm(true);
+      return;
+    }
+    handleApply();
+  };
+
+  // A recipe deleted after generation leaves the item without recipe data;
+  // applying it would fail server-side, so the slot must be fixed first.
+  const hasDeletedRecipe = (draft?.items ?? []).some((item) => item.recipe === null);
+
   const recipeGroups = groupRecipesByCategory(recipes ?? []);
 
   const renderSlotRow = (label: string, fecha: string, tipoComida: "almuerzo" | "cena", item: EnrichedDraftItem | null) => {
@@ -219,6 +239,16 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                   ))}
                 </SelectContent>
               </Select>
+              {!item.recipe && (
+                <p className="text-xs font-medium text-red-600 mt-1 leading-snug">
+                  Receta eliminada — elegí otra para este casillero.
+                </p>
+              )}
+              {!draft.replaceWeek && occupiedKeys.has(slotKey(item.fecha, item.tipoComida)) && (
+                <p className="text-xs font-medium text-amber-700 mt-1 leading-snug">
+                  Ya planificado — esta sugerencia no se va a aplicar.
+                </p>
+              )}
               {item.razon && (
                 <p className="text-xs text-gray-500 italic mt-1 leading-snug">{item.razon}</p>
               )}
@@ -276,13 +306,36 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
         </div>
       ) : step === "review" ? (
         !draft ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
-          </div>
+          isDraftLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+            </div>
+          ) : (
+            /* The draft disappeared (resolved elsewhere or belongs to another
+               week) — offer a way back instead of an endless spinner. */
+            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
+              <p className="text-sm text-gray-500">No hay un borrador para esta semana.</p>
+              <Button variant="outline" onClick={() => setStep("intent")}>
+                Volver
+              </Button>
+            </div>
+          )
         ) : (
           <>
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 min-h-0">
               <div className="space-y-3 py-3">
+                {/* Replace-week drafts land here directly on reopen, skipping the
+                    intent step — the destructive scope must be visible in review. */}
+                {draft.replaceWeek && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm text-red-800 leading-snug">
+                      Este plan regenera toda la semana: al aplicarlo se reemplazan las comidas
+                      ya planificadas y se pierden sus comentarios, estrellas y propuestas de
+                      cambio.
+                    </p>
+                  </div>
+                )}
+
                 {/* Summary card */}
                 {draft.summary && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
@@ -318,8 +371,9 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                 Descartar
               </Button>
               <Button
-                onClick={handleApply}
-                disabled={isApplying || isDiscarding || isUpdatingItems || draft.items.length === 0}
+                onClick={handleApplyClick}
+                disabled={isApplying || isDiscarding || isUpdatingItems || draft.items.length === 0 || hasDeletedRecipe}
+                title={hasDeletedRecipe ? "Hay una receta eliminada en el plan: reemplazala o quitala" : undefined}
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
                 {isApplying ? (
@@ -437,7 +491,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                       </div>
                       <p className="text-xs text-amber-800">
                         {replaceWeek
-                          ? "Al aplicar el plan se reemplazan todas las comidas ya planificadas de esta semana."
+                          ? "Al aplicar el plan se reemplazan todas las comidas ya planificadas de esta semana, junto con sus comentarios, estrellas y propuestas de cambio."
                           : "Si no lo activás, la IA solo completa los espacios vacíos y las comidas ya planificadas se mantienen."}
                       </p>
                       {weekIsFull && !replaceWeek && (
@@ -466,6 +520,33 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
           </div>
         </>
       )}
+
+      {/* Replace-week apply confirmation */}
+      <AlertDialog open={showReplaceConfirm} onOpenChange={setShowReplaceConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reemplazar toda la semana?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {occupiedCount > 0
+                ? `Al aplicar este plan se elimina${occupiedCount === 1 ? " la comida ya planificada" : `n las ${occupiedCount} comidas ya planificadas`} de esta semana, junto con sus comentarios, estrellas y propuestas de cambio. Esta acción no se puede deshacer.`
+                : "Este plan reemplaza todas las comidas de la semana. Esta acción no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApplying}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isApplying}
+              onClick={() => {
+                handleApply();
+                setShowReplaceConfirm(false);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Reemplazar semana
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Discard confirmation */}
       <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
