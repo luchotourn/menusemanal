@@ -448,14 +448,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
       const userId = user?.id;
-      
+
+      // Family-scoped ownership (same as GET /api/recipes/:id): many family
+      // recipes have userId NULL (created by another member or by the AI
+      // assistant), so scoping by userId alone made them un-editable (404).
+      const userFamilies = userId ? await storage.getUserFamilies(userId) : [];
+      const familyId = userFamilies[0]?.id; // Single family per user
+
       const updateData = insertRecipeSchema.partial().parse(req.body);
-      const recipe = await storage.updateRecipe(id, updateData, userId);
-      
+      const recipe = await storage.updateRecipe(id, updateData, userId, familyId);
+
       if (!recipe) {
         return res.status(404).json({ error: "Receta no encontrada" });
       }
-      
+
       res.json(recipe);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -470,16 +476,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
       const userId = user?.id;
-      
-      // Check if recipe is used in meal plans (user-specific)
-      const isUsed = await storage.isRecipeUsedInMealPlans(id, userId);
+
+      // Family-scoped ownership — see PUT /api/recipes/:id above.
+      const userFamilies = userId ? await storage.getUserFamilies(userId) : [];
+      const familyId = userFamilies[0]?.id; // Single family per user
+
+      // Check if recipe is used in the family's meal plans
+      const isUsed = await storage.isRecipeUsedInMealPlans(id, userId, familyId);
       if (isUsed) {
-        return res.status(400).json({ 
-          error: "No se puede eliminar la receta porque está asignada a uno o más días de la semana. Primero elimine la receta de la planificación semanal." 
+        return res.status(400).json({
+          error: "No se puede eliminar la receta porque está asignada a uno o más días de la semana. Primero elimine la receta de la planificación semanal."
         });
       }
-      
-      const deleted = await storage.deleteRecipe(id, userId);
+
+      const deleted = await storage.deleteRecipe(id, userId, familyId);
       
       if (!deleted) {
         return res.status(404).json({ error: "Receta no encontrada" });
