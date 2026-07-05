@@ -523,7 +523,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
 
       {/* Replace-week apply confirmation */}
       <AlertDialog open={showReplaceConfirm} onOpenChange={setShowReplaceConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[70]">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Reemplazar toda la semana?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -550,7 +550,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
 
       {/* Discard confirmation */}
       <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[70]">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Descartar este borrador?</AlertDialogTitle>
             <AlertDialogDescription>
