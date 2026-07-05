@@ -20,6 +20,11 @@ import type { WeeklyPlanDraftItem } from '@shared/schema';
 import { slotKey, type WeekSlot } from '@shared/weekly-plan';
 
 export const WEEKLY_PLAN_MODEL = 'claude-opus-4-8';
+/** Thinking/output effort for the generation call. Picking recipes from a
+ *  provided library is not deep-reasoning work: 'medium' cuts thinking latency
+ *  substantially versus the 'high' default, and post-validation plus the
+ *  corrective retry still guard quality. Tune here if plans degrade. */
+export const WEEKLY_PLAN_EFFORT: 'low' | 'medium' | 'high' | 'max' = 'medium';
 const MAX_OUTPUT_TOKENS = 16000;
 const MAX_RAZON_LENGTH = 300;
 const MAX_COMMENT_SNIPPETS = 2;
@@ -278,29 +283,32 @@ export interface WeeklyPlanPromptInput {
   instructions: string | null;
 }
 
-/** Assembles the full user message for the generation call. Pure. */
-export function buildWeeklyPlanUserMessage(input: WeeklyPlanPromptInput): string {
-  const sections: string[] = [];
+export interface WeeklyPlanUserSections {
+  /** Week header + profile + library + family signals. Stable across the
+   *  corrective retry and across regenerations within the cache TTL, so it
+   *  sits BEFORE the cache breakpoint (prompt caching is a prefix match). */
+  stable: string;
+  /** This week's instructions + the exact slots + the closing ask. Volatile
+   *  per generation, so it goes AFTER the breakpoint — editing instructions
+   *  or toggling replaceWeek doesn't invalidate the cached prefix. */
+  volatile: string;
+}
 
-  sections.push(`SEMANA A PLANIFICAR: lunes ${input.weekStartDate}`);
+/** Assembles the user message split into a cacheable prefix and a volatile
+ *  tail. Pure. The API call sends them as two text blocks with a cache
+ *  breakpoint on the first. */
+export function buildWeeklyPlanUserSections(input: WeeklyPlanPromptInput): WeeklyPlanUserSections {
+  const stableSections: string[] = [];
+
+  stableSections.push(`SEMANA A PLANIFICAR: lunes ${input.weekStartDate}`);
 
   if (input.plannerPrompt?.trim()) {
-    sections.push(
+    stableSections.push(
       `PERFIL DE LA FAMILIA (respetalo siempre):\n<perfil_familia>\n${input.plannerPrompt.trim()}\n</perfil_familia>`,
     );
   }
 
-  if (input.instructions?.trim()) {
-    sections.push(
-      `INSTRUCCIONES PARA ESTA SEMANA (prioridad máxima):\n<instrucciones_semana>\n${input.instructions.trim()}\n</instrucciones_semana>`,
-    );
-  }
-
-  sections.push(
-    `CASILLEROS A RESOLVER (${input.slots.length}) — respondé por EXACTAMENTE estos, cada uno en "items" o en "slotsSinComida", ni más ni menos:\n${buildSlotsSection(input.slots)}`,
-  );
-
-  sections.push(
+  stableSections.push(
     `BIBLIOTECA DE RECETAS DE LA FAMILIA (${input.library.length} recetas — usá SOLO estos recetaId):\n<biblioteca>\n${input.library
       .map(buildRecipeLine)
       .join('\n')}\n</biblioteca>`,
@@ -308,12 +316,31 @@ export function buildWeeklyPlanUserMessage(input: WeeklyPlanPromptInput): string
 
   const reviewSection = buildReviewSection(input.recentReviews, input.signoffNotes);
   if (reviewSection) {
-    sections.push(`SEÑALES DE LA FAMILIA:\n<senales_familia>\n${reviewSection}\n</senales_familia>`);
+    stableSections.push(`SEÑALES DE LA FAMILIA:\n<senales_familia>\n${reviewSection}\n</senales_familia>`);
   }
 
-  sections.push('Armá el plan y devolvé el JSON con el formato pedido.');
+  const volatileSections: string[] = [];
 
-  return sections.join('\n\n');
+  if (input.instructions?.trim()) {
+    volatileSections.push(
+      `INSTRUCCIONES PARA ESTA SEMANA (prioridad máxima):\n<instrucciones_semana>\n${input.instructions.trim()}\n</instrucciones_semana>`,
+    );
+  }
+
+  volatileSections.push(
+    `CASILLEROS A RESOLVER (${input.slots.length}) — respondé por EXACTAMENTE estos, cada uno en "items" o en "slotsSinComida", ni más ni menos:\n${buildSlotsSection(input.slots)}`,
+  );
+
+  volatileSections.push('Armá el plan y devolvé el JSON con el formato pedido.');
+
+  return { stable: stableSections.join('\n\n'), volatile: volatileSections.join('\n\n') };
+}
+
+/** The full user message (stable + volatile). Kept for tests and debugging;
+ *  the generation call sends the two sections as separate blocks. */
+export function buildWeeklyPlanUserMessage(input: WeeklyPlanPromptInput): string {
+  const sections = buildWeeklyPlanUserSections(input);
+  return `${sections.stable}\n\n${sections.volatile}`;
 }
 
 export const WEEKLY_PLAN_SYSTEM_PROMPT = `Sos el planificador de comidas de una familia en la app "Menú Familiar".
@@ -679,14 +706,32 @@ export interface GeneratedWeeklyPlan {
   model: string;
 }
 
-async function callModel(client: Anthropic, messages: Anthropic.MessageParam[]): Promise<string> {
+async function callModel(
+  client: Anthropic,
+  messages: Anthropic.MessageParam[],
+  label: string,
+): Promise<string> {
+  const startedAt = Date.now();
   const response = await client.messages.create({
     model: WEEKLY_PLAN_MODEL,
     max_tokens: MAX_OUTPUT_TOKENS,
     thinking: { type: 'adaptive' },
-    system: WEEKLY_PLAN_SYSTEM_PROMPT,
+    output_config: { effort: WEEKLY_PLAN_EFFORT },
+    // Cache breakpoint 1: the system prompt is byte-stable across every
+    // generation, so the retry and later generations read it from cache.
+    system: [{ type: 'text', text: WEEKLY_PLAN_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages,
   });
+
+  // Observability: per-call latency plus cache effectiveness. If "cache read"
+  // stays 0 on the retry / on a quick regenerate, a silent cache invalidator
+  // crept into the prefix.
+  const usage = response.usage;
+  console.log(
+    `[weekly-plan] ${label}: ${Date.now() - startedAt}ms | in ${usage?.input_tokens ?? 0} | out ${
+      usage?.output_tokens ?? 0
+    } | cache read ${usage?.cache_read_input_tokens ?? 0} | cache write ${usage?.cache_creation_input_tokens ?? 0}`,
+  );
 
   return response.content
     .filter((block) => block.type === 'text')
@@ -709,11 +754,23 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
 
   const client = new Anthropic({ apiKey });
   const libraryCategories = new Map(input.library.map((entry) => [entry.id, entry.categoria]));
+  const sections = buildWeeklyPlanUserSections(input);
   const messages: Anthropic.MessageParam[] = [
-    { role: 'user', content: buildWeeklyPlanUserMessage(input) },
+    {
+      role: 'user',
+      content: [
+        // Cache breakpoint 2: profile + library + signals. The corrective
+        // retry resends this whole first exchange, and a discard-and-
+        // regenerate within the cache TTL reuses it too — both read the
+        // prefix from cache. The volatile block (instructions, slots) stays
+        // after the breakpoint so editing it doesn't invalidate the prefix.
+        { type: 'text', text: sections.stable, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: sections.volatile },
+      ],
+    },
   ];
 
-  const firstResponse = await callModel(client, messages);
+  const firstResponse = await callModel(client, messages, 'pass 1');
   let parsed = parseWeeklyPlanResponse(firstResponse);
   let resumen = parsed?.resumen?.trim() ?? '';
   let validated: ValidatedPlan = parsed
@@ -721,6 +778,9 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
     : { items: [], skippedSlots: [], missingSlots: [...input.slots] };
 
   if (validated.missingSlots.length > 0) {
+    console.log(
+      `[weekly-plan] retry fired: ${validated.missingSlots.length} slot(s) unresolved after pass 1`,
+    );
     // The Messages API rejects empty message content (e.g. a refusal returns
     // no text blocks), which would 400 before the corrective retry ever runs —
     // never push an empty assistant turn.
@@ -730,7 +790,7 @@ export async function generateWeeklyPlan(input: WeeklyPlanPromptInput): Promise<
     });
     messages.push({ role: 'user', content: buildRetryMessage(validated.missingSlots) });
 
-    const retryResponse = await callModel(client, messages);
+    const retryResponse = await callModel(client, messages, 'pass 2 (retry)');
     parsed = parseWeeklyPlanResponse(retryResponse);
     if (parsed) {
       if (parsed.resumen.trim()) resumen = parsed.resumen.trim();

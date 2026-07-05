@@ -18,6 +18,7 @@ vi.mock('@anthropic-ai/sdk', async (importOriginal) => {
 import { APIError } from '@anthropic-ai/sdk';
 import {
   WEEKLY_PLAN_MODEL,
+  WEEKLY_PLAN_EFFORT,
   WEEKLY_PLAN_SYSTEM_PROMPT,
   computeRecipeServeStats,
   buildRecipeLibraryEntries,
@@ -25,6 +26,7 @@ import {
   buildSlotsSection,
   buildReviewSection,
   buildWeeklyPlanUserMessage,
+  buildWeeklyPlanUserSections,
   buildRetryMessage,
   parseWeeklyPlanResponse,
   validatePlanItems,
@@ -798,6 +800,41 @@ describe('buildWeeklyPlanUserMessage', () => {
   });
 });
 
+describe('buildWeeklyPlanUserSections (cache prefix split)', () => {
+  const input = promptInput({
+    plannerPrompt: 'Poca fritura.',
+    instructions: 'El viernes pizza.',
+    signoffNotes: [{ userName: 'Ana', verdict: 'approved', note: 'Más pastas' }],
+  });
+
+  it('keeps the stable prefix (week, profile, library, signals) free of volatile content', () => {
+    const sections = buildWeeklyPlanUserSections(input);
+    expect(sections.stable).toContain('SEMANA A PLANIFICAR');
+    expect(sections.stable).toContain('<perfil_familia>');
+    expect(sections.stable).toContain('<biblioteca>');
+    expect(sections.stable).toContain('<senales_familia>');
+    // Volatile content must stay AFTER the cache breakpoint: editing this
+    // week's instructions or toggling replaceWeek (different slots) must not
+    // invalidate the cached prefix.
+    expect(sections.stable).not.toContain('INSTRUCCIONES PARA ESTA SEMANA');
+    expect(sections.stable).not.toContain('CASILLEROS A RESOLVER');
+  });
+
+  it('puts instructions, slots and the closing ask in the volatile section', () => {
+    const sections = buildWeeklyPlanUserSections(input);
+    expect(sections.volatile).toContain('<instrucciones_semana>');
+    expect(sections.volatile).toContain('El viernes pizza.');
+    expect(sections.volatile).toContain('CASILLEROS A RESOLVER (2)');
+    expect(sections.volatile).toContain('Armá el plan');
+    expect(sections.volatile).not.toContain('<biblioteca>');
+  });
+
+  it('buildWeeklyPlanUserMessage is exactly stable + volatile joined', () => {
+    const sections = buildWeeklyPlanUserSections(input);
+    expect(buildWeeklyPlanUserMessage(input)).toBe(`${sections.stable}\n\n${sections.volatile}`);
+  });
+});
+
 describe('buildRetryMessage', () => {
   it('lists the unresolved slots and demands the full plan again', () => {
     const message = buildRetryMessage([{ fecha: MONDAY, tipoComida: 'cena' }]);
@@ -853,7 +890,7 @@ describe('generateWeeklyPlan', () => {
     ]);
   });
 
-  it('sends the pinned model, adaptive thinking and the voseo system prompt', async () => {
+  it('sends the pinned model, adaptive thinking at medium effort, and the cached voseo system prompt', async () => {
     mockCreate.mockResolvedValueOnce(
       planResponse([
         { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 },
@@ -861,18 +898,33 @@ describe('generateWeeklyPlan', () => {
       ])
     );
 
-    await generateWeeklyPlan(promptInput({ plannerPrompt: 'Sin picante.' }));
+    await generateWeeklyPlan(promptInput({ plannerPrompt: 'Sin picante.', instructions: 'Más verduras.' }));
 
     const call = mockCreate.mock.calls[0][0];
     expect(call.model).toBe('claude-opus-4-8');
     expect(call.max_tokens).toBe(16000);
     expect(call.thinking).toEqual({ type: 'adaptive' });
     expect(call.temperature).toBeUndefined(); // removed on this model family
-    expect(call.system).toBe(WEEKLY_PLAN_SYSTEM_PROMPT);
-    expect(call.system).toContain('español rioplatense');
-    expect(call.system).toContain('NUNCA inventes ids');
+    // Latency knob: recipe selection doesn't need the 'high' default effort.
+    expect(WEEKLY_PLAN_EFFORT).toBe('medium');
+    expect(call.output_config).toEqual({ effort: WEEKLY_PLAN_EFFORT });
+    // System prompt goes as a block with a cache breakpoint (byte-stable prefix).
+    expect(call.system).toEqual([
+      { type: 'text', text: WEEKLY_PLAN_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+    ]);
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('español rioplatense');
+    expect(WEEKLY_PLAN_SYSTEM_PROMPT).toContain('NUNCA inventes ids');
+    // First user message: cached stable block (profile/library) + volatile block (instructions/slots).
     expect(call.messages[0].role).toBe('user');
-    expect(call.messages[0].content).toContain('Sin picante.');
+    const blocks = call.messages[0].content;
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].type).toBe('text');
+    expect(blocks[0].cache_control).toEqual({ type: 'ephemeral' });
+    expect(blocks[0].text).toContain('Sin picante.');
+    expect(blocks[0].text).toContain('<biblioteca>');
+    expect(blocks[1].cache_control).toBeUndefined();
+    expect(blocks[1].text).toContain('Más verduras.');
+    expect(blocks[1].text).toContain('CASILLEROS A RESOLVER');
   });
 
   it('retries once with a corrective message when slots are missing, then succeeds', async () => {
