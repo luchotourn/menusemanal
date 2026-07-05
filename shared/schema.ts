@@ -2,6 +2,7 @@ import { pgTable, text, serial, integer, timestamp, index, uniqueIndex, varchar,
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
+import { isMonday } from "./weekly-plan";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -27,6 +28,7 @@ export const families = pgTable("families", {
   id: serial("id").primaryKey(),
   nombre: text("nombre").notNull(),
   codigoInvitacion: text("codigo_invitacion").notNull().unique(),
+  plannerPrompt: text("planner_prompt"), // Family profile used as context by the AI weekly plan generator
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => {
@@ -358,6 +360,41 @@ export const weeklyReviewSignoffsRelations = relations(weeklyReviewSignoffs, ({ 
   }),
 }));
 
+// AI-generated weekly plan drafts — the creator asks the AI to fill the week's
+// empty slots (or the whole week when replaceWeek=1) with recipes from the
+// family library. The draft stays private until the human reviews it and
+// applies it, which writes real meal_plans rows.
+export const weeklyPlanDrafts = pgTable("weekly_plan_drafts", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  weekStartDate: text("week_start_date").notNull(), // YYYY-MM-DD (Monday of the week)
+  status: text("status").notNull().default("pending"), // "pending" | "applied" | "discarded"
+  replaceWeek: integer("replace_week").notNull().default(0), // 0 or 1 as boolean
+  instructions: text("instructions"), // one-off instructions the creator gave for this generation
+  summary: text("summary"), // short AI-written summary of the proposed week
+  items: jsonb("items").notNull().$type<WeeklyPlanDraftItem[]>(), // draft items: { fecha, tipoComida, recetaId, razon? }
+  model: text("model"), // model id that produced the draft
+  createdBy: integer("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => {
+  return {
+    familyWeekIdx: uniqueIndex("weekly_plan_drafts_family_week_idx").on(table.familyId, table.weekStartDate),
+    familyIdx: index("weekly_plan_drafts_family_idx").on(table.familyId),
+  };
+});
+
+export const weeklyPlanDraftsRelations = relations(weeklyPlanDrafts, ({ one }) => ({
+  family: one(families, {
+    fields: [weeklyPlanDrafts.familyId],
+    references: [families.id],
+  }),
+  creator: one(users, {
+    fields: [weeklyPlanDrafts.createdBy],
+    references: [users.id],
+  }),
+}));
+
 // Meal achievements table for kids gamification
 export const mealAchievements = pgTable("meal_achievements", {
   id: serial("id").primaryKey(),
@@ -559,6 +596,55 @@ export const awardStarSchema = z.object({
   }),
 });
 
+// Intelligent weekly plan generator schemas
+export const weeklyPlanDraftItemSchema = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+  tipoComida: z.enum(["almuerzo", "cena"], {
+    required_error: "El tipo de comida es requerido",
+  }),
+  recetaId: z.number().int().positive("El ID de la receta es requerido"),
+  razon: z.string().max(300, "La razón es demasiado larga").optional(),
+});
+
+export const generateWeeklyPlanRequestSchema = z.object({
+  weekStartDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+    .refine(isMonday, "La fecha debe ser un lunes"),
+  instructions: z.string().max(2000, "Las instrucciones son demasiado largas").optional(),
+  replaceWeek: z.boolean().optional().default(false),
+});
+
+export const updateWeeklyPlanDraftItemsSchema = z.object({
+  items: z
+    .array(weeklyPlanDraftItemSchema)
+    .min(1, "El borrador debe tener al menos una comida")
+    .max(14, "El borrador no puede tener más de 14 comidas"),
+});
+
+export const plannerPromptSchema = z.object({
+  // Empty string is allowed and clears the family planner profile
+  plannerPrompt: z.string().max(2000, "El perfil es demasiado largo"),
+});
+
+export const insertWeeklyPlanDraftSchema = createInsertSchema(weeklyPlanDrafts, {
+  weekStartDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+    .refine(isMonday, "La fecha debe ser un lunes"),
+  status: z.enum(["pending", "applied", "discarded"]).default("pending"),
+  replaceWeek: z.number().int().min(0).max(1).default(0),
+  instructions: z.string().max(2000, "Las instrucciones son demasiado largas").optional(),
+  items: z
+    .array(weeklyPlanDraftItemSchema)
+    .min(1, "El borrador debe tener al menos una comida")
+    .max(14, "El borrador no puede tener más de 14 comidas"),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -598,6 +684,9 @@ export type WeeklyReviewSignoffEnriched = WeeklyReviewSignoff & {
 export type WeeklyReviewWithSignoffs = WeeklyReview & {
   signoffs: WeeklyReviewSignoffEnriched[];
 };
+export type WeeklyPlanDraftItem = z.infer<typeof weeklyPlanDraftItemSchema>;
+export type WeeklyPlanDraft = typeof weeklyPlanDrafts.$inferSelect;
+export type InsertWeeklyPlanDraft = z.infer<typeof insertWeeklyPlanDraftSchema>;
 export type JoinFamilyData = z.infer<typeof joinFamilySchema>;
 export type CreateFamilyData = z.infer<typeof createFamilySchema>;
 
