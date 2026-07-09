@@ -20,23 +20,18 @@ import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { MealCard } from "@/components/meal-card";
+import type { PendingProposalSummary } from "@/components/meal-card-utils";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
 import { CreatorOnly, CommentatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { useWeeklyReview } from "@/hooks/use-weekly-review";
 import { useProfile } from "@/hooks/useAuth";
 import { selectReviewNotes, reviewReviewerName } from "@shared/utils";
 
-type LatestPendingProposal = {
-  proposedRecipeName: string;
-  proposerName: string;
-  createdAt: string;
-};
-
 type MealPlanWithCommentsAndRecipe = MealPlan & {
   recipe: Recipe | null;
   comments: MealCommentInline[];
   pendingProposalCount: number;
-  latestPendingProposal: LatestPendingProposal | null;
+  latestPendingProposal: PendingProposalSummary | null;
 };
 
 interface WeeklyCalendarProps {
