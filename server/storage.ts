@@ -15,6 +15,10 @@ import {
   type WeeklyReviewSignoff,
   type WeeklyReviewSignoffEnriched,
   type WeeklyReviewWithSignoffs,
+  weeklyPlanDrafts,
+  type WeeklyPlanDraft,
+  type InsertWeeklyPlanDraft,
+  type WeeklyPlanDraftItem,
   type Recipe,
   type InsertRecipe,
   type MealPlan,
@@ -33,6 +37,7 @@ import {
   waitlistSignups,
   type WaitlistSignup,
 } from "@shared/schema";
+import { addDaysToDateString, isValidDateString } from "@shared/weekly-plan";
 import { db } from "./db";
 import { eq, and, gte, lte, like, or, inArray, isNull, sql, SQL } from "drizzle-orm";
 
@@ -111,6 +116,23 @@ export interface IStorage {
     verdict: "approved" | "changes_requested",
     note?: string
   ): Promise<{ review: WeeklyReview; signoff: WeeklyReviewSignoff }>;
+
+  // Weekly plan draft methods (AI weekly plan generator)
+  getWeeklyPlanDraft(familyId: number, weekStartDate: string): Promise<WeeklyPlanDraft | undefined>;
+  getWeeklyPlanDraftById(id: number, familyId: number): Promise<WeeklyPlanDraft | undefined>;
+  upsertWeeklyPlanDraft(draft: InsertWeeklyPlanDraft): Promise<WeeklyPlanDraft>;
+  updateWeeklyPlanDraftItems(id: number, familyId: number, items: WeeklyPlanDraftItem[]): Promise<WeeklyPlanDraft | undefined>;
+  updateWeeklyPlanDraftStatus(
+    id: number,
+    familyId: number,
+    status: "pending" | "applied" | "discarded",
+    extra?: Partial<Pick<WeeklyPlanDraft, "summary" | "model">>
+  ): Promise<WeeklyPlanDraft | undefined>;
+  getMealPlanHistoryRange(familyId: number, fromFecha: string, toFecha: string): Promise<MealPlan[]>;
+  getRecipeRatingsByFamily(familyId: number): Promise<RecipeRating[]>;
+  getMealProposalsByFamily(familyId: number): Promise<MealProposal[]>;
+  getWeeklyReviewsRange(familyId: number, fromWeekStartDate: string, toWeekStartDate: string): Promise<WeeklyReview[]>;
+  updateFamilyPlannerPrompt(familyId: number, plannerPrompt: string | null): Promise<Family | undefined>;
 
   // Waitlist methods
   addWaitlistSignup(email: string, source?: string): Promise<WaitlistSignup>;
@@ -309,10 +331,11 @@ export class MemStorage implements IStorage {
   // Family management methods (stubbed for MemStorage)
   async createFamily(insertFamily: InsertFamily): Promise<Family> {
     const id = this.currentFamilyId++;
-    const family: Family = { 
+    const family: Family = {
       id,
       nombre: insertFamily.nombre,
       codigoInvitacion: insertFamily.codigoInvitacion,
+      plannerPrompt: insertFamily.plannerPrompt ?? null,
       createdBy: insertFamily.createdBy || null,
       createdAt: new Date()
     };
@@ -440,6 +463,35 @@ export class MemStorage implements IStorage {
   }
   async upsertWeeklyReviewSignoff(): Promise<{ review: WeeklyReview; signoff: WeeklyReviewSignoff }> {
     throw new Error("MemStorage does not implement weekly review signoffs");
+  }
+
+  // Weekly plan draft stubs (MemStorage is primarily for testing)
+  async getWeeklyPlanDraft(): Promise<WeeklyPlanDraft | undefined> { return undefined; }
+  async getWeeklyPlanDraftById(): Promise<WeeklyPlanDraft | undefined> { return undefined; }
+  async upsertWeeklyPlanDraft(): Promise<WeeklyPlanDraft> {
+    throw new Error("MemStorage does not implement weekly plan drafts");
+  }
+  async updateWeeklyPlanDraftItems(): Promise<WeeklyPlanDraft | undefined> {
+    throw new Error("MemStorage does not implement weekly plan drafts");
+  }
+  async updateWeeklyPlanDraftStatus(): Promise<WeeklyPlanDraft | undefined> {
+    throw new Error("MemStorage does not implement weekly plan drafts");
+  }
+  async getMealPlanHistoryRange(familyId: number, fromFecha: string, toFecha: string): Promise<MealPlan[]> {
+    // Pure string comparison on YYYY-MM-DD — no Date parsing (see shared/weekly-plan.ts)
+    return Array.from(this.mealPlans.values()).filter(
+      (mealPlan) => mealPlan.familyId === familyId && mealPlan.fecha >= fromFecha && mealPlan.fecha <= toFecha
+    );
+  }
+  async getRecipeRatingsByFamily(): Promise<RecipeRating[]> { return []; }
+  async getMealProposalsByFamily(): Promise<MealProposal[]> { return []; }
+  async getWeeklyReviewsRange(): Promise<WeeklyReview[]> { return []; }
+  async updateFamilyPlannerPrompt(familyId: number, plannerPrompt: string | null): Promise<Family | undefined> {
+    const existing = this.families.get(familyId);
+    if (!existing) return undefined;
+    const updated: Family = { ...existing, plannerPrompt };
+    this.families.set(familyId, updated);
+    return updated;
   }
 
   // Waitlist stubs
@@ -603,15 +655,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMealPlansForWeek(startDate: string, userId?: number, familyId?: number): Promise<MealPlan[]> {
-    const start = new Date(startDate);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-
-    // Format end date correctly in local timezone
-    const year = end.getFullYear();
-    const month = String(end.getMonth() + 1).padStart(2, '0');
-    const day = String(end.getDate()).padStart(2, '0');
-    const endDateStr = `${year}-${month}-${day}`;
+    // Pure string math (UTC-only): mixing new Date('YYYY-MM-DD') (UTC midnight)
+    // with local getters ended the week on Saturday on UTC-negative servers,
+    // silently dropping Sunday. Invalid startDate degrades to an empty range
+    // instead of throwing, matching the old graceful behavior.
+    const endDateStr = isValidDateString(startDate)
+      ? addDaysToDateString(startDate, 6)
+      : startDate;
 
     let conditions = and(
       gte(mealPlans.fecha, startDate),
@@ -1561,6 +1611,141 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return { review: updatedReview, signoff };
+  }
+
+  // Weekly plan draft methods (AI weekly plan generator)
+  async getWeeklyPlanDraft(familyId: number, weekStartDate: string): Promise<WeeklyPlanDraft | undefined> {
+    const [draft] = await db
+      .select()
+      .from(weeklyPlanDrafts)
+      .where(and(
+        eq(weeklyPlanDrafts.familyId, familyId),
+        eq(weeklyPlanDrafts.weekStartDate, weekStartDate)
+      ))
+      .limit(1);
+    return draft || undefined;
+  }
+
+  async getWeeklyPlanDraftById(id: number, familyId: number): Promise<WeeklyPlanDraft | undefined> {
+    const [draft] = await db
+      .select()
+      .from(weeklyPlanDrafts)
+      .where(and(
+        eq(weeklyPlanDrafts.id, id),
+        eq(weeklyPlanDrafts.familyId, familyId)
+      ))
+      .limit(1);
+    return draft || undefined;
+  }
+
+  async upsertWeeklyPlanDraft(draft: InsertWeeklyPlanDraft): Promise<WeeklyPlanDraft> {
+    // One draft per (family, week): regenerating replaces the previous draft
+    // atomically via ON CONFLICT on the unique index, so concurrent generations
+    // can't race past an existence check (same pattern as upsertWeeklyReviewSignoff).
+    const now = new Date();
+    const [saved] = await db
+      .insert(weeklyPlanDrafts)
+      .values(draft)
+      .onConflictDoUpdate({
+        target: [weeklyPlanDrafts.familyId, weeklyPlanDrafts.weekStartDate],
+        set: {
+          status: draft.status,
+          replaceWeek: draft.replaceWeek,
+          instructions: draft.instructions ?? null,
+          summary: draft.summary ?? null,
+          items: draft.items,
+          model: draft.model ?? null,
+          createdBy: draft.createdBy,
+          createdAt: now,
+          updatedAt: now,
+        },
+      })
+      .returning();
+    return saved;
+  }
+
+  async updateWeeklyPlanDraftItems(id: number, familyId: number, items: WeeklyPlanDraftItem[]): Promise<WeeklyPlanDraft | undefined> {
+    // Family-scoped and pending-only: editing an applied/discarded draft (or a
+    // draft from another family) returns undefined so the route can 404 without
+    // leaking existence.
+    const [draft] = await db
+      .update(weeklyPlanDrafts)
+      .set({ items, updatedAt: new Date() })
+      .where(and(
+        eq(weeklyPlanDrafts.id, id),
+        eq(weeklyPlanDrafts.familyId, familyId),
+        eq(weeklyPlanDrafts.status, "pending")
+      ))
+      .returning();
+    return draft || undefined;
+  }
+
+  async updateWeeklyPlanDraftStatus(
+    id: number,
+    familyId: number,
+    status: "pending" | "applied" | "discarded",
+    extra?: Partial<Pick<WeeklyPlanDraft, "summary" | "model">>
+  ): Promise<WeeklyPlanDraft | undefined> {
+    // Only pending drafts can transition (pending -> applied | discarded)
+    const [draft] = await db
+      .update(weeklyPlanDrafts)
+      .set({ status, ...extra, updatedAt: new Date() })
+      .where(and(
+        eq(weeklyPlanDrafts.id, id),
+        eq(weeklyPlanDrafts.familyId, familyId),
+        eq(weeklyPlanDrafts.status, "pending")
+      ))
+      .returning();
+    return draft || undefined;
+  }
+
+  async getMealPlanHistoryRange(familyId: number, fromFecha: string, toFecha: string): Promise<MealPlan[]> {
+    // fecha is a YYYY-MM-DD text column, so a lexicographic string range is a
+    // correct date range — no Date parsing, no local/UTC mixing.
+    return await db
+      .select()
+      .from(mealPlans)
+      .where(and(
+        eq(mealPlans.familyId, familyId),
+        gte(mealPlans.fecha, fromFecha),
+        lte(mealPlans.fecha, toFecha)
+      ));
+  }
+
+  async getRecipeRatingsByFamily(familyId: number): Promise<RecipeRating[]> {
+    return await db
+      .select()
+      .from(recipeRatings)
+      .where(eq(recipeRatings.familyId, familyId));
+  }
+
+  async getMealProposalsByFamily(familyId: number): Promise<MealProposal[]> {
+    return await db
+      .select()
+      .from(mealProposals)
+      .where(eq(mealProposals.familyId, familyId))
+      .orderBy(mealProposals.createdAt);
+  }
+
+  async getWeeklyReviewsRange(familyId: number, fromWeekStartDate: string, toWeekStartDate: string): Promise<WeeklyReview[]> {
+    return await db
+      .select()
+      .from(weeklyReviews)
+      .where(and(
+        eq(weeklyReviews.familyId, familyId),
+        gte(weeklyReviews.weekStartDate, fromWeekStartDate),
+        lte(weeklyReviews.weekStartDate, toWeekStartDate)
+      ))
+      .orderBy(weeklyReviews.weekStartDate);
+  }
+
+  async updateFamilyPlannerPrompt(familyId: number, plannerPrompt: string | null): Promise<Family | undefined> {
+    const [family] = await db
+      .update(families)
+      .set({ plannerPrompt })
+      .where(eq(families.id, familyId))
+      .returning();
+    return family || undefined;
   }
 
   // Waitlist methods

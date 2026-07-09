@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { User } from "@shared/schema";
 import { storage } from "../storage";
 
@@ -232,6 +232,49 @@ export const waitlistRateLimit = rateLimit({
   handler: (req, res) => {
     res.status(429).json({
       message: "Has enviado demasiadas solicitudes. Por favor espera antes de intentar de nuevo.",
+      error: "TOO_MANY_REQUESTS"
+    });
+  }
+});
+
+// Rate limiting for AI weekly plan generation (expensive LLM calls).
+// Keyed by authenticated user id — the cost driver is the user, not the IP —
+// falling back to the IPv6-safe IP key for unauthenticated requests.
+export const weeklyPlanGenerateRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each user to 10 generations per window
+  message: "Generaste demasiados planes seguidos. Esperá unos minutos e intentá de nuevo.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  keyGenerator: (req) => {
+    const user = req.user as User | undefined;
+    return user?.id != null ? `user:${user.id}` : ipKeyGenerator(req.ip ?? "");
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Generaste muchos planes seguidos. Esperá 15 minutos e intentá de nuevo.",
+      error: "TOO_MANY_REQUESTS"
+    });
+  }
+});
+
+// Rate limiting for per-slot AI re-suggestions (cheaper than a full plan but
+// still an LLM call; taps can be rapid-fire). Keyed like the generate limiter.
+export const weeklyPlanResuggestRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each user to 20 re-suggestions per window
+  message: "Pediste demasiadas sugerencias seguidas. Esperá unos minutos e intentá de nuevo.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  keyGenerator: (req) => {
+    const user = req.user as User | undefined;
+    return user?.id != null ? `user:${user.id}` : ipKeyGenerator(req.ip ?? "");
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      message: "Pediste muchas sugerencias seguidas. Esperá 15 minutos e intentá de nuevo.",
       error: "TOO_MANY_REQUESTS"
     });
   }

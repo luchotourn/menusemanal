@@ -4,14 +4,69 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, submitWeeklyReviewSchema, submitWeeklyReviewSignoffSchema, mealPlans } from "@shared/schema";
+import { insertRecipeSchema, insertMealPlanSchema, createFamilySchema, joinFamilySchema, insertWaitlistSignupSchema, createMealProposalSchema, reviewMealProposalSchema, submitWeeklyReviewSchema, submitWeeklyReviewSignoffSchema, mealPlans, weeklyPlanDrafts, generateWeeklyPlanRequestSchema, updateWeeklyPlanDraftItemsSchema, resuggestSlotRequestSchema, plannerPromptSchema, type WeeklyPlanDraft, type Recipe } from "@shared/schema";
 import { z } from "zod";
 import { checkDatabaseHealth, db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import authRouter from "./auth/routes";
-import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit } from "./auth/middleware";
+import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit, weeklyPlanGenerateRateLimit, weeklyPlanResuggestRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat, isPastMealDate } from "@shared/utils";
+import { allWeekSlots, computeEmptySlots, addDaysToDateString, mondayOfWeekOf, validateDraftItemsForWeek, sanitizeDraftItemsForWeek } from "@shared/weekly-plan";
+import {
+  generateWeeklyPlan,
+  resuggestSlot,
+  buildRecipeLibraryEntries,
+  planApplyOperations,
+  mapAnthropicApiError,
+  validateDraftItemsAgainstLibrary,
+  filterChangedDraftItems,
+  buildSkippedSlotsResumenLine,
+} from "./services/weekly-plan-generator";
 import { sendSignupNotification, sendWeekReviewNotification, sendReviewSignoffNotification } from "./email";
+
+// Enriched weekly-plan-draft response shape shared by every draft endpoint:
+// the raw draft row plus, per item, the recipe card data the client renders.
+// `replaceWeek` is exposed as a real boolean (stored as 0/1); recipes deleted
+// after generation come back as `recipe: null` (or `acompanamientoRecipe:
+// null` for a deleted side) so the client can flag them.
+function toDraftRecipeSummary(recipe: Recipe | undefined) {
+  return recipe
+    ? {
+        id: recipe.id,
+        nombre: recipe.nombre,
+        categoria: recipe.categoria,
+        calificacionNinos: recipe.calificacionNinos,
+        esFavorita: recipe.esFavorita,
+        tiempoPreparacion: recipe.tiempoPreparacion,
+        imagen: recipe.imagen,
+      }
+    : null;
+}
+
+function buildEnrichedWeeklyPlanDraft(draft: WeeklyPlanDraft, recipesById: Map<number, Recipe>) {
+  return {
+    id: draft.id,
+    weekStartDate: draft.weekStartDate,
+    status: draft.status,
+    replaceWeek: draft.replaceWeek === 1,
+    instructions: draft.instructions,
+    summary: draft.summary,
+    model: draft.model,
+    createdAt: draft.createdAt,
+    items: draft.items.map((item) => ({
+      fecha: item.fecha,
+      tipoComida: item.tipoComida,
+      recetaId: item.recetaId,
+      razon: item.razon,
+      acompanamientoId: item.acompanamientoId ?? null,
+      recipe: toDraftRecipeSummary(recipesById.get(item.recetaId)),
+      acompanamientoRecipe:
+        item.acompanamientoId != null
+          ? toDraftRecipeSummary(recipesById.get(item.acompanamientoId))
+          : null,
+    })),
+  };
+}
 
 // Helper to parse cookies from request header (avoids adding cookie-parser dependency)
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
@@ -403,14 +458,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
       const userId = user?.id;
-      
+
+      // Family-scoped ownership (same as GET /api/recipes/:id): many family
+      // recipes have userId NULL (created by another member or by the AI
+      // assistant), so scoping by userId alone made them un-editable (404).
+      const userFamilies = userId ? await storage.getUserFamilies(userId) : [];
+      const familyId = userFamilies[0]?.id; // Single family per user
+
       const updateData = insertRecipeSchema.partial().parse(req.body);
-      const recipe = await storage.updateRecipe(id, updateData, userId);
-      
+      const recipe = await storage.updateRecipe(id, updateData, userId, familyId);
+
       if (!recipe) {
         return res.status(404).json({ error: "Receta no encontrada" });
       }
-      
+
       res.json(recipe);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -425,16 +486,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const user = getCurrentUser(req);
       const userId = user?.id;
-      
-      // Check if recipe is used in meal plans (user-specific)
-      const isUsed = await storage.isRecipeUsedInMealPlans(id, userId);
+
+      // Family-scoped ownership — see PUT /api/recipes/:id above.
+      const userFamilies = userId ? await storage.getUserFamilies(userId) : [];
+      const familyId = userFamilies[0]?.id; // Single family per user
+
+      // Check if recipe is used in the family's meal plans
+      const isUsed = await storage.isRecipeUsedInMealPlans(id, userId, familyId);
       if (isUsed) {
-        return res.status(400).json({ 
-          error: "No se puede eliminar la receta porque está asignada a uno o más días de la semana. Primero elimine la receta de la planificación semanal." 
+        return res.status(400).json({
+          error: "No se puede eliminar la receta porque está asignada a uno o más días de la semana. Primero elimine la receta de la planificación semanal."
         });
       }
-      
-      const deleted = await storage.deleteRecipe(id, userId);
+
+      const deleted = await storage.deleteRecipe(id, userId, familyId);
       
       if (!deleted) {
         return res.status(404).json({ error: "Receta no encontrada" });
@@ -568,18 +633,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (date) {
         mealPlans = await storage.getMealPlanByDate(date as string, userId, familyId);
       } else {
-        // Default to current week
-        const today = new Date();
-        const startOfWeek = new Date(today);
-        const dayOfWeek = today.getDay();
-        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday
-        startOfWeek.setDate(diff);
-        // Format date correctly in local timezone
-        const year = startOfWeek.getFullYear();
-        const month = String(startOfWeek.getMonth() + 1).padStart(2, '0');
-        const day = String(startOfWeek.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        mealPlans = await storage.getMealPlansForWeek(formattedDate, userId, familyId);
+        // Default to the current week's Monday, in UTC like all other
+        // weekly-plan date math (see shared/weekly-plan.ts).
+        const todayUtc = new Date().toISOString().slice(0, 10);
+        mealPlans = await storage.getMealPlansForWeek(mondayOfWeekOf(todayUtc), userId, familyId);
       }
 
       res.json(mealPlans);
@@ -788,6 +845,526 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error signing off weekly review:", error);
       res.status(500).json({ error: "Error al registrar la revisión" });
+    }
+  });
+
+  // Intelligent weekly plan generator routes (AI drafts the week, the human
+  // reviews/edits the draft and applying it writes real meal_plans rows)
+
+  // Shared prompt context for generate AND per-slot re-suggestion. The two
+  // calls must feed the service IDENTICAL data for the same week — the cached
+  // prompt prefix is a byte-level prefix match, so any drift between them
+  // would silently break cache reuse.
+  async function loadWeeklyPlanContext(userId: number, familyId: number, weekStartDate: string) {
+    // Family feedback context: 8 weeks of serving history plus the durable
+    // preference signals (ratings, comments, proposals, review verdicts).
+    const historyFrom = addDaysToDateString(weekStartDate, -56);
+    const historyTo = addDaysToDateString(weekStartDate, -1);
+    const [libraryRecipes, history, ratings, comments, proposals, recentReviews, currentReview] = await Promise.all([
+      storage.getAllRecipes(userId, familyId),
+      storage.getMealPlanHistoryRange(familyId, historyFrom, historyTo),
+      storage.getRecipeRatingsByFamily(familyId),
+      storage.getMealCommentsByFamily(familyId),
+      storage.getMealProposalsByFamily(familyId),
+      storage.getWeeklyReviewsRange(familyId, historyFrom, historyTo),
+      storage.getWeeklyReviewWithSignoffs(familyId, weekStartDate),
+    ]);
+
+    const library = buildRecipeLibraryEntries({
+      recipes: libraryRecipes.map((recipe) => ({
+        id: recipe.id,
+        nombre: recipe.nombre,
+        categoria: recipe.categoria,
+        calificacionNinos: recipe.calificacionNinos,
+        esFavorita: recipe.esFavorita,
+        tiempoPreparacion: recipe.tiempoPreparacion,
+      })),
+      ratings: ratings.map((rating) => ({ recipeId: rating.recipeId, rating: rating.rating })),
+      history: history.map((plan) => ({ fecha: plan.fecha, tipoComida: plan.tipoComida, recetaId: plan.recetaId })),
+      comments: comments.map((comment) => ({ recipeId: comment.recipeId, comment: comment.comment })),
+      proposals: proposals.map((proposal) => ({
+        proposedRecipeId: proposal.proposedRecipeId,
+        status: proposal.status,
+        reason: proposal.reason,
+      })),
+    });
+
+    return {
+      libraryRecipes,
+      library,
+      recentReviews: recentReviews.map((review) => ({ weekStartDate: review.weekStartDate, status: review.status })),
+      signoffNotes: (currentReview?.signoffs ?? []).map((signoff) => ({
+        userName: signoff.userName,
+        verdict: signoff.verdict,
+        note: signoff.note,
+      })),
+    };
+  }
+
+  app.post("/api/weekly-plan/generate", weeklyPlanGenerateRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const { weekStartDate, instructions, replaceWeek } = generateWeeklyPlanRequestSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0]; // Single family per user
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const context = await loadWeeklyPlanContext(user.id, family.id, weekStartDate);
+      if (context.libraryRecipes.length === 0) {
+        return res.status(400).json({ error: "Necesitás recetas en tu biblioteca para generar un plan." });
+      }
+
+      // Which slots does the AI have to fill?
+      const weekEndDate = addDaysToDateString(weekStartDate, 6);
+      const currentWeekPlans = await storage.getMealPlanHistoryRange(family.id, weekStartDate, weekEndDate);
+      const slots = replaceWeek
+        ? allWeekSlots(weekStartDate)
+        : computeEmptySlots(weekStartDate, currentWeekPlans.map((plan) => ({ fecha: plan.fecha, tipoComida: plan.tipoComida })));
+      if (slots.length === 0) {
+        return res.status(400).json({ error: 'La semana ya está completa. Activá "Regenerar toda la semana" para reemplazarla.' });
+      }
+
+      const generated = await generateWeeklyPlan({
+        weekStartDate,
+        slots,
+        library: context.library,
+        recentReviews: context.recentReviews,
+        signoffNotes: context.signoffNotes,
+        plannerPrompt: family.plannerPrompt ?? null,
+        instructions: instructions ?? null,
+      });
+
+      // Surface deliberately skipped slots to the reviewer: the skip line is
+      // appended to the stored summary so the client renders it as plain text.
+      const skippedLine = buildSkippedSlotsResumenLine(generated.skippedSlots);
+      const summary = [generated.resumen, skippedLine]
+        .filter((part): part is string => !!part)
+        .join(' ');
+
+      const draft = await storage.upsertWeeklyPlanDraft({
+        familyId: family.id,
+        weekStartDate,
+        status: "pending",
+        replaceWeek: replaceWeek ? 1 : 0,
+        instructions,
+        summary: summary || null,
+        items: generated.items,
+        model: generated.model,
+        createdBy: user.id,
+      });
+
+      const recipesById = new Map(context.libraryRecipes.map((recipe) => [recipe.id, recipe]));
+      res.json(buildEnrichedWeeklyPlanDraft(draft, recipesById));
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Weekly plan generate error:", error);
+      if (error?.message?.includes('ANTHROPIC_API_KEY')) {
+        return res.status(503).json({ error: "El servicio de IA no está configurado" });
+      }
+      if (error?.message === 'GENERATION_INCOMPLETE') {
+        return res.status(502).json({ error: "La IA no pudo generar un plan completo. Intentá de nuevo." });
+      }
+      const aiError = mapAnthropicApiError(error);
+      if (aiError) {
+        return res.status(aiError.status).json({ error: aiError.message });
+      }
+      res.status(500).json({ error: "Error al generar el plan semanal" });
+    }
+  });
+
+  app.get("/api/weekly-plan/draft", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const weekStartDate = req.query.weekStartDate;
+      if (typeof weekStartDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(weekStartDate)) {
+        return res.status(400).json({ error: "Parámetro weekStartDate inválido" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const draft = await storage.getWeeklyPlanDraft(familyId, weekStartDate);
+      if (!draft || draft.status !== "pending") {
+        return res.json(null);
+      }
+
+      const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
+      const recipesById = new Map(libraryRecipes.map((recipe) => [recipe.id, recipe]));
+      res.json(buildEnrichedWeeklyPlanDraft(draft, recipesById));
+    } catch (error) {
+      console.error("Weekly plan draft fetch error:", error);
+      res.status(500).json({ error: "Error al obtener el borrador del plan semanal" });
+    }
+  });
+
+  app.put("/api/weekly-plan/draft/:id/items", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const { items } = updateWeeklyPlanDraftItemsSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const existingDraft = await storage.getWeeklyPlanDraftById(id, familyId);
+      if (!existingDraft || existingDraft.status !== "pending") {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      // Every item must fall inside the draft's week and fill a distinct slot —
+      // otherwise apply would write rows the review screen never showed.
+      const weekError = validateDraftItemsForWeek(existingDraft.weekStartDate, items);
+      if (weekError) {
+        return res.status(400).json({ error: weekError });
+      }
+
+      // Revalidate recetaId/acompanamientoId against the family library — the
+      // client is never trusted to reference recipes outside the family, an
+      // "Acompañamiento" can never stand alone as the meal, and a side must
+      // actually be one. Items identical to ones already stored are
+      // grandfathered (valid at generation time; a recipe's categoria may have
+      // changed since) so one stale item never locks the user out of editing
+      // the OTHER slots. The apply route still validates everything strictly.
+      const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
+      const libraryCategories = new Map(libraryRecipes.map((recipe) => [recipe.id, recipe.categoria]));
+      const changedItems = filterChangedDraftItems(items, existingDraft.items);
+      const validationError = validateDraftItemsAgainstLibrary(changedItems, libraryCategories);
+      if (validationError) {
+        return res.status(400).json({ error: validationError });
+      }
+
+      const draft = await storage.updateWeeklyPlanDraftItems(id, familyId, items);
+      if (!draft) {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      const recipesById = new Map(libraryRecipes.map((recipe) => [recipe.id, recipe]));
+      res.json(buildEnrichedWeeklyPlanDraft(draft, recipesById));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Weekly plan draft items update error:", error);
+      res.status(500).json({ error: "Error al actualizar el borrador del plan semanal" });
+    }
+  });
+
+  // Per-slot re-suggestion: asks the AI for ONE replacement dish for a single
+  // slot of the pending draft, avoiding the current pick and everything the
+  // user already rejected for that slot. Replaces the item in place and
+  // returns the same enriched draft shape as the PUT items route.
+  app.post("/api/weekly-plan/draft/:id/resuggest", weeklyPlanResuggestRateLimit, isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const { fecha, tipoComida, avoidRecipeIds } = resuggestSlotRequestSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0]; // Single family per user
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const draft = await storage.getWeeklyPlanDraftById(id, family.id);
+      if (!draft || draft.status !== "pending") {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      const targetIndex = draft.items.findIndex(
+        (item) => item.fecha === fecha && item.tipoComida === tipoComida
+      );
+      if (targetIndex === -1) {
+        return res.status(400).json({ error: "Ese casillero no tiene una sugerencia para reemplazar." });
+      }
+      const currentItem = draft.items[targetIndex];
+
+      const context = await loadWeeklyPlanContext(user.id, family.id, draft.weekStartDate);
+
+      const otherItems = draft.items
+        .filter((_, index) => index !== targetIndex)
+        .map((item) => ({
+          recetaId: item.recetaId,
+          ...(item.acompanamientoId != null ? { acompanamientoId: item.acompanamientoId } : {}),
+        }));
+      // Belt and braces: never re-suggest the current pick, even if the
+      // client forgot to include it in the avoid list.
+      const avoid = Array.from(new Set([...avoidRecipeIds, currentItem.recetaId]));
+
+      const result = await resuggestSlot({
+        weekStartDate: draft.weekStartDate,
+        slot: { fecha, tipoComida },
+        library: context.library,
+        recentReviews: context.recentReviews,
+        signoffNotes: context.signoffNotes,
+        plannerPrompt: family.plannerPrompt ?? null,
+        instructions: draft.instructions ?? null,
+        otherItems,
+        avoidRecipeIds: avoid,
+      });
+
+      const newItems = draft.items.map((item, index) => (index === targetIndex ? result.item : item));
+      const updated = await storage.updateWeeklyPlanDraftItems(id, family.id, newItems);
+      if (!updated) {
+        // A concurrent apply/discard/regenerate won the race
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      const recipesById = new Map(context.libraryRecipes.map((recipe) => [recipe.id, recipe]));
+      res.json(buildEnrichedWeeklyPlanDraft(updated, recipesById));
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Weekly plan resuggest error:", error);
+      if (error?.message?.includes('ANTHROPIC_API_KEY')) {
+        return res.status(503).json({ error: "El servicio de IA no está configurado" });
+      }
+      if (error?.message === 'RESUGGEST_FAILED') {
+        return res.status(502).json({ error: "La IA no pudo sugerir otro plato. Intentá de nuevo." });
+      }
+      const aiError = mapAnthropicApiError(error);
+      if (aiError) {
+        return res.status(aiError.status).json({ error: aiError.message });
+      }
+      res.status(500).json({ error: "Error al sugerir otro plato" });
+    }
+  });
+
+  app.post("/api/weekly-plan/draft/:id/apply", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const draft = await storage.getWeeklyPlanDraftById(id, familyId);
+      if (!draft || draft.status !== "pending") {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      const weekStartDate = draft.weekStartDate;
+      const weekEndDate = addDaysToDateString(weekStartDate, 6);
+      const replaceWeek = draft.replaceWeek === 1;
+
+      // Defense in depth: apply exactly what the review screen shows — items
+      // inside the week, one per slot (first wins). Anything else is dropped.
+      const draftItems = sanitizeDraftItemsForWeek(weekStartDate, draft.items);
+
+      // Revalidate the draft's recipes (mains AND sides): one may have been
+      // deleted since generation (meal_plans has an FK to recipes, so a stale
+      // id would make the insert fail with an opaque 500 instead of this
+      // actionable 400).
+      const libraryRecipes = await storage.getAllRecipes(user.id, familyId);
+      const libraryIds = new Set(libraryRecipes.map((recipe) => recipe.id));
+      const missingRecipeItem = draftItems.find((item) => !libraryIds.has(item.recetaId));
+      if (missingRecipeItem) {
+        return res.status(400).json({
+          error: `La receta del ${missingRecipeItem.tipoComida} del ${missingRecipeItem.fecha} ya no está en tu biblioteca. Reemplazala o quitala antes de aplicar.`,
+        });
+      }
+      const missingSideItem = draftItems.find(
+        (item) => item.acompanamientoId != null && !libraryIds.has(item.acompanamientoId)
+      );
+      if (missingSideItem) {
+        return res.status(400).json({
+          error: `El acompañamiento del ${missingSideItem.tipoComida} del ${missingSideItem.fecha} ya no está en tu biblioteca. Reemplazá esa comida o quitala antes de aplicar.`,
+        });
+      }
+
+      // All-or-nothing: the week re-read, the optional clear, the inserts and
+      // the status flip run in a single transaction (drizzle's neon-serverless
+      // Pool driver supports interactive transactions), so a crash mid-apply
+      // can't leave a half-written week or a reusable draft.
+      const result = await db.transaction(async (tx) => {
+        const weekCondition = and(
+          eq(mealPlans.familyId, familyId),
+          gte(mealPlans.fecha, weekStartDate),
+          lte(mealPlans.fecha, weekEndDate)
+        );
+
+        // Re-read the week inside the transaction: slots may have been filled
+        // since the draft was generated.
+        const occupied = replaceWeek
+          ? []
+          : await tx
+              .select({ fecha: mealPlans.fecha, tipoComida: mealPlans.tipoComida })
+              .from(mealPlans)
+              .where(weekCondition);
+
+        const operations = planApplyOperations(draftItems, occupied, replaceWeek);
+
+        if (operations.clearWeekFirst) {
+          await tx.delete(mealPlans).where(weekCondition);
+        }
+
+        if (operations.toInsert.length > 0) {
+          await tx.insert(mealPlans).values(
+            operations.toInsert.map((item) => ({
+              fecha: item.fecha,
+              tipoComida: item.tipoComida,
+              recetaId: item.recetaId,
+              userId: user.id,
+              createdBy: user.id,
+              familyId,
+            }))
+          );
+        }
+
+        const [applied] = await tx
+          .update(weeklyPlanDrafts)
+          .set({ status: "applied", updatedAt: new Date() })
+          .where(and(
+            eq(weeklyPlanDrafts.id, id),
+            eq(weeklyPlanDrafts.familyId, familyId),
+            eq(weeklyPlanDrafts.status, "pending")
+          ))
+          .returning();
+        if (!applied) {
+          // A concurrent apply/discard/regenerate won the race — roll back our writes
+          throw new Error("WEEKLY_PLAN_DRAFT_NOT_FOUND");
+        }
+
+        return { applied: operations.toInsert.length, skipped: operations.skipped };
+      });
+
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === "WEEKLY_PLAN_DRAFT_NOT_FOUND") {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+      console.error("Weekly plan apply error:", error);
+      res.status(500).json({ error: "Error al aplicar el plan semanal" });
+    }
+  });
+
+  app.post("/api/weekly-plan/draft/:id/discard", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const familyId = userFamilies[0]?.id;
+      if (!familyId) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      const draft = await storage.updateWeeklyPlanDraftStatus(id, familyId, "discarded");
+      if (!draft) {
+        return res.status(404).json({ error: "Borrador no encontrado" });
+      }
+
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Weekly plan discard error:", error);
+      res.status(500).json({ error: "Error al descartar el borrador del plan semanal" });
+    }
+  });
+
+  // Family planner profile — persistent context the AI planner always honors
+  app.get("/api/family/planner-prompt", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0];
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      res.json({ plannerPrompt: family.plannerPrompt ?? null });
+    } catch (error) {
+      console.error("Planner prompt fetch error:", error);
+      res.status(500).json({ error: "Error al obtener el perfil del planificador" });
+    }
+  });
+
+  app.patch("/api/family/planner-prompt", isAuthenticated, requireCreatorRole, async (req, res) => {
+    try {
+      const user = getCurrentUser(req);
+      if (!user) {
+        return res.status(401).json({ error: "Usuario no autenticado" });
+      }
+
+      const { plannerPrompt } = plannerPromptSchema.parse(req.body);
+
+      const userFamilies = await storage.getUserFamilies(user.id);
+      const family = userFamilies[0];
+      if (!family) {
+        return res.status(403).json({ error: "Debes pertenecer a una familia" });
+      }
+
+      // An empty (or blank) profile clears the stored prompt
+      const updated = await storage.updateFamilyPlannerPrompt(
+        family.id,
+        plannerPrompt.trim() === "" ? null : plannerPrompt
+      );
+      if (!updated) {
+        return res.status(404).json({ error: "Familia no encontrada" });
+      }
+
+      res.json({ plannerPrompt: updated.plannerPrompt });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Planner prompt update error:", error);
+      res.status(500).json({ error: "Error al guardar el perfil del planificador" });
     }
   });
 

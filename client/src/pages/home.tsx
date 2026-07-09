@@ -6,11 +6,13 @@ import { RecipeDetailModal } from "@/components/recipe-detail-modal";
 import { MealPlanDetailModal } from "@/components/meal-plan-detail-modal";
 import { MealSelectionModal } from "@/components/meal-selection-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
+import { GenerateWeekModal } from "@/components/generate-week-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatDate } from "@/lib/utils";
 import type { Recipe, MealPlan, MealCommentInline } from "@shared/schema";
 import { Link, useLocation } from "wouter";
 import { Users, UserPlus } from "lucide-react";
@@ -31,6 +33,8 @@ export default function Home() {
   const [showMealSelection, setShowMealSelection] = useState(false);
   const [showAddRecipe, setShowAddRecipe] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showGenerateWeek, setShowGenerateWeek] = useState(false);
+  const [generateWeekStart, setGenerateWeekStart] = useState<string>("");
 
 
 
@@ -67,6 +71,11 @@ export default function Home() {
     setSelectedDate(date);
     setSelectedMealType(mealType);
     setShowMealSelection(true);
+  };
+
+  const handleGenerateWeek = (weekStart: Date) => {
+    setGenerateWeekStart(formatDate(weekStart));
+    setShowGenerateWeek(true);
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
@@ -146,7 +155,7 @@ export default function Home() {
       <Header />
 
       <main className="max-w-lg mx-auto px-4 pb-20">
-        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} />
+        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} onGenerateWeek={handleGenerateWeek} />
 
 
 
@@ -191,6 +200,12 @@ export default function Home() {
           setEditingRecipe(null);
         }}
         recipe={editingRecipe}
+      />
+
+      <GenerateWeekModal
+        open={showGenerateWeek}
+        onOpenChange={setShowGenerateWeek}
+        weekStartDate={generateWeekStart}
       />
     </div>
   );

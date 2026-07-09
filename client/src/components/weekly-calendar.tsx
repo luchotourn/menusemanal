@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, MessageCircle, Send, CheckCircle2, ArrowLeftRight, ThumbsUp, AlertTriangle, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, MessageCircle, Send, CheckCircle2, ArrowLeftRight, ThumbsUp, AlertTriangle, Clock, Sparkles } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,9 +42,10 @@ type MealPlanWithCommentsAndRecipe = MealPlan & {
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
   onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) => void;
+  onGenerateWeek?: (weekStart: Date) => void;
 }
 
-export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: WeeklyCalendarProps) {
   const { isCreator } = useUserRole();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -466,20 +467,33 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan }: WeeklyCalendarProp
           )}
 
           <CreatorOnly>
-            <Button
-              variant={review ? "outline" : "default"}
-              size="sm"
-              onClick={() => setShowSubmitConfirm(true)}
-              disabled={isSubmitting || (mealPlans?.length ?? 0) === 0}
-              className={
-                review
-                  ? "text-xs border-slate-300 text-slate-700 hover:bg-slate-100 shrink-0"
-                  : "text-xs bg-app-accent hover:bg-app-accent/90 text-slate-900 font-medium shrink-0"
-              }
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              {review ? "Reenviar" : "Enviar para revisión"}
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {onGenerateWeek && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onGenerateWeek(currentWeekStart)}
+                  className="text-xs border-amber-300 text-amber-800 hover:bg-amber-50 font-medium"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  Generar semana
+                </Button>
+              )}
+              <Button
+                variant={review ? "outline" : "default"}
+                size="sm"
+                onClick={() => setShowSubmitConfirm(true)}
+                disabled={isSubmitting || (mealPlans?.length ?? 0) === 0}
+                className={
+                  review
+                    ? "text-xs border-slate-300 text-slate-700 hover:bg-slate-100"
+                    : "text-xs bg-app-accent hover:bg-app-accent/90 text-slate-900 font-medium"
+                }
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                {review ? "Reenviar" : "Enviar para revisión"}
+              </Button>
+            </div>
           </CreatorOnly>
         </div>
 
