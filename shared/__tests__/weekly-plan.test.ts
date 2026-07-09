@@ -3,6 +3,7 @@ import {
   isMonday,
   isValidDateString,
   addDaysToDateString,
+  mondayOfWeekOf,
   getWeekDateStrings,
   allWeekSlots,
   computeEmptySlots,
@@ -136,6 +137,42 @@ describe("addDaysToDateString", () => {
     expect(() => addDaysToDateString("no-es-fecha", 1)).toThrow("Fecha inválida");
     expect(() => addDaysToDateString("2026-02-30", 1)).toThrow("Fecha inválida");
     expect(() => addDaysToDateString("2026-7-6", 1)).toThrow("Fecha inválida");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// mondayOfWeekOf
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("mondayOfWeekOf", () => {
+  it("returns the same date for a Monday", () => {
+    expect(mondayOfWeekOf("2026-07-06")).toBe("2026-07-06");
+  });
+
+  it("returns the preceding Monday for mid-week days", () => {
+    expect(mondayOfWeekOf("2026-07-07")).toBe("2026-07-06"); // Tuesday
+    expect(mondayOfWeekOf("2026-07-09")).toBe("2026-07-06"); // Thursday
+    expect(mondayOfWeekOf("2026-07-11")).toBe("2026-07-06"); // Saturday
+  });
+
+  it("treats Sunday as the END of the week, not the start", () => {
+    expect(mondayOfWeekOf("2026-07-12")).toBe("2026-07-06");
+  });
+
+  it("crosses month and year boundaries backwards", () => {
+    expect(mondayOfWeekOf("2026-08-01")).toBe("2026-07-27"); // Saturday
+    expect(mondayOfWeekOf("2026-01-01")).toBe("2025-12-29"); // Thursday
+  });
+
+  it("always lands on a Monday for every day of a full week", () => {
+    for (const dateStr of getWeekDateStrings("2026-07-06")) {
+      expect(mondayOfWeekOf(dateStr)).toBe("2026-07-06");
+    }
+  });
+
+  it("throws on malformed or impossible dates", () => {
+    expect(() => mondayOfWeekOf("no-es-fecha")).toThrow("Fecha inválida");
+    expect(() => mondayOfWeekOf("2026-02-30")).toThrow("Fecha inválida");
   });
 });
 

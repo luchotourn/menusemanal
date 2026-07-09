@@ -302,6 +302,10 @@ export function buildWeeklyPlanUserSections(input: WeeklyPlanPromptInput): Weekl
 
   stableSections.push(`SEMANA A PLANIFICAR: lunes ${input.weekStartDate}`);
 
+  // plannerPrompt is user-controlled persistent text injected into every
+  // generation. The <perfil_familia> delimiter plus the system-prompt rule to
+  // treat delimited text as data mitigate prompt injection, but an LLM can't
+  // guarantee it — validatePlanItems stays the hard gate on model output.
   if (input.plannerPrompt?.trim()) {
     stableSections.push(
       `PERFIL DE LA FAMILIA (respetalo siempre):\n<perfil_familia>\n${input.plannerPrompt.trim()}\n</perfil_familia>`,
@@ -351,7 +355,7 @@ REGLAS:
 - Respondé por EXACTAMENTE los casilleros pedidos: ni más, ni menos, ni otros días u horarios. Cada casillero va en "items" (con receta) o en "slotsSinComida" (vacío a propósito) — nunca en los dos, nunca en ninguno.
 - El perfil de la familia y las instrucciones de esta semana son OBLIGATORIOS: si piden no planificar ciertos días o comidas, NO los llenes — listá esos casilleros en "slotsSinComida" con un "motivo" corto. Nunca dejes vacío un casillero que el perfil o las instrucciones no justifiquen.
 - Usá SOLO valores de recetaId que aparezcan en la biblioteca provista. NUNCA inventes ids.
-- No repitas una receta en la misma semana. Única excepción: si la biblioteca tiene menos recetas que casilleros; en ese caso repetí lo mínimo posible y aclaralo en el resumen.
+- No repitas una receta en la misma semana. Única excepción: si la biblioteca tiene menos platos principales que casilleros; en ese caso repetí lo mínimo posible y aclaralo en el resumen.
 - Evitá recetas servidas en las últimas 2 semanas, salvo que sean favoritas con calificación muy alta.
 - Respetá el tipo de comida histórico de cada plato (contadores "almuerzos 8sem" / "cenas 8sem"): un plato que solo se sirvió de cena no pasa a almuerzo (ni al revés) sin una buena razón. Si el perfil o las instrucciones lo exigen, tratalo como regla estricta.
 - Las recetas de categoría "Acompañamiento" NUNCA van solas como comida: solo pueden aparecer en "acompanamientoId", acompañando a un plato principal compatible. Sumá acompañamientos cuando combinen bien y siempre que el planificador lo pida.
@@ -561,8 +565,8 @@ export interface ValidatedPlan {
  *   main is an "Acompañamiento" (a side is never a standalone meal);
  * - drops a side (acompanamientoId) that is missing from the library, is not
  *   an "Acompañamiento", or repeats a recipe — the main survives alone;
- * - dedupes recipes (mains AND sides) within the week when the library is
- *   large enough to allow it;
+ * - dedupes recipes (mains AND sides) within the week when the library has
+ *   enough mains (non-"Acompañamiento" recipes) to fill every slot uniquely;
  * - truncates razon/motivo to the draft item limit.
  * A requested slot is satisfied when it is filled OR explicitly skipped (a
  * fill always wins over a skip); everything else comes back in missingSlots.
@@ -573,7 +577,14 @@ export function validatePlanItems(
   requestedSlots: WeekSlot[],
   libraryCategories: Map<number, string>,
 ): ValidatedPlan {
-  const allowDuplicates = libraryCategories.size < requestedSlots.length;
+  // Repeats are tolerated only when there aren't enough NON-side recipes to
+  // fill every slot uniquely. Sides never fill a slot on their own, so they
+  // must not count: 5 mains + 10 sides for 14 slots still needs repeats.
+  let mainCount = 0;
+  libraryCategories.forEach((categoria) => {
+    if (categoria !== ACOMPANAMIENTO_CATEGORY) mainCount += 1;
+  });
+  const allowDuplicates = mainCount < requestedSlots.length;
   const requestedKeys = new Set(requestedSlots.map((slot) => slotKey(slot.fecha, slot.tipoComida)));
   const acceptedBySlot = new Map<string, WeeklyPlanDraftItem>();
   const usedRecipeIds = new Set<number>();
