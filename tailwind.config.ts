@@ -5,12 +5,25 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["'Plus Jakarta Sans'", "system-ui", "sans-serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        crema: "var(--crema)",
+        papel: "var(--papel)",
+        tinta: "var(--tinta)",
+        brasa: "var(--brasa)",
+        durazno: {
+          DEFAULT: "var(--durazno)",
+          suave: "var(--durazno-suave)",
+        },
+        menta: "var(--menta)",
+        uva: "var(--uva)",
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {

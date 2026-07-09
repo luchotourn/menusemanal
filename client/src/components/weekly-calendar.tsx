@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, MessageCircle, Send, CheckCircle2, ArrowLeftRight, ThumbsUp, AlertTriangle, Clock, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Sparkles } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,24 +19,19 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
-import { useMealAchievements } from "@/hooks/use-meal-achievements";
+import { MealCard } from "@/components/meal-card";
+import type { PendingProposalSummary } from "@/components/meal-card-utils";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
 import { CreatorOnly, CommentatorOnly, useUserRole } from "@/components/role-based-wrapper";
 import { useWeeklyReview } from "@/hooks/use-weekly-review";
 import { useProfile } from "@/hooks/useAuth";
 import { selectReviewNotes, reviewReviewerName } from "@shared/utils";
 
-type LatestPendingProposal = {
-  proposedRecipeName: string;
-  proposerName: string;
-  createdAt: string;
-};
-
 type MealPlanWithCommentsAndRecipe = MealPlan & {
   recipe: Recipe | null;
   comments: MealCommentInline[];
   pendingProposalCount: number;
-  latestPendingProposal: LatestPendingProposal | null;
+  latestPendingProposal: PendingProposalSummary | null;
 };
 
 interface WeeklyCalendarProps {
@@ -156,138 +151,6 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
     }));
   };
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={`text-xs ${i < rating ? "text-app-accent" : "text-gray-300"}`}>
-        ★
-      </span>
-    ));
-  };
-
-  // MealCard — title + (when pending) Cambio chip + (commentator only) chat icon + inline comments.
-  // Card body opens the detail modal; chat icon opens the comment/propose sheet (commentators only).
-  const MealCard = ({ meal }: {
-    meal: MealPlan & {
-      recipe?: Recipe;
-      comments?: MealCommentInline[];
-      pendingProposalCount?: number;
-      latestPendingProposal?: LatestPendingProposal | null;
-    };
-  }) => {
-    const recipe = meal.recipe;
-    const comments = meal.comments ?? [];
-    const hasPendingProposal = (meal.pendingProposalCount ?? 0) > 0;
-    const proposal = meal.latestPendingProposal ?? null;
-    const { mealAchievements } = useMealAchievements(meal.id);
-    const userAchievement = mealAchievements[0];
-
-    if (!recipe) {
-      return (
-        <div className="bg-red-50 rounded-lg p-3 cursor-pointer hover:bg-red-100 transition-colors min-h-[44px] flex items-center">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-red-600 truncate">
-              Receta no encontrada
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    // Chip copy: "Cambio: <recipe>" when there's exactly one pending proposal — surfaces the decision.
-    const chipLabel = (meal.pendingProposalCount === 1 && proposal)
-      ? `Cambio: ${proposal.proposedRecipeName}`
-      : "Cambio propuesto";
-
-    return (
-      <div
-        className={`rounded-lg p-3 cursor-pointer transition-all shadow-sm min-h-[88px] ${
-          hasPendingProposal
-            ? "bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-300 hover:from-amber-100 hover:to-amber-200"
-            : "bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 hover:from-orange-100 hover:to-orange-200"
-        }`}
-        onClick={() => onViewMealPlan(meal)}
-      >
-        <div className="flex flex-col gap-2">
-          {/* Recipe Name - Allow multiple lines */}
-          <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">
-            {recipe.nombre}
-          </p>
-
-          {/* Footer row: proposal chip OR ratings/favorite (left) + chat icon (commentator only, right) */}
-          <div className="flex items-center justify-between gap-2">
-            {hasPendingProposal ? (
-              <span
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-200/70 border border-amber-300 text-amber-800 text-[11px] font-semibold min-w-0"
-                title={proposal ? `${proposal.proposerName} propuso: ${proposal.proposedRecipeName}` : "Hay una propuesta de cambio pendiente"}
-              >
-                <ArrowLeftRight className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{chipLabel}</span>
-              </span>
-            ) : (
-              <div className="flex items-center gap-1 min-h-[18px]">
-                {(recipe.calificacionNinos ?? 0) > 0 ? (
-                  <div className="flex">{renderStars(recipe.calificacionNinos ?? 0)}</div>
-                ) : null}
-                {Boolean(recipe.esFavorita) ? (
-                  <span className="text-xs text-orange-600 font-medium">⭐</span>
-                ) : null}
-              </div>
-            )}
-
-            {!isCreator && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCommentSheetMeal({
-                    mealPlanId: meal.id,
-                    recipeId: recipe.id,
-                    recipeName: recipe.nombre,
-                    fecha: meal.fecha,
-                  });
-                }}
-                className={`
-                  flex items-center justify-center w-9 h-9 rounded-full flex-shrink-0
-                  transition-all duration-150 active:scale-90 shadow-sm
-                  ${userAchievement?.leftFeedback === 1
-                    ? "bg-purple-200 border border-purple-300/60"
-                    : "bg-purple-50 border border-purple-200/60 hover:bg-purple-100"
-                  }
-                `}
-                title="Comentar o proponer un cambio"
-                aria-label="Comentar o proponer un cambio"
-              >
-                <MessageCircle
-                  className={`w-[18px] h-[18px] ${
-                    userAchievement?.leftFeedback === 1
-                      ? "text-purple-600 fill-purple-200"
-                      : "text-purple-400"
-                  }`}
-                />
-              </button>
-            )}
-          </div>
-
-          {/* Inline comments (PR #63) — visible to everyone (the cook reads them while preparing) */}
-          {comments.length > 0 && (
-            <div className={`border-t pt-2 space-y-1.5 ${hasPendingProposal ? "border-amber-200/60" : "border-orange-200/60"}`}>
-              {comments.map((c) => (
-                <div key={c.id} className="flex items-start gap-1.5 leading-snug">
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-purple-500 text-white text-[9px] font-bold flex-shrink-0 mt-0.5">
-                    {c.userName?.charAt(0)?.toUpperCase() ?? "?"}
-                  </span>
-                  <p className="text-[11px] text-gray-700 flex-1 line-clamp-2">
-                    {c.comment}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   // Component for meal section (lunch or dinner)
   const MealSection = ({ meals, mealType, date, label }: {
     meals: (MealPlan & { recipe?: Recipe })[];
@@ -305,6 +168,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
             <MealCard
               key={`${meal.id}-${mealIndex}`}
               meal={meal}
+              onView={onViewMealPlan}
+              onRequestComment={setCommentSheetMeal}
             />
           ))}
 
