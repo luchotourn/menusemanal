@@ -24,12 +24,22 @@
   --ring: hsl(210, 20%, 17%);
   --radius: 0.75rem;
 
-  /* Custom colors matching design */
-  --app-primary: hsl(16, 100%, 61%); /* #FF6B35 */
-  --app-secondary: hsl(174, 47%, 58%); /* #4ECDC4 */
+  /* Family AI design tokens — see the redesign proposal (feat/family-ai-redesign) */
+  --crema: #F4EFE4;          /* warm canvas */
+  --papel: #FFFCF5;          /* cards & sheets */
+  --tinta: #211D16;          /* ink */
+  --brasa: #FF6B35;          /* brand + primary CTA (unchanged) */
+  --durazno: #FFBE73;        /* AI fills, chips, "hoy" — replaces ad-hoc amber */
+  --durazno-suave: #FFF6E8;  /* AI/pending soft surfaces */
+  --menta: #4ECDC4;          /* success / confirmations */
+  --uva: #9C6ADE;            /* kids (commentator) accents */
+
+  /* Legacy aliases kept so existing .text-app-* / .bg-app-* usage keeps working */
+  --app-primary: var(--brasa);
+  --app-secondary: var(--menta);
   --app-accent: hsl(51, 100%, 70%); /* #FFE66D */
-  --app-neutral: hsl(210, 20%, 17%); /* #2C3E50 */
-  --app-background: hsl(0, 0%, 98%); /* #FAFAFA */
+  --app-neutral: var(--tinta);
+  --app-background: var(--crema);
 }
 
 .dark {
@@ -61,7 +71,7 @@
 
   body {
     @apply font-sans antialiased bg-app-background text-app-neutral;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
 
