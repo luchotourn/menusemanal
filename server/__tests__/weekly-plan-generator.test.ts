@@ -253,6 +253,53 @@ describe('validatePlanItems', () => {
     expect(result.items.map((item) => item.recetaId)).toEqual([1, 1, 2]);
   });
 
+  it('allows repeats when mains are scarce, even if sides pad the library size', () => {
+    // 2 mains + 3 sides for 3 slots: the library is "big" (5 entries) but only
+    // mains can fill slots, so counting sides here used to drop valid repeats
+    // and force a GENERATION_INCOMPLETE retry.
+    const sidesHeavyLibrary = new Map([
+      [1, 'Plato Principal'],
+      [2, 'Pastas'],
+      [50, 'Acompañamiento'],
+      [51, 'Acompañamiento'],
+      [52, 'Acompañamiento'],
+    ]);
+    const result = validatePlanItems(
+      [
+        { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1, acompanamientoId: 50 },
+        { fecha: MONDAY, tipoComida: 'cena', recetaId: 1 },
+        { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 2 },
+      ],
+      [],
+      slots,
+      sidesHeavyLibrary
+    );
+    expect(result.missingSlots).toEqual([]);
+    expect(result.items.map((item) => item.recetaId)).toEqual([1, 1, 2]);
+  });
+
+  it('still dedupes when mains alone can fill every slot', () => {
+    // 3 mains + 1 side for 3 slots: repeats stay forbidden.
+    const exactFitLibrary = new Map([
+      [1, 'Plato Principal'],
+      [2, 'Pastas'],
+      [3, 'Ensalada'],
+      [50, 'Acompañamiento'],
+    ]);
+    const result = validatePlanItems(
+      [
+        { fecha: MONDAY, tipoComida: 'almuerzo', recetaId: 1 },
+        { fecha: MONDAY, tipoComida: 'cena', recetaId: 1 }, // repeat — dropped
+        { fecha: '2026-07-07', tipoComida: 'almuerzo', recetaId: 2 },
+      ],
+      [],
+      slots,
+      exactFitLibrary
+    );
+    expect(result.missingSlots).toEqual([{ fecha: MONDAY, tipoComida: 'cena' }]);
+    expect(result.items.map((item) => item.recetaId)).toEqual([1, 2]);
+  });
+
   it('keeps only the first fill when the model repeats the same slot', () => {
     const result = validatePlanItems(
       [

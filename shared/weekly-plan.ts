@@ -52,6 +52,17 @@ export function addDaysToDateString(dateStr: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Returns the Monday (YYYY-MM-DD) of the week containing the given date. */
+export function mondayOfWeekOf(dateStr: string): string {
+  const date = parseUtcDate(dateStr);
+  if (date === null) {
+    throw new Error(`Fecha inválida: ${dateStr}`);
+  }
+  const dayOfWeek = date.getUTCDay(); // 0 = Sunday
+  date.setUTCDate(date.getUTCDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek));
+  return date.toISOString().slice(0, 10);
+}
+
 /** Returns the 7 YYYY-MM-DD strings of the week, Monday through Sunday. */
 export function getWeekDateStrings(weekStartDate: string): string[] {
   return Array.from({ length: 7 }, (_, dayOffset) =>

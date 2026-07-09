@@ -11,7 +11,17 @@ import { eq, and, gte, lte } from "drizzle-orm";
 import authRouter from "./auth/routes";
 import { apiRateLimit, familyCodeRateLimit, waitlistRateLimit, isAuthenticated, attachUser, getCurrentUser, requireCreatorRole, requireCommentatorRole, requireRole, requireFamilyEditAccess, commentatorRateLimit, weeklyPlanGenerateRateLimit, weeklyPlanResuggestRateLimit } from "./auth/middleware";
 import { generateInvitationCode, normalizeInvitationCode, isValidInvitationCodeFormat, isPastMealDate } from "@shared/utils";
-import { allWeekSlots, computeEmptySlots, addDaysToDateString, validateDraftItemsForWeek, sanitizeDraftItemsForWeek } from "@shared/weekly-plan";
+import { allWeekSlots, computeEmptySlots, addDaysToDateString, mondayOfWeekOf, validateDraftItemsForWeek, sanitizeDraftItemsForWeek } from "@shared/weekly-plan";
+import {
+  generateWeeklyPlan,
+  resuggestSlot,
+  buildRecipeLibraryEntries,
+  planApplyOperations,
+  mapAnthropicApiError,
+  validateDraftItemsAgainstLibrary,
+  filterChangedDraftItems,
+  buildSkippedSlotsResumenLine,
+} from "./services/weekly-plan-generator";
 import { sendSignupNotification, sendWeekReviewNotification, sendReviewSignoffNotification } from "./email";
 
 // Enriched weekly-plan-draft response shape shared by every draft endpoint:
@@ -623,18 +633,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (date) {
         mealPlans = await storage.getMealPlanByDate(date as string, userId, familyId);
       } else {
-        // Default to current week
-        const today = new Date();
-        const startOfWeek = new Date(today);
-        const dayOfWeek = today.getDay();
-        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday
-        startOfWeek.setDate(diff);
-        // Format date correctly in local timezone
-        const year = startOfWeek.getFullYear();
-        const month = String(startOfWeek.getMonth() + 1).padStart(2, '0');
-        const day = String(startOfWeek.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        mealPlans = await storage.getMealPlansForWeek(formattedDate, userId, familyId);
+        // Default to the current week's Monday, in UTC like all other
+        // weekly-plan date math (see shared/weekly-plan.ts).
+        const todayUtc = new Date().toISOString().slice(0, 10);
+        mealPlans = await storage.getMealPlansForWeek(mondayOfWeekOf(todayUtc), userId, familyId);
       }
 
       res.json(mealPlans);
@@ -848,16 +850,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Intelligent weekly plan generator routes (AI drafts the week, the human
   // reviews/edits the draft and applying it writes real meal_plans rows)
-  const {
-    generateWeeklyPlan,
-    resuggestSlot,
-    buildRecipeLibraryEntries,
-    planApplyOperations,
-    mapAnthropicApiError,
-    validateDraftItemsAgainstLibrary,
-    filterChangedDraftItems,
-    buildSkippedSlotsResumenLine,
-  } = await import('./services/weekly-plan-generator');
 
   // Shared prompt context for generate AND per-slot re-suggestion. The two
   // calls must feed the service IDENTICAL data for the same week — the cached
