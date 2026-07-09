@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Menu Semanal - Planifica las comidas de tu familia</title>
   <meta name="description" content="Organiza las comidas de tu familia con inteligencia artificial. Recetas, calendario semanal y participacion de toda la familia." />
-  <meta name="theme-color" content="#d4825a" />
+  <meta name="theme-color" content="#FF6B35" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <meta property="og:title" content="Menu Semanal - Planifica las comidas de tu familia" />
@@ -18,15 +18,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --orange: #d4825a;
-      --orange-light: #e8a882;
-      --orange-dark: #b8694a;
-      --text: #1a1a1a;
-      --text-muted: #5a5a5a;
-      --bg: #faf9f7;
-      --bg-warm: #fdf5ef;
-      --card: #ffffff;
-      --border: #e8e2db;
+      /* Aligned with the app's Family AI tokens (client/src/index.css) */
+      --orange: #FF6B35;         /* brasa — brand + CTA */
+      --orange-light: #FFBE73;   /* durazno — AI accents */
+      --orange-dark: #E05A28;
+      --text: #211D16;           /* tinta */
+      --text-muted: #5a5347;
+      --bg: #F4EFE4;             /* crema */
+      --bg-warm: #FFF6E8;        /* durazno suave */
+      --card: #FFFCF5;           /* papel */
+      --border: rgba(33, 29, 22, 0.12);
       --green: #4ECDC4;
       --green-bg: #e8f8f6;
       --yellow: #f0c040;
@@ -227,8 +228,8 @@
 
     /* ── AI SECTION ─────────────────────────── */
     .ai-section {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: #fff;
+      background: linear-gradient(135deg, #211D16 0%, #2C2519 100%);
+      color: #F2EADB;
       padding: 5rem 1.5rem;
       text-align: center;
     }
@@ -240,8 +241,8 @@
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      background: rgba(255,255,255,0.1);
-      color: var(--green);
+      background: rgba(255,190,115,0.14);
+      color: var(--orange-light);
       font-size: 0.85rem;
       font-weight: 600;
       padding: 0.4rem 1rem;
@@ -283,9 +284,23 @@
     }
     .ai-card p {
       font-size: 0.8rem;
-      color: rgba(255,255,255,0.6);
+      color: rgba(242,234,219,0.6);
       margin: 0;
     }
+    /* Command → artifact demo cards: you ask, Francis shows the result */
+    .ai-cmd {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #F2EADB;
+      margin-bottom: 0.5rem;
+    }
+    .ai-cmd .spark { color: var(--orange-light); margin-right: 0.35rem; }
+    .ai-result {
+      font-size: 0.8rem;
+      color: rgba(242,234,219,0.65);
+      margin: 0;
+    }
+    .ai-result .ok { color: #6FD6CB; font-weight: 700; margin-right: 0.35rem; }
 
     /* ── FEATURES ───────────────────────────── */
     .features {
@@ -564,11 +579,11 @@
   <!-- HERO -->
   <section class="hero">
     <div class="hero-badge">
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" viewBox="0 0 24 24"></path></svg>
-      Para familias modernas
+      <span aria-hidden="true">&#10022;</span>
+      Family AI
     </div>
-    <h1>El menu semanal de tu familia, <em>resuelto</em></h1>
-    <p>Planifica las comidas de la semana, guarda tus recetas y deja que toda la familia participe. Simple, inteligente y sin complicaciones.</p>
+    <h1>La IA que conoce a tu familia <em>y te devuelve la semana</em></h1>
+    <p>No es un recetario con un boton: Francis, el chef planificador de Menu Semanal, aprende de las estrellas de tus hijos, respeta tus reglas y arma el menu de la semana en un minuto. Vos solo aprobas.</p>
     <div class="hero-cta">
       <form class="waitlist-form" data-source="hero">
         <div class="form-row">
@@ -647,27 +662,23 @@
   <section class="ai-section">
     <div class="section-inner">
       <div class="ai-badge">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
-        Inteligencia Artificial
+        <span aria-hidden="true">&#x1F468;&#x200D;&#x1F373;</span>
+        Francis AI
       </div>
-      <h2>La IA que planifica por vos</h2>
-      <p>Integramos inteligencia artificial para que el menu semanal se arme solo, adaptandose a los gustos de tu familia y la temporada.</p>
+      <h2>Francis, el chef que planifica por vos</h2>
+      <p>Le pedis lo que tu familia necesita y Francis arma el menu con tus propias recetas: mira las estrellas de los chicos, lo que comieron las ultimas semanas y tus reglas. Nunca inventa platos — cocina con tu recetario.</p>
       <div class="ai-features">
         <div class="ai-card">
-          <div class="ai-card-icon">&#x1F9E0;</div>
-          <h4>Aprende de tu familia</h4>
-          <p>Analiza las calificaciones y preferencias para sugerir las comidas que mas gustan a todos.</p>
+          <p class="ai-cmd"><span class="spark">&#10022;</span>Planea la semana, martes liviano</p>
+          <p class="ai-result"><span class="ok">&#10003;</span>10 comidas propuestas de tu recetario, con el martes liviano cumplido</p>
         </div>
         <div class="ai-card">
-          <div class="ai-card-icon">&#x1F4C5;</div>
-          <h4>Planificacion automatica</h4>
-          <p>Genera el menu de la semana completo con un click. Vos solo ajustas lo que quieras.</p>
-
+          <p class="ai-cmd"><span class="spark">&#10022;</span>Otra idea para la cena del jueves</p>
+          <p class="ai-result"><span class="ok">&#10003;</span>Tarta de verdura — no la comen hace un mes y a los chicos les encanta</p>
         </div>
         <div class="ai-card">
-          <div class="ai-card-icon">&#x1F331;</div>
-          <h4>Variedad y equilibrio</h4>
-          <p>Busca variedad nutricional y evita repetir las mismas comidas todas las semanas.</p>
+          <p class="ai-cmd"><span class="spark">&#10022;</span>Milanesas el viernes, viene la abuela</p>
+          <p class="ai-result"><span class="ok">&#10003;</span>Viernes: milanesas con pure — tus instrucciones son ley</p>
         </div>
       </div>
     </div>
@@ -742,7 +753,7 @@
     </div>
     <div class="faq-item">
       <button class="faq-q">Como funciona la inteligencia artificial?</button>
-      <div class="faq-a">Menu Semanal usa inteligencia artificial que analiza las preferencias de tu familia (calificaciones, recetas favoritas, ingredientes) para sugerir automaticamente el menu de la semana. Seguimos mejorando esta funcion constantemente.</div>
+      <div class="faq-a">Menu Semanal tiene a Francis, un chef planificador con inteligencia artificial. Elige entre tus propias recetas mirando las calificaciones de tu familia y lo que comieron las ultimas semanas, y respeta tus instrucciones al pie de la letra ("martes liviano", "sin pastas"). Nunca inventa platos: cocina con tu recetario.</div>
     </div>
     <div class="faq-item">
       <button class="faq-q">En que paises esta disponible?</button>

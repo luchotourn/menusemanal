@@ -1,5 +1,7 @@
-import { Settings as SettingsIcon, Users, Bell, Download, Share2, Info, User, LogOut, Star } from "lucide-react";
+import { Settings as SettingsIcon, Users, Bell, Download, Share2, Info, User, LogOut, Star, Moon } from "lucide-react";
 import { useLocation } from "wouter";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +17,11 @@ export default function Settings() {
   const { profile, isLoading } = useProfile();
   const { logout } = useAuth();
   const { isCommentator } = useUserRole();
+  const { theme, setTheme } = useTheme();
+  // next-themes resolves the theme on the client only — render the switch
+  // after mount to avoid a hydration flicker.
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => setThemeMounted(true), []);
 
 
   const handleExportData = () => {
@@ -145,6 +152,31 @@ export default function Settings() {
                     </div>
                     <Switch id="kid-ratings" defaultChecked />
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Appearance */}
+            <Card className={isCommentator ? "border-purple-200 bg-gradient-to-br from-white to-purple-50" : ""}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center space-x-2">
+                  <Moon className={`w-5 h-5 ${isCommentator ? "text-purple-600" : "text-app-primary"}`} />
+                  <span className={isCommentator ? "text-purple-800" : ""}>Apariencia</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="dark-mode" className="font-medium">Modo oscuro</Label>
+                    <p className="text-sm text-gray-600">Colores cálidos para la noche (beta)</p>
+                  </div>
+                  {themeMounted && (
+                    <Switch
+                      id="dark-mode"
+                      checked={theme === "dark"}
+                      onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
