@@ -76,6 +76,38 @@
 }
 
 @layer utilities {
+  /* Staggered entrance for the Francis plan review — pair with an inline
+     animation-delay per row. Motion is skipped for reduced-motion users. */
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-rise-in {
+    animation: rise-in 0.45s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-rise-in {
+      animation: none;
+    }
+  }
+
+  /* Hide the chip row's horizontal scrollbar (dock) */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .text-app-primary {
     color: var(--app-primary);
   }

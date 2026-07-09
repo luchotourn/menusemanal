@@ -10,13 +10,13 @@ export function RoleBasedBottomNavigation() {
   // Show loading state
   if (isLoading) {
     return (
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-papel border-t border-tinta/10 z-50">
         <div className="max-w-lg mx-auto px-4">
           <div className="flex items-center justify-around py-2">
-            <div className="w-12 h-12 bg-gray-200 animate-pulse rounded"></div>
-            <div className="w-12 h-12 bg-gray-200 animate-pulse rounded"></div>
-            <div className="w-12 h-12 bg-gray-200 animate-pulse rounded"></div>
-            <div className="w-12 h-12 bg-gray-200 animate-pulse rounded"></div>
+            <div className="w-12 h-12 bg-crema animate-pulse rounded"></div>
+            <div className="w-12 h-12 bg-crema animate-pulse rounded"></div>
+            <div className="w-12 h-12 bg-crema animate-pulse rounded"></div>
+            <div className="w-12 h-12 bg-crema animate-pulse rounded"></div>
           </div>
         </div>
       </nav>
@@ -30,12 +30,11 @@ export function RoleBasedBottomNavigation() {
     { path: "/settings", icon: Settings, label: "Ajustes", id: "settings" },
   ];
 
+  // One design system for both roles: same papel bar, warm ink, and a pill on
+  // the active tab — brasa for creators, uva for commentators (kids keep
+  // slightly larger icons for small hands).
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 border-t z-50 ${
-      isCommentator
-        ? "bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200"
-        : "bg-white border-gray-100"
-    }`}>
+    <nav className="fixed bottom-0 left-0 right-0 bg-papel border-t border-tinta/10 z-50">
       <div className="max-w-lg mx-auto px-4">
         <div className="flex items-center justify-around py-2">
           {navItems.map(({ path, icon: Icon, label, id }) => {
@@ -43,18 +42,26 @@ export function RoleBasedBottomNavigation() {
             return (
               <Link key={id} href={path}>
                 <button
-                  className={`flex flex-col items-center py-2 px-3 transition-colors rounded-lg ${
+                  className={`flex flex-col items-center py-1.5 px-3 transition-colors ${
                     isActive
                       ? isCommentator
-                        ? "text-purple-600 bg-purple-100"
-                        : "text-app-primary"
-                      : isCommentator
-                        ? "text-blue-600 hover:text-purple-600 hover:bg-purple-50"
-                        : "text-gray-400 hover:text-app-neutral"
+                        ? "text-uva"
+                        : "text-brasa"
+                      : "text-tinta/35 hover:text-tinta/70"
                   }`}
                 >
-                  <Icon className={`mb-1 ${isCommentator ? "w-6 h-6" : "w-5 h-5"}`} />
-                  <span className={`font-medium ${isCommentator ? "text-xs" : "text-xs"}`}>
+                  <span
+                    className={`mb-0.5 rounded-full px-3.5 py-1 transition-colors ${
+                      isActive
+                        ? isCommentator
+                          ? "bg-purple-100"
+                          : "bg-durazno-suave"
+                        : "bg-transparent"
+                    }`}
+                  >
+                    <Icon className={isCommentator ? "w-6 h-6" : "w-5 h-5"} />
+                  </span>
+                  <span className="font-semibold text-xs">
                     {label}
                   </span>
                 </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,10 +42,11 @@ type MealPlanWithCommentsAndRecipe = MealPlan & {
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
   onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) => void;
-  onGenerateWeek?: (weekStart: Date) => void;
+  /** Keeps the parent in sync with the visible week (the Francis dock targets it). */
+  onWeekChange?: (weekStart: Date) => void;
 }
 
-export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: WeeklyCalendarProps) {
   const { isCreator } = useUserRole();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -60,6 +61,12 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
   const [signoffNote, setSignoffNote] = useState("");
 
   const weekStartStr = formatDate(currentWeekStart);
+
+  // Report the visible week upward whenever it changes (and once on mount).
+  useEffect(() => {
+    onWeekChange?.(currentWeekStart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStartStr]);
   const {
     review,
     submit: submitReview,
@@ -338,17 +345,6 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
 
           <CreatorOnly>
             <div className="flex items-center gap-2 shrink-0">
-              {onGenerateWeek && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onGenerateWeek(currentWeekStart)}
-                  className="text-xs border-amber-300 text-amber-800 hover:bg-amber-50 font-medium"
-                >
-                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                  Generar semana
-                </Button>
-              )}
               <Button
                 variant={review ? "outline" : "default"}
                 size="sm"

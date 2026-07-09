@@ -7,6 +7,7 @@ import { MealPlanDetailModal } from "@/components/meal-plan-detail-modal";
 import { MealSelectionModal } from "@/components/meal-selection-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
 import { GenerateWeekModal } from "@/components/generate-week-modal";
+import { FrancisDock } from "@/components/francis-dock";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,9 @@ export default function Home() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showGenerateWeek, setShowGenerateWeek] = useState(false);
   const [generateWeekStart, setGenerateWeekStart] = useState<string>("");
+  // The week currently visible in the calendar — the Francis dock targets it.
+  const [visibleWeekStart, setVisibleWeekStart] = useState<Date>(() => new Date());
+  const [dockInstructions, setDockInstructions] = useState<string>("");
 
 
 
@@ -73,8 +77,10 @@ export default function Home() {
     setShowMealSelection(true);
   };
 
-  const handleGenerateWeek = (weekStart: Date) => {
-    setGenerateWeekStart(formatDate(weekStart));
+  // Francis dock → generate flow for the visible week, instructions prefilled.
+  const handleFrancisSubmit = (instructions: string) => {
+    setDockInstructions(instructions);
+    setGenerateWeekStart(formatDate(visibleWeekStart));
     setShowGenerateWeek(true);
   };
 
@@ -150,19 +156,18 @@ export default function Home() {
     );
   }
 
+  const isCreator = profile?.role === "creator";
+
   return (
     <div className="min-h-screen bg-app-background">
       <Header />
 
-      <main className="max-w-lg mx-auto px-4 pb-20">
-        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} onGenerateWeek={handleGenerateWeek} />
-
-
-
-
+      {/* Creators get extra bottom padding so the Francis dock never covers content */}
+      <main className={`max-w-lg mx-auto px-4 ${isCreator ? "pb-44" : "pb-20"}`}>
+        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} onWeekChange={setVisibleWeekStart} />
       </main>
 
-
+      <FrancisDock onSubmit={handleFrancisSubmit} />
 
       {/* Modals */}
       <RecipeDetailModal
@@ -206,6 +211,7 @@ export default function Home() {
         open={showGenerateWeek}
         onOpenChange={setShowGenerateWeek}
         weekStartDate={generateWeekStart}
+        initialInstructions={dockInstructions}
       />
     </div>
   );
