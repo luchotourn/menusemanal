@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuthStatus } from "@/hooks/useAuth";
+import { sanitizeNextPath } from "@/lib/review-share";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -26,9 +27,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Redirect to login if not authenticated
+  // Redirect to login, preserving the intended destination (deep links like
+  // /app?week=2026-07-06 from a shared WhatsApp message survive the login).
   if (isError || !authStatus?.authenticated) {
-    setLocation("/login");
+    const intended = window.location.pathname + window.location.search;
+    setLocation(
+      intended && intended !== "/app"
+        ? `/login?next=${encodeURIComponent(intended)}`
+        : "/login"
+    );
     return null;
   }
 
@@ -43,10 +50,12 @@ export function GuestGuard({ children }: AuthGuardProps) {
   const [, setLocation] = useLocation();
   const { data: authStatus, isLoading } = useAuthStatus();
 
-  // Redirect to home if already authenticated (using useEffect to avoid render-time navigation)
+  // Redirect to home if already authenticated (using useEffect to avoid render-time navigation).
+  // Honors a sanitized ?next= so deep links survive the login round-trip.
   useEffect(() => {
     if (authStatus?.authenticated) {
-      setLocation("/app");
+      const next = sanitizeNextPath(new URLSearchParams(window.location.search).get("next"));
+      setLocation(next ?? "/app");
     }
   }, [authStatus?.authenticated, setLocation]);
 
