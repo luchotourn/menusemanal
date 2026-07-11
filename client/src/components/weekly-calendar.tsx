@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Sparkles, Share2 } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
+import { parseWeekParam, weekParamToDate, buildReviewShareMessage, buildWhatsAppShareUrl } from "@/lib/review-share";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { MealCard } from "@/components/meal-card";
 import type { PendingProposalSummary } from "@/components/meal-card-utils";
@@ -42,7 +43,12 @@ interface WeeklyCalendarProps {
 
 export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: WeeklyCalendarProps) {
   const { isCreator } = useUserRole();
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
+  // Deep links (?week=YYYY-MM-DD, e.g. from a shared WhatsApp review message)
+  // open the calendar on that week; otherwise the current one.
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const weekParam = parseWeekParam(window.location.search);
+    return getMonday(weekParam ? weekParamToDate(weekParam) : new Date());
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [commentSheetMeal, setCommentSheetMeal] = useState<{
     mealPlanId: number;
@@ -134,6 +140,21 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
   const isToday = (date: Date) => {
     const today = new Date();
     return formatDate(date) === formatDate(today);
+  };
+
+  // Share the review deep link — native share sheet on mobile (WhatsApp lives
+  // there), wa.me fallback on desktop. AbortError = the user closed the sheet.
+  const handleShareReview = async () => {
+    const message = buildReviewShareMessage(window.location.origin, weekStartStr);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: message });
+        return;
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+      }
+    }
+    window.open(buildWhatsAppShareUrl(message), "_blank", "noopener");
   };
 
   const getMealsForDate = (date: Date, mealType: string) => {
@@ -342,6 +363,18 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
                 >
                   <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                   Generar semana
+                </Button>
+              )}
+              {review && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShareReview}
+                  className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 px-2"
+                  title="Compartir el link de revisión por WhatsApp"
+                  aria-label="Compartir el link de revisión por WhatsApp"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
                 </Button>
               )}
               <Button
