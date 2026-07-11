@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Sparkles, Share2 } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
+import { parseWeekParam, weekParamToDate, buildReviewShareMessage, openShareUi } from "@/lib/review-share";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { MealCard } from "@/components/meal-card";
 import type { PendingProposalSummary } from "@/components/meal-card-utils";
@@ -42,7 +43,12 @@ interface WeeklyCalendarProps {
 
 export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: WeeklyCalendarProps) {
   const { isCreator } = useUserRole();
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
+  // Deep links (?week=YYYY-MM-DD, e.g. from a shared WhatsApp review message)
+  // open the calendar on that week; otherwise the current one.
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const weekParam = parseWeekParam(window.location.search);
+    return getMonday(weekParam ? weekParamToDate(weekParam) : new Date());
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [commentSheetMeal, setCommentSheetMeal] = useState<{
     mealPlanId: number;
@@ -51,6 +57,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
     fecha: string;
   } | null>(null);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
   const [pendingSignoffVerdict, setPendingSignoffVerdict] = useState<"approved" | "changes_requested" | null>(null);
   const [signoffNote, setSignoffNote] = useState("");
 
@@ -134,6 +141,36 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
   const isToday = (date: Date) => {
     const today = new Date();
     return formatDate(date) === formatDate(today);
+  };
+
+  // Share the review deep link — semantics (native sheet vs wa.me, blocked vs
+  // dismissed) live in openShareUi, which is unit tested with injected ports.
+  const shareReviewNow = (): Promise<boolean> =>
+    openShareUi(
+      buildReviewShareMessage(
+        window.location.origin,
+        weekStartStr,
+        formatWeekRange(currentWeekStart),
+      ),
+      {
+        nativeShare: navigator.share?.bind(navigator),
+        openWindow: (url) => window.open(url, "_blank", "noopener"),
+      },
+    );
+
+  // One button, one flow: confirming "Enviar para revisión" submits and then
+  // opens the share sheet right away. The dialog closes only on success — on
+  // failure it stays open (the hook already toasts the error) so the user can
+  // retry or cancel.
+  const handleSubmitAndShare = () => {
+    submitReview(undefined, {
+      onSuccess: () => {
+        setShowSubmitConfirm(false);
+        void shareReviewNow().then((shared) => {
+          if (!shared) setShowSharePrompt(true);
+        });
+      },
+    });
   };
 
   const getMealsForDate = (date: Date, mealType: string) => {
@@ -576,7 +613,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
             </AlertDialogTitle>
             <AlertDialogDescription>
               Se enviará un email al resto de la familia avisándoles que pueden revisar el menú de la semana del{" "}
-              {formatEnhancedWeekRange(currentWeekStart).range} y dejar sus comentarios.
+              {formatEnhancedWeekRange(currentWeekStart).range}, y se abre el menú para compartirles el link
+              por WhatsApp o la app que quieras.
               {review && " La revisión anterior y las aprobaciones serán reemplazadas."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -584,13 +622,45 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onGenerateWeek }: We
             <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={isSubmitting}
-              onClick={() => {
-                submitReview();
-                setShowSubmitConfirm(false);
+              onClick={(event) => {
+                // Radix closes the dialog on action click by default; keep it
+                // open until the submit request settles (see handleSubmitAndShare).
+                event.preventDefault();
+                handleSubmitAndShare();
               }}
               className="bg-app-accent hover:bg-app-accent/90 text-slate-900"
             >
-              {review ? "Reenviar" : "Enviar"}
+              {isSubmitting
+                ? "Enviando…"
+                : review
+                ? "Reenviar y compartir"
+                : "Enviar y compartir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Share fallback — only when the share sheet couldn't open right after
+          submitting (gesture expired / popup blocked). A fresh tap always works. */}
+      <AlertDialog open={showSharePrompt} onOpenChange={setShowSharePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Semana enviada 🎉</AlertDialogTitle>
+            <AlertDialogDescription>
+              Avisale a la familia: compartí el link de revisión por WhatsApp o la app que prefieras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Listo</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void shareReviewNow();
+                setShowSharePrompt(false);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Compartir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
