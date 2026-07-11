@@ -69,6 +69,12 @@ describe("share message and URLs", () => {
     expect(message).toContain("menú de la semana");
   });
 
+  it("includes the week label when provided", () => {
+    const message = buildReviewShareMessage("https://menusemanal.app", "2026-07-06", "6 - 12 jul");
+    expect(message).toContain("la semana (6 - 12 jul)");
+    expect(message.endsWith("https://menusemanal.app/app?week=2026-07-06")).toBe(true);
+  });
+
   it("URL-encodes the message for wa.me", () => {
     const url = buildWhatsAppShareUrl("hola\n¿qué tal? & chau");
     expect(url.startsWith("https://wa.me/?text=")).toBe(true);

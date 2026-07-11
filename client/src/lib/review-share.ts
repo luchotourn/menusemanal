@@ -35,10 +35,15 @@ export function buildWeekDeepLink(origin: string, weekStartDate: string): string
   return `${origin}/app?week=${weekStartDate}`;
 }
 
-/** WhatsApp-ready message: warm, short, link last so previews pick it up. */
-export function buildReviewShareMessage(origin: string, weekStartDate: string): string {
+/** Share-ready message: warm, short, link last so previews pick it up. */
+export function buildReviewShareMessage(
+  origin: string,
+  weekStartDate: string,
+  weekLabel?: string,
+): string {
+  const week = weekLabel ? `la semana (${weekLabel})` : "la semana";
   return (
-    "👨‍🍳 ¡El menú de la semana está listo!\n" +
+    `👨‍🍳 ¡El menú de ${week} está listo!\n` +
     "Entrá a mirarlo y decime qué te parece — podés aprobarlo o pedir cambios:\n" +
     buildWeekDeepLink(origin, weekStartDate)
   );
