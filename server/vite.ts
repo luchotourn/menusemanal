@@ -25,7 +25,7 @@ export async function setupVite(app: Express, server: Server) {
     hmr: { server },
     // Dev-only: let Cloudflare quick tunnels through vite's host check, so the
     // HTTPS-dependent flows (navigator.share, PWA) can be tested on real phones.
-    allowedHosts: [".trycloudflare.com"],
+    allowedHosts: process.env.NODE_ENV !== "production" ? [".trycloudflare.com"] : [],
   };
 
   const vite = await createViteServer({
