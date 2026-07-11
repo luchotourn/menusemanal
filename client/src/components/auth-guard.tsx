@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuthStatus } from "@/hooks/useAuth";
+import { buildLoginRedirect, sanitizeNextPath } from "@/lib/review-share";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -12,6 +13,15 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const [, setLocation] = useLocation();
   const { data: authStatus, isLoading, isError } = useAuthStatus();
+
+  // Redirect to login from an effect (never during render), preserving the
+  // intended destination (deep links like /app?week=2026-07-06 from a shared
+  // WhatsApp message survive the login).
+  useEffect(() => {
+    if (!isLoading && (isError || !authStatus?.authenticated)) {
+      setLocation(buildLoginRedirect(window.location.pathname + window.location.search));
+    }
+  }, [isLoading, isError, authStatus?.authenticated, setLocation]);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -26,9 +36,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Redirect to login if not authenticated
+  // The effect above is navigating to /login; render nothing meanwhile.
   if (isError || !authStatus?.authenticated) {
-    setLocation("/login");
     return null;
   }
 
@@ -43,10 +52,14 @@ export function GuestGuard({ children }: AuthGuardProps) {
   const [, setLocation] = useLocation();
   const { data: authStatus, isLoading } = useAuthStatus();
 
-  // Redirect to home if already authenticated (using useEffect to avoid render-time navigation)
+  // Redirect to home if already authenticated (using useEffect to avoid render-time navigation).
+  // Honors a sanitized ?next= so deep links survive the login round-trip.
+  // URLSearchParams.get already decodes the value, so sanitizeNextPath receives
+  // a plain path — don't add another decode/encode layer here.
   useEffect(() => {
     if (authStatus?.authenticated) {
-      setLocation("/app");
+      const next = sanitizeNextPath(new URLSearchParams(window.location.search).get("next"));
+      setLocation(next ?? "/app");
     }
   }, [authStatus?.authenticated, setLocation]);
 

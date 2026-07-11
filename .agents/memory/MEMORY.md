@@ -1,0 +1,1 @@
+- [Package firewall blocks](package-firewall-blocks.md) — a single CVE-blocked dep version (403 from package-firewall.replit.local) breaks ALL npm installs incl. the deploy build; remove/downgrade it.
