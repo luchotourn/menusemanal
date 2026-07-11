@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Send, CheckCircle2, ThumbsUp, AlertTriangle, Clock, Share2 } from "lucide-react";
+import { Share2 } from "lucide-react";
 import { AddMealButton } from "@/components/add-meal-button";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -15,18 +14,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
 import { parseWeekParam, weekParamToDate, buildReviewShareMessage, openShareUi } from "@/lib/review-share";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { MealCard } from "@/components/meal-card";
 import type { PendingProposalSummary } from "@/components/meal-card-utils";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
-import { CreatorOnly, CommentatorOnly, useUserRole } from "@/components/role-based-wrapper";
+import { useUserRole } from "@/components/role-based-wrapper";
+import { WeekPanel } from "@/components/week-panel";
 import { useWeeklyReview } from "@/hooks/use-weekly-review";
 import { useProfile } from "@/hooks/useAuth";
-import { selectReviewNotes, reviewReviewerName } from "@shared/utils";
 
 type MealPlanWithCommentsAndRecipe = MealPlan & {
   recipe: Recipe | null;
@@ -38,11 +35,13 @@ type MealPlanWithCommentsAndRecipe = MealPlan & {
 interface WeeklyCalendarProps {
   onAddMeal: (date: string, mealType: string) => void;
   onViewMealPlan: (mealPlan: MealPlan & { recipe?: Recipe; comments?: MealCommentInline[] }) => void;
-  /** Keeps the parent in sync with the visible week (the Francis dock targets it). */
+  /** Keeps the parent in sync with the visible week (the Francis planner targets it). */
   onWeekChange?: (weekStart: Date) => void;
+  /** Opens the Francis weekly-plan sheet (owned by the parent page). */
+  onOpenPlanner?: () => void;
 }
 
-export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpenPlanner }: WeeklyCalendarProps) {
   const { isCreator } = useUserRole();
   // Deep links (?week=YYYY-MM-DD, e.g. from a shared WhatsApp review message)
   // open the calendar on that week; otherwise the current one.
@@ -247,207 +246,30 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
 
   return (
     <div className="space-y-4">
-      {/* Responsive Header with week navigation */}
-      <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm lg:p-6 md:p-4 p-3">
-        <div className="flex items-center justify-between lg:mb-4 md:mb-3 mb-2">
-          <div className="flex items-center lg:space-x-4 md:space-x-3 space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:p-3 md:p-2.5 p-2 rounded-xl hover:bg-slate-200/50 hover:scale-105 transition-all duration-200 shadow-sm border border-slate-200/50"
-              onClick={previousWeek}
-              disabled={isTransitioning}
-            >
-              <ChevronLeft className="text-slate-700 lg:w-6 lg:h-6 md:w-5 md:h-5 w-4 h-4" />
-            </Button>
-            
-            <div className={`text-center transition-all duration-200 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
-              {(() => {
-                const weekInfo = formatEnhancedWeekRange(currentWeekStart);
-                return (
-                  <div className="lg:space-y-1 md:space-y-1 space-y-0.5">
-                    <div className="flex items-center lg:space-x-2 md:space-x-2 space-x-1">
-                      <Calendar className="lg:w-4 lg:h-4 md:w-4 md:h-4 w-3 h-3 text-slate-600" />
-                      <span className="lg:text-lg md:text-base text-sm font-bold text-slate-900 lg:min-w-[160px] md:min-w-[140px] min-w-[120px]">
-                        {weekInfo.range}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-center lg:space-x-3 md:space-x-2 space-x-1 lg:text-xs md:text-xs text-[10px] text-slate-600">
-                      <span className="hidden md:inline">{weekInfo.monthContext}</span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:p-3 md:p-2.5 p-2 rounded-xl hover:bg-slate-200/50 hover:scale-105 transition-all duration-200 shadow-sm border border-slate-200/50"
-              onClick={nextWeek}
-              disabled={isTransitioning}
-            >
-              <ChevronRight className="text-slate-700 lg:w-6 lg:h-6 md:w-5 md:h-5 w-4 h-4" />
-            </Button>
-          </div>
-          
-          {!isCurrentWeek() && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={goToCurrentWeek}
-              className="bg-white/80 hover:bg-white border-slate-300 text-slate-700 hover:text-slate-800 font-medium lg:text-sm md:text-sm text-xs lg:px-3 md:px-2.5 px-2"
-            >
-              <span className="hidden sm:inline">Ir a hoy</span>
-              <span className="sm:hidden">Hoy</span>
-            </Button>
-          )}
-        </div>
-        
-        {/* Review status + submit action.
-            The status is a single adaptive element: a compact pill when there
-            is nothing more to say, or — when commentators left notes — one
-            consolidated block whose header states the verdict once and quotes
-            the note(s) beneath it. This avoids repeating the icon/reviewer. */}
-        <div className="flex items-start justify-between gap-2 mt-2 mb-1">
-          {review ? (
-            (() => {
-              const tone = {
-                approved: { text: "text-emerald-700", note: "text-emerald-800", bg: "bg-emerald-50", border: "border-emerald-200", Icon: ThumbsUp },
-                changes_requested: { text: "text-amber-700", note: "text-amber-800", bg: "bg-amber-50", border: "border-amber-200", Icon: AlertTriangle },
-                submitted: { text: "text-sky-700", note: "text-sky-800", bg: "bg-sky-50", border: "border-sky-200", Icon: Clock },
-              }[review.status];
-              const { Icon } = tone;
+      {/* The week's command center: nav, progress, review lifecycle, actions */}
+      <WeekPanel
+        weekStart={currentWeekStart}
+        weekStartStr={weekStartStr}
+        isCurrentWeek={isCurrentWeek()}
+        isTransitioning={isTransitioning}
+        onPreviousWeek={previousWeek}
+        onNextWeek={nextWeek}
+        onGoToCurrentWeek={goToCurrentWeek}
+        mealPlans={mealPlans ?? []}
+        review={review}
+        currentUserId={currentUserId}
+        isCreator={isCreator}
+        isSubmitting={isSubmitting}
+        isSigningOff={isSigningOff}
+        onOpenPlanner={onOpenPlanner}
+        onSubmit={() => setShowSubmitConfirm(true)}
+        onSignoff={(verdict) => { setSignoffNote(""); setPendingSignoffVerdict(verdict); }}
+      />
 
-              const label =
-                review.status === "submitted"
-                  ? `En revisión · enviada ${formatDistanceToNow(new Date(review.submittedAt), { addSuffix: true, locale: es })}`
-                  : `${review.status === "approved" ? "Aprobada por" : "Cambios pedidos por"} ${reviewReviewerName(review.status, review.signoffs, review.lastReviewedBy)}`;
-
-              const tooltip =
-                review.status === "submitted"
-                  ? `Enviada el ${new Date(review.submittedAt).toLocaleString("es-AR")}`
-                  : review.lastReviewedAt
-                  ? `${review.status === "approved" ? "Aprobada" : "Cambios pedidos"} el ${new Date(review.lastReviewedAt).toLocaleString("es-AR")}`
-                  : undefined;
-
-              const notes = selectReviewNotes(review.signoffs);
-
-              // No note → compact pill.
-              if (notes.length === 0) {
-                return (
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${tone.text} ${tone.bg} border ${tone.border}`}
-                    title={tooltip}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {label}
-                  </span>
-                );
-              }
-
-              // Has note(s) → consolidated status + feedback block. The header
-              // names the reviewer once; a single note then needs no author
-              // prefix, while multiple notes keep theirs to stay distinguishable.
-              const showAuthors = notes.length > 1;
-              return (
-                <div className={`min-w-0 rounded-lg border px-3 py-2 ${tone.bg} ${tone.border}`} title={tooltip}>
-                  <div className={`flex items-center gap-1.5 text-xs font-semibold ${tone.text}`}>
-                    <Icon className="w-3.5 h-3.5 shrink-0" />
-                    {label}
-                  </div>
-                  <ul className="mt-1 space-y-0.5">
-                    {notes.map((s) => (
-                      <li key={s.id} className={`text-xs leading-snug break-words ${tone.note}`}>
-                        {showAuthors && <span className="font-medium">{s.userName}: </span>}
-                        <span className="italic">«{s.note}»</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })()
-          ) : (
-            <span className="text-xs text-slate-500">
-              {mealPlans && mealPlans.length > 0
-                ? `${mealPlans.length} comida${mealPlans.length === 1 ? "" : "s"} planeada${mealPlans.length === 1 ? "" : "s"}`
-                : "Sin comidas planeadas"}
-            </span>
-          )}
-
-          <CreatorOnly>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant={review ? "outline" : "default"}
-                size="sm"
-                onClick={() => setShowSubmitConfirm(true)}
-                disabled={isSubmitting || (mealPlans?.length ?? 0) === 0}
-                className={
-                  review
-                    ? "text-xs border-slate-300 text-slate-700 hover:bg-slate-100"
-                    : "text-xs bg-app-accent hover:bg-app-accent/90 text-slate-900 font-medium"
-                }
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                {review ? "Reenviar" : "Enviar para revisión"}
-              </Button>
-            </div>
-          </CreatorOnly>
-        </div>
-
-        {/* Commentator sign-off buttons — only when the week is awaiting review
-            and this commentator has not yet signed off. Lets the commentator
-            close the loop with an explicit "approve" or "request changes". */}
-        {review && (() => {
-          const mySignoff = currentUserId != null
-            ? review.signoffs.find((s) => s.userId === currentUserId)
-            : undefined;
-          return (
-            <CommentatorOnly>
-              <div className="flex items-center justify-between gap-2 mb-1">
-                {mySignoff ? (
-                  <span className="text-xs text-slate-600">
-                    {mySignoff.verdict === "approved"
-                      ? "Aprobaste esta semana"
-                      : "Pediste cambios en esta semana"}
-                    {mySignoff.note ? ` · "${mySignoff.note}"` : ""}
-                  </span>
-                ) : (
-                  <span className="text-xs text-slate-500">¿Cómo se ve la semana?</span>
-                )}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isSigningOff}
-                    onClick={() => { setSignoffNote(""); setPendingSignoffVerdict("changes_requested"); }}
-                    className="text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-                    Pedir cambios
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={isSigningOff}
-                    onClick={() => { setSignoffNote(""); setPendingSignoffVerdict("approved"); }}
-                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5 mr-1.5" />
-                    Aprobar semana
-                  </Button>
-                </div>
-              </div>
-            </CommentatorOnly>
-          );
-        })()}
-
-        {/* Keyboard navigation hint - hidden on mobile */}
-        <div className="text-center hidden md:block">
-          <p className="text-xs text-slate-600/70 font-medium">
-            💡 Usa ← → para navegar entre semanas, Cmd/Ctrl + Home para ir a hoy
-          </p>
-        </div>
-      </div>
+      {/* Keyboard navigation hint - hidden on mobile */}
+      <p className="text-center hidden md:block text-xs text-tinta/50 font-medium">
+        💡 Usa ← → para navegar entre semanas, Cmd/Ctrl + Home para ir a hoy
+      </p>
 
       {/* Weekly calendar grid */}
       <div className="grid grid-cols-1 gap-3">

@@ -32,7 +32,11 @@
   --durazno: #FFBE73;        /* AI fills, chips, "hoy" — replaces ad-hoc amber */
   --durazno-suave: #FFF6E8;  /* AI/pending soft surfaces */
   --menta: #4ECDC4;          /* success / confirmations */
+  --menta-suave: #E4F5F2;    /* success soft surfaces (approved week) */
   --uva: #9C6ADE;            /* kids (commentator) accents */
+  --uva-suave: #F3EBFA;      /* kids soft surfaces (review invite) */
+  --rojo: #C0392B;           /* changes requested */
+  --rojo-suave: #FBEAE7;     /* changes-requested soft surfaces */
 
   /* Legacy aliases kept so existing .text-app-* / .bg-app-* usage keeps working */
   --app-primary: var(--brasa);
