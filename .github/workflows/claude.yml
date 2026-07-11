@@ -36,6 +36,11 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
+          # Allow the Claude GitHub App bot to trigger this workflow. Without
+          # this, the action's prepare step aborts with "Workflow initiated by
+          # non-human actor: claude (type: Bot)". Use "*" to allow any bot.
+          allowed_bots: "claude"
+
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
