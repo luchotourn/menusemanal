@@ -38,7 +38,6 @@ export default function Home() {
   const [generateWeekStart, setGenerateWeekStart] = useState<string>("");
   // The week currently visible in the calendar — the Francis dock targets it.
   const [visibleWeekStart, setVisibleWeekStart] = useState<Date>(() => new Date());
-  const [dockInstructions, setDockInstructions] = useState<string>("");
 
 
 
@@ -77,9 +76,8 @@ export default function Home() {
     setShowMealSelection(true);
   };
 
-  // Francis dock → generate flow for the visible week, instructions prefilled.
-  const handleFrancisSubmit = (instructions: string) => {
-    setDockInstructions(instructions);
+  // Francis dock → the weekly plan sheet for the visible week.
+  const handleOpenPlanner = () => {
     setGenerateWeekStart(formatDate(visibleWeekStart));
     setShowGenerateWeek(true);
   };
@@ -163,11 +161,11 @@ export default function Home() {
       <Header />
 
       {/* Creators get extra bottom padding so the Francis dock never covers content */}
-      <main className={`max-w-lg mx-auto px-4 ${isCreator ? "pb-44" : "pb-20"}`}>
+      <main className={`max-w-lg mx-auto px-4 ${isCreator ? "pb-36" : "pb-20"}`}>
         <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} onWeekChange={setVisibleWeekStart} />
       </main>
 
-      <FrancisDock onSubmit={handleFrancisSubmit} />
+      <FrancisDock onOpenPlanner={handleOpenPlanner} />
 
       {/* Modals */}
       <RecipeDetailModal
@@ -211,7 +209,6 @@ export default function Home() {
         open={showGenerateWeek}
         onOpenChange={setShowGenerateWeek}
         weekStartDate={generateWeekStart}
-        initialInstructions={dockInstructions}
       />
     </div>
   );

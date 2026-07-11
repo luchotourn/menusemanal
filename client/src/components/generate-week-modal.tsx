@@ -42,8 +42,6 @@ interface GenerateWeekModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   weekStartDate: string;
-  /** Instructions prefilled from the Francis dock ("" = start empty). */
-  initialInstructions?: string;
 }
 
 type Step = "intent" | "generating" | "review";
@@ -55,7 +53,7 @@ const INSTRUCTION_CHIPS = [
   "Priorizá lo que más les gusta a los chicos",
 ];
 
-export function GenerateWeekModal({ open, onOpenChange, weekStartDate, initialInstructions }: GenerateWeekModalProps) {
+export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: GenerateWeekModalProps) {
   const [step, setStep] = useState<Step>("intent");
   const [instructions, setInstructions] = useState("");
   const [replaceWeek, setReplaceWeek] = useState(false);
@@ -114,7 +112,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate, initialIn
   useEffect(() => {
     if (open) {
       setStep(isGenerating ? "generating" : "intent");
-      setInstructions(initialInstructions ?? "");
+      setInstructions("");
       setReplaceWeek(false);
       setProfileOpen(false);
       setPromptDirty(false);
