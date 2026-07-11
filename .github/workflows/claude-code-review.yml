@@ -37,6 +37,12 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
+          # Allow the Claude GitHub App bot to trigger this review. Without this,
+          # the action's prepare step aborts with "Workflow initiated by
+          # non-human actor: claude (type: Bot)" whenever a PR is opened or
+          # pushed by the bot. Use "*" to allow any bot.
+          allowed_bots: "claude"
+
           # Model for the review (claude-sonnet-4-6 is the current Sonnet; use claude-opus-4-8 for deeper reviews)
           model: "claude-sonnet-4-6"
 
