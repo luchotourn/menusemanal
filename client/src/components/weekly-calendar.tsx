@@ -63,6 +63,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
     fecha: string;
   } | null>(null);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showSharePrompt, setShowSharePrompt] = useState(false);
   const [pendingSignoffVerdict, setPendingSignoffVerdict] = useState<"approved" | "changes_requested" | null>(null);
   const [signoffNote, setSignoffNote] = useState("");
 
@@ -154,19 +155,40 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
     return formatDate(date) === formatDate(today);
   };
 
-  // Share the review deep link — native share sheet on mobile (WhatsApp lives
-  // there), wa.me fallback on desktop. AbortError = the user closed the sheet.
-  const handleShareReview = async () => {
-    const message = buildReviewShareMessage(window.location.origin, weekStartStr);
+  // Share the review deep link — native share sheet on mobile (WhatsApp and
+  // friends live there), wa.me fallback on desktop. Returns false when the
+  // browser blocked it (the tap's activation window expired during the
+  // request, or a popup blocker), so the caller can offer a fresh-tap
+  // fallback. AbortError = the user closed the sheet: not a block.
+  const shareReviewNow = async (): Promise<boolean> => {
+    const message = buildReviewShareMessage(
+      window.location.origin,
+      weekStartStr,
+      formatWeekRange(currentWeekStart),
+    );
     if (navigator.share) {
       try {
         await navigator.share({ text: message });
-        return;
+        return true;
       } catch (error) {
-        if ((error as Error).name === "AbortError") return;
+        return (error as Error).name === "AbortError";
       }
     }
-    window.open(buildWhatsAppShareUrl(message), "_blank", "noopener");
+    const opened = window.open(buildWhatsAppShareUrl(message), "_blank", "noopener");
+    return opened != null;
+  };
+
+  // One button, one flow: confirming "Enviar para revisión" submits and then
+  // opens the share sheet right away.
+  const handleSubmitAndShare = () => {
+    submitReview(undefined, {
+      onSuccess: () => {
+        void shareReviewNow().then((shared) => {
+          if (!shared) setShowSharePrompt(true);
+        });
+      },
+    });
+    setShowSubmitConfirm(false);
   };
 
   const getMealsForDate = (date: Date, mealType: string) => {
@@ -366,18 +388,6 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
 
           <CreatorOnly>
             <div className="flex items-center gap-2 shrink-0">
-              {review && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleShareReview}
-                  className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 px-2"
-                  title="Compartir el link de revisión por WhatsApp"
-                  aria-label="Compartir el link de revisión por WhatsApp"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                </Button>
-              )}
               <Button
                 variant={review ? "outline" : "default"}
                 size="sm"
@@ -610,7 +620,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
             </AlertDialogTitle>
             <AlertDialogDescription>
               Se enviará un email al resto de la familia avisándoles que pueden revisar el menú de la semana del{" "}
-              {formatEnhancedWeekRange(currentWeekStart).range} y dejar sus comentarios.
+              {formatEnhancedWeekRange(currentWeekStart).range}, y se abre el menú para compartirles el link
+              por WhatsApp o la app que quieras.
               {review && " La revisión anterior y las aprobaciones serán reemplazadas."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -618,13 +629,36 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
             <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={isSubmitting}
-              onClick={() => {
-                submitReview();
-                setShowSubmitConfirm(false);
-              }}
+              onClick={handleSubmitAndShare}
               className="bg-app-accent hover:bg-app-accent/90 text-slate-900"
             >
-              {review ? "Reenviar" : "Enviar"}
+              {review ? "Reenviar y compartir" : "Enviar y compartir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Share fallback — only when the share sheet couldn't open right after
+          submitting (gesture expired / popup blocked). A fresh tap always works. */}
+      <AlertDialog open={showSharePrompt} onOpenChange={setShowSharePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Semana enviada 🎉</AlertDialogTitle>
+            <AlertDialogDescription>
+              Avisale a la familia: compartí el link de revisión por WhatsApp o la app que prefieras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Listo</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void shareReviewNow();
+                setShowSharePrompt(false);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Compartir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
