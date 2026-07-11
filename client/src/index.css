@@ -32,7 +32,11 @@
   --durazno: #FFBE73;        /* AI fills, chips, "hoy" — replaces ad-hoc amber */
   --durazno-suave: #FFF6E8;  /* AI/pending soft surfaces */
   --menta: #4ECDC4;          /* success / confirmations */
+  --menta-suave: #E4F5F2;    /* success soft surfaces (approved week) */
   --uva: #9C6ADE;            /* kids (commentator) accents */
+  --uva-suave: #F3EBFA;      /* kids soft surfaces (review invite) */
+  --rojo: #C0392B;           /* changes requested */
+  --rojo-suave: #FBEAE7;     /* changes-requested soft surfaces */
 
   /* Legacy aliases kept so existing .text-app-* / .bg-app-* usage keeps working */
   --app-primary: var(--brasa);
@@ -69,6 +73,10 @@
   --papel: #241F17;
   --tinta: #F2EADB;
   --durazno-suave: #3A2C18;
+  --menta-suave: #12332F;
+  --uva-suave: #2B2136;
+  --rojo: #E9705F;
+  --rojo-suave: #3A211D;
 
   --app-background: var(--crema);
   --app-neutral: var(--tinta);
@@ -81,7 +89,6 @@
 
   body {
     @apply font-sans antialiased bg-app-background text-app-neutral;
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 }
 

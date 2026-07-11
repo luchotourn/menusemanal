@@ -22,8 +22,18 @@ export default {
           DEFAULT: "var(--durazno)",
           suave: "var(--durazno-suave)",
         },
-        menta: "var(--menta)",
-        uva: "var(--uva)",
+        menta: {
+          DEFAULT: "var(--menta)",
+          suave: "var(--menta-suave)",
+        },
+        uva: {
+          DEFAULT: "var(--uva)",
+          suave: "var(--uva-suave)",
+        },
+        rojo: {
+          DEFAULT: "var(--rojo)",
+          suave: "var(--rojo-suave)",
+        },
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {

@@ -7,7 +7,6 @@ import { MealPlanDetailModal } from "@/components/meal-plan-detail-modal";
 import { MealSelectionModal } from "@/components/meal-selection-modal";
 import { AddRecipeModal } from "@/components/add-recipe-modal";
 import { GenerateWeekModal } from "@/components/generate-week-modal";
-import { FrancisDock } from "@/components/francis-dock";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,7 +35,7 @@ export default function Home() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showGenerateWeek, setShowGenerateWeek] = useState(false);
   const [generateWeekStart, setGenerateWeekStart] = useState<string>("");
-  // The week currently visible in the calendar — the Francis dock targets it.
+  // The week currently visible in the calendar — the Francis planner targets it.
   const [visibleWeekStart, setVisibleWeekStart] = useState<Date>(() => new Date());
 
 
@@ -76,7 +75,7 @@ export default function Home() {
     setShowMealSelection(true);
   };
 
-  // Francis dock → the weekly plan sheet for the visible week.
+  // WeekPanel's "Planear con Francis" → the weekly plan sheet for the visible week.
   const handleOpenPlanner = () => {
     setGenerateWeekStart(formatDate(visibleWeekStart));
     setShowGenerateWeek(true);
@@ -154,18 +153,18 @@ export default function Home() {
     );
   }
 
-  const isCreator = profile?.role === "creator";
-
   return (
     <div className="min-h-screen bg-app-background">
       <Header />
 
-      {/* Creators get extra bottom padding so the Francis dock never covers content */}
-      <main className={`max-w-lg mx-auto px-4 ${isCreator ? "pb-36" : "pb-20"}`}>
-        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} onWeekChange={setVisibleWeekStart} />
+      <main className="max-w-lg mx-auto px-4 pb-20">
+        <WeeklyCalendar
+          onAddMeal={handleAddMeal}
+          onViewMealPlan={handleViewMealPlan}
+          onWeekChange={setVisibleWeekStart}
+          onOpenPlanner={handleOpenPlanner}
+        />
       </main>
-
-      <FrancisDock onOpenPlanner={handleOpenPlanner} />
 
       {/* Modals */}
       <RecipeDetailModal
