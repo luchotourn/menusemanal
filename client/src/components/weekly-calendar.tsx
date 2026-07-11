@@ -18,7 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatWeekRange, formatEnhancedWeekRange, getMonday, getDayName, formatDate, getWeekDates } from "@/lib/utils";
-import { parseWeekParam, weekParamToDate, buildReviewShareMessage, buildWhatsAppShareUrl } from "@/lib/review-share";
+import { parseWeekParam, weekParamToDate, buildReviewShareMessage, openShareUi } from "@/lib/review-share";
 import type { MealCommentInline, MealPlan, Recipe } from "@shared/schema";
 import { MealCard } from "@/components/meal-card";
 import { MealCommentSheet } from "@/components/meal-comment-sheet";
@@ -70,6 +70,9 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
   const weekStartStr = formatDate(currentWeekStart);
 
   // Report the visible week upward whenever it changes (and once on mount).
+  // onWeekChange is deliberately left out of the deps: the effect must fire
+  // only when the visible week actually changes, not every time the parent
+  // re-renders and recreates the callback.
   useEffect(() => {
     onWeekChange?.(currentWeekStart);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,40 +158,34 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
     return formatDate(date) === formatDate(today);
   };
 
-  // Share the review deep link — native share sheet on mobile (WhatsApp and
-  // friends live there), wa.me fallback on desktop. Returns false when the
-  // browser blocked it (the tap's activation window expired during the
-  // request, or a popup blocker), so the caller can offer a fresh-tap
-  // fallback. AbortError = the user closed the sheet: not a block.
-  const shareReviewNow = async (): Promise<boolean> => {
-    const message = buildReviewShareMessage(
-      window.location.origin,
-      weekStartStr,
-      formatWeekRange(currentWeekStart),
+  // Share the review deep link — semantics (native sheet vs wa.me, blocked vs
+  // dismissed) live in openShareUi, which is unit tested with injected ports.
+  const shareReviewNow = (): Promise<boolean> =>
+    openShareUi(
+      buildReviewShareMessage(
+        window.location.origin,
+        weekStartStr,
+        formatWeekRange(currentWeekStart),
+      ),
+      {
+        nativeShare: navigator.share?.bind(navigator),
+        openWindow: (url) => window.open(url, "_blank", "noopener"),
+      },
     );
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: message });
-        return true;
-      } catch (error) {
-        return (error as Error).name === "AbortError";
-      }
-    }
-    const opened = window.open(buildWhatsAppShareUrl(message), "_blank", "noopener");
-    return opened != null;
-  };
 
   // One button, one flow: confirming "Enviar para revisión" submits and then
-  // opens the share sheet right away.
+  // opens the share sheet right away. The dialog closes only on success — on
+  // failure it stays open (the hook already toasts the error) so the user can
+  // retry or cancel.
   const handleSubmitAndShare = () => {
     submitReview(undefined, {
       onSuccess: () => {
+        setShowSubmitConfirm(false);
         void shareReviewNow().then((shared) => {
           if (!shared) setShowSharePrompt(true);
         });
       },
     });
-    setShowSubmitConfirm(false);
   };
 
   const getMealsForDate = (date: Date, mealType: string) => {
@@ -629,10 +626,19 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange }: Week
             <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={isSubmitting}
-              onClick={handleSubmitAndShare}
+              onClick={(event) => {
+                // Radix closes the dialog on action click by default; keep it
+                // open until the submit request settles (see handleSubmitAndShare).
+                event.preventDefault();
+                handleSubmitAndShare();
+              }}
               className="bg-app-accent hover:bg-app-accent/90 text-slate-900"
             >
-              {review ? "Reenviar y compartir" : "Enviar y compartir"}
+              {isSubmitting
+                ? "Enviando…"
+                : review
+                ? "Reenviar y compartir"
+                : "Enviar y compartir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

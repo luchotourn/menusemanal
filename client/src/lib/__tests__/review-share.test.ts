@@ -1,11 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   parseWeekParam,
   weekParamToDate,
   sanitizeNextPath,
+  buildLoginRedirect,
   buildWeekDeepLink,
   buildReviewShareMessage,
   buildWhatsAppShareUrl,
+  openShareUi,
 } from "../review-share";
 
 describe("parseWeekParam", () => {
@@ -26,6 +28,14 @@ describe("parseWeekParam", () => {
     expect(parseWeekParam("?week=2026-13-01")).toBeNull();
     expect(parseWeekParam("?week=2026-00-10")).toBeNull();
     expect(parseWeekParam("?week=2026-07-32")).toBeNull();
+    expect(parseWeekParam("?week=2026-07-00")).toBeNull();
+  });
+
+  it("rejects calendar overflow (days that don't exist in that month)", () => {
+    expect(parseWeekParam("?week=2026-02-30")).toBeNull();
+    expect(parseWeekParam("?week=2026-04-31")).toBeNull();
+    expect(parseWeekParam("?week=2026-02-29")).toBeNull(); // not a leap year
+    expect(parseWeekParam("?week=2024-02-29")).toBe("2024-02-29"); // leap year
   });
 });
 
@@ -56,10 +66,36 @@ describe("sanitizeNextPath", () => {
   });
 });
 
+describe("buildLoginRedirect", () => {
+  it("encodes the intended destination into ?next=", () => {
+    expect(buildLoginRedirect("/app?week=2026-07-06")).toBe(
+      "/login?next=%2Fapp%3Fweek%3D2026-07-06"
+    );
+  });
+
+  it("drops ?next= for the default destination", () => {
+    expect(buildLoginRedirect("/app")).toBe("/login");
+    expect(buildLoginRedirect("")).toBe("/login");
+  });
+
+  it("round-trips through URLSearchParams and sanitizeNextPath (the GuestGuard path)", () => {
+    const intended = "/app?week=2026-07-06";
+    const redirect = buildLoginRedirect(intended);
+    const next = new URLSearchParams(redirect.slice(redirect.indexOf("?"))).get("next");
+    expect(sanitizeNextPath(next)).toBe(intended);
+  });
+});
+
 describe("share message and URLs", () => {
   it("builds the deep link to the week view", () => {
     expect(buildWeekDeepLink("https://menusemanal.app", "2026-07-06")).toBe(
       "https://menusemanal.app/app?week=2026-07-06"
+    );
+  });
+
+  it("URL-encodes unexpected week values in the deep link", () => {
+    expect(buildWeekDeepLink("https://menusemanal.app", "6 - 12 jul")).toBe(
+      "https://menusemanal.app/app?week=6%20-%2012%20jul"
     );
   });
 
@@ -81,5 +117,44 @@ describe("share message and URLs", () => {
     expect(url).not.toContain("\n");
     expect(url).not.toContain(" & ");
     expect(decodeURIComponent(url.slice("https://wa.me/?text=".length))).toBe("hola\n¿qué tal? & chau");
+  });
+});
+
+describe("openShareUi", () => {
+  const abortError = () => {
+    const error = new Error("user dismissed");
+    error.name = "AbortError";
+    return error;
+  };
+
+  it("prefers the native share sheet and reports success", async () => {
+    const nativeShare = vi.fn().mockResolvedValue(undefined);
+    const openWindow = vi.fn();
+    await expect(openShareUi("hola", { nativeShare, openWindow })).resolves.toBe(true);
+    expect(nativeShare).toHaveBeenCalledWith({ text: "hola" });
+    expect(openWindow).not.toHaveBeenCalled();
+  });
+
+  it("treats a user-dismissed sheet (AbortError) as handled, not blocked", async () => {
+    const nativeShare = vi.fn().mockRejectedValue(abortError());
+    const openWindow = vi.fn();
+    await expect(openShareUi("hola", { nativeShare, openWindow })).resolves.toBe(true);
+    expect(openWindow).not.toHaveBeenCalled();
+  });
+
+  it("reports a block when the native sheet fails for other reasons", async () => {
+    const nativeShare = vi.fn().mockRejectedValue(new Error("NotAllowedError gesture expired"));
+    await expect(openShareUi("hola", { nativeShare, openWindow: vi.fn() })).resolves.toBe(false);
+  });
+
+  it("falls back to a wa.me window when there is no native share", async () => {
+    const openWindow = vi.fn().mockReturnValue({});
+    await expect(openShareUi("hola", { openWindow })).resolves.toBe(true);
+    expect(openWindow).toHaveBeenCalledWith("https://wa.me/?text=hola");
+  });
+
+  it("reports a block when the popup blocker eats the wa.me window", async () => {
+    const openWindow = vi.fn().mockReturnValue(null);
+    await expect(openShareUi("hola", { openWindow })).resolves.toBe(false);
   });
 });
