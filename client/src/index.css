@@ -32,7 +32,11 @@
   --durazno: #FFBE73;        /* AI fills, chips, "hoy" — replaces ad-hoc amber */
   --durazno-suave: #FFF6E8;  /* AI/pending soft surfaces */
   --menta: #4ECDC4;          /* success / confirmations */
+  --menta-suave: #E4F5F2;    /* success soft surfaces (approved week) */
   --uva: #9C6ADE;            /* kids (commentator) accents */
+  --uva-suave: #F3EBFA;      /* kids soft surfaces (review invite) */
+  --rojo: #C0392B;           /* changes requested */
+  --rojo-suave: #FBEAE7;     /* changes-requested soft surfaces */
 
   /* Legacy aliases kept so existing .text-app-* / .bg-app-* usage keeps working */
   --app-primary: var(--brasa);
@@ -75,6 +79,38 @@
 }
 
 @layer utilities {
+  /* Staggered entrance for the Francis plan review — pair with an inline
+     animation-delay per row. Motion is skipped for reduced-motion users. */
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-rise-in {
+    animation: rise-in 0.45s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-rise-in {
+      animation: none;
+    }
+  }
+
+  /* Hide the chip row's horizontal scrollbar (dock) */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .text-app-primary {
     color: var(--app-primary);
   }

@@ -35,6 +35,8 @@ export default function Home() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showGenerateWeek, setShowGenerateWeek] = useState(false);
   const [generateWeekStart, setGenerateWeekStart] = useState<string>("");
+  // The week currently visible in the calendar — the Francis planner targets it.
+  const [visibleWeekStart, setVisibleWeekStart] = useState<Date>(() => new Date());
 
 
 
@@ -73,8 +75,9 @@ export default function Home() {
     setShowMealSelection(true);
   };
 
-  const handleGenerateWeek = (weekStart: Date) => {
-    setGenerateWeekStart(formatDate(weekStart));
+  // WeekPanel's "Planear con Francis" → the weekly plan sheet for the visible week.
+  const handleOpenPlanner = () => {
+    setGenerateWeekStart(formatDate(visibleWeekStart));
     setShowGenerateWeek(true);
   };
 
@@ -155,14 +158,13 @@ export default function Home() {
       <Header />
 
       <main className="max-w-lg mx-auto px-4 pb-20">
-        <WeeklyCalendar onAddMeal={handleAddMeal} onViewMealPlan={handleViewMealPlan} onGenerateWeek={handleGenerateWeek} />
-
-
-
-
+        <WeeklyCalendar
+          onAddMeal={handleAddMeal}
+          onViewMealPlan={handleViewMealPlan}
+          onWeekChange={setVisibleWeekStart}
+          onOpenPlanner={handleOpenPlanner}
+        />
       </main>
-
-
 
       {/* Modals */}
       <RecipeDetailModal

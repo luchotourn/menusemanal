@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { Check, ChefHat, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, RefreshCw, Trash2, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -332,8 +332,8 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
               className="p-1.5 h-auto mt-1 text-gray-400 hover:text-amber-600 flex-shrink-0"
               onClick={() => handleResuggest(item)}
               disabled={isUpdatingItems || isResuggesting}
-              title="Pedirle otra sugerencia a la IA"
-              aria-label={`Pedir otra sugerencia para el ${label.toLowerCase()}`}
+              title="Pedirle otra idea a Francis"
+              aria-label={`Pedirle a Francis otra idea para el ${label.toLowerCase()}`}
             >
               {isRowResuggesting ? (
                 <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
@@ -371,11 +371,11 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
   return (
     <div className="fixed left-0 right-0 z-[60] bg-white flex flex-col" style={heightStyle}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-tinta/10 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-amber-500" />
-          <h2 className="font-semibold text-base">
-            {step === "review" ? "Revisá el plan de la semana" : "Generar semana con IA"}
+          <ChefHat className="w-5 h-5 text-brasa" />
+          <h2 className="font-bold text-base text-tinta">
+            {step === "review" ? "El plan de Francis" : "Pedile a Francis"}
           </h2>
         </div>
         <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => onOpenChange(false)}>
@@ -384,13 +384,34 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
       </div>
 
       {step === "generating" ? (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-          <h3 className="text-lg font-semibold text-gray-900">Pensando el menú de la semana…</h3>
-          <p className="text-sm text-gray-500">
-            Estamos eligiendo recetas de tu biblioteca para cada comida. Esto puede tardar
-            alrededor de un minuto.
-          </p>
+        <div className="flex-1 overflow-hidden px-4 pt-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-durazno-suave flex items-center justify-center text-xl flex-shrink-0" aria-hidden="true">
+              👨‍🍳
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-tinta">Francis está armando la semana…</h3>
+              <p className="text-xs text-tinta/60 leading-snug mt-0.5">
+                Elige de tu recetario mirando las estrellas de los chicos y lo último que
+                comieron. Puede tardar cerca de un minuto.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2.5" role="status" aria-label="Francis está armando el plan de la semana">
+            {["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"].map((day, index) => (
+              <div
+                key={day}
+                className="flex items-center gap-3 rounded-xl rounded-tr-[20px] border border-tinta/5 bg-papel p-3 animate-pulse"
+                style={{ animationDelay: `${index * 150}ms` }}
+              >
+                <span className="w-9 text-xs font-bold text-tinta/40">{day}</span>
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-2.5 rounded bg-tinta/10 w-3/4"></div>
+                  <div className="h-2.5 rounded bg-tinta/5 w-1/2"></div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : step === "review" ? (
         !draft ? (
@@ -424,18 +445,22 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                   </div>
                 )}
 
-                {/* Summary card */}
+                {/* Summary card — Francis presents his plan */}
                 {draft.summary && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-amber-900 leading-snug">{draft.summary}</p>
+                  <div className="rounded-xl rounded-tr-[22px] border border-durazno bg-durazno-suave p-3 flex items-start gap-2.5 animate-rise-in">
+                    <span className="text-lg leading-none flex-shrink-0" aria-hidden="true">👨‍🍳</span>
+                    <p className="text-sm text-tinta leading-snug">{draft.summary}</p>
                   </div>
                 )}
 
-                {/* Day sections — Monday through Sunday */}
+                {/* Day sections — Monday through Sunday, staggered entrance */}
                 {groupDraftItemsByDay(draft.weekStartDate, draft.items).map((day, index) => (
-                  <div key={day.fecha} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                    <p className="text-sm font-semibold text-app-neutral mb-2">
+                  <div
+                    key={day.fecha}
+                    className="rounded-xl rounded-tr-[22px] border border-tinta/10 bg-papel p-3 shadow-sm animate-rise-in"
+                    style={{ animationDelay: `${Math.min(index * 80, 560)}ms` }}
+                  >
+                    <p className="text-sm font-bold text-tinta mb-2">
                       {formatDayHeading(day.fecha, index)}
                     </p>
                     <div className="space-y-2">
@@ -462,7 +487,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                 onClick={handleApplyClick}
                 disabled={isApplying || isDiscarding || isUpdatingItems || isResuggesting || draft.items.length === 0 || hasBlockedItem}
                 title={hasBlockedItem ? "Hay una comida que necesita arreglo: reemplazala o quitala" : undefined}
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1 bg-brasa hover:bg-brasa/90 font-bold"
               >
                 {isApplying ? (
                   <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Aplicando…</>
@@ -486,12 +511,13 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                 <>
                   {/* Intro */}
                   <div className="flex flex-col items-center text-center gap-2">
-                    <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-                      <Sparkles className="w-6 h-6 text-amber-600" />
+                    <div className="w-12 h-12 rounded-full bg-durazno-suave flex items-center justify-center text-2xl" aria-hidden="true">
+                      👨‍🍳
                     </div>
                     <p className="text-sm text-gray-500">
-                      La IA elige recetas de tu biblioteca para completar las comidas de la semana.
-                      Después revisás el plan y lo ajustás antes de aplicarlo.
+                      Francis elige recetas de tu biblioteca para completar las comidas de la
+                      semana, mirando las estrellas de los chicos y lo que comieron últimamente.
+                      Vos revisás el plan y lo ajustás antes de aplicarlo.
                     </p>
                   </div>
 
@@ -553,7 +579,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                       onChange={(e) => setInstructions(e.target.value)}
                       maxLength={2000}
                       rows={3}
-                      placeholder="Contale a la IA qué querés para esta semana (opcional)…"
+                      placeholder="Contale a Francis qué querés para esta semana (opcional)…"
                       className="text-sm resize-none"
                     />
                     <div className="flex flex-wrap gap-2">
@@ -562,7 +588,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                           key={chip}
                           type="button"
                           onClick={() => setInstructions(chip)}
-                          className="text-xs px-3 py-2 rounded-full border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 active:bg-amber-200 transition-colors text-left"
+                          className="text-xs px-3 py-2 rounded-full border border-durazno bg-durazno-suave text-tinta/80 hover:bg-durazno/40 active:bg-durazno/60 transition-colors text-left"
                         >
                           {chip}
                         </button>
@@ -580,7 +606,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                       <p className="text-xs text-amber-800">
                         {replaceWeek
                           ? "Al aplicar el plan se reemplazan todas las comidas ya planificadas de esta semana, junto con sus comentarios, estrellas y propuestas de cambio."
-                          : "Si no lo activás, la IA solo completa los espacios vacíos y las comidas ya planificadas se mantienen."}
+                          : "Si no lo activás, Francis solo completa los espacios vacíos y las comidas ya planificadas se mantienen."}
                       </p>
                       {weekIsFull && !replaceWeek && (
                         <p className="text-xs font-medium text-amber-900">
@@ -599,11 +625,11 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || isDraftLoading || (weekIsFull && !replaceWeek)}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              className="w-full bg-brasa hover:bg-brasa/90 text-white font-bold"
               size="lg"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generar plan
+              <ChefHat className="w-4 h-4 mr-2" />
+              Pedirle el plan a Francis
             </Button>
           </div>
         </>
@@ -642,7 +668,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
           <AlertDialogHeader>
             <AlertDialogTitle>¿Descartar este borrador?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se elimina el plan propuesto por la IA. Las comidas ya planificadas no se tocan y
+              Se elimina el plan propuesto por Francis. Las comidas ya planificadas no se tocan y
               podés generar un plan nuevo cuando quieras.
             </AlertDialogDescription>
           </AlertDialogHeader>
