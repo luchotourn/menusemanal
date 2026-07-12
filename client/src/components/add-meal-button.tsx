@@ -93,7 +93,7 @@ export function AddMealButton({
       borderWidth: "2" as const,
       borderColor: "gray-300",
       textColor: "gray-500",
-      backgroundColor: "white",
+      backgroundColor: "transparent",
       hoverBorderColor: "app-accent",
       hoverTextColor: "app-accent",
       hoverBackgroundColor: "orange-50",

@@ -46,26 +46,40 @@
   --app-background: var(--crema);
 }
 
+/* Warm dark theme — token flip only. Opt-in from Ajustes; the light theme
+   stays the default until every screen speaks the token language. */
 .dark {
-  --background: hsl(240, 10%, 3.9%);
-  --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
+  --background: #191510;
+  --foreground: #F2EADB;
+  --muted: #221D15;
+  --muted-foreground: rgba(242, 234, 219, 0.62);
+  --popover: #241F17;
+  --popover-foreground: #F2EADB;
+  --card: #241F17;
+  --card-foreground: #F2EADB;
+  --border: rgba(242, 234, 219, 0.14);
+  --input: rgba(242, 234, 219, 0.14);
   --primary: hsl(16, 100%, 61%);
   --primary-foreground: hsl(0, 0%, 100%);
   --secondary: hsl(174, 47%, 58%);
-  --secondary-foreground: hsl(0, 0%, 100%);
+  --secondary-foreground: hsl(210, 20%, 17%);
   --accent: hsl(51, 100%, 70%);
   --accent-foreground: hsl(210, 20%, 17%);
-  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive: hsl(0, 62.8%, 50%);
   --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(240, 4.9%, 83.9%);
+  --ring: rgba(242, 234, 219, 0.6);
+
+  --crema: #191510;
+  --papel: #241F17;
+  --tinta: #F2EADB;
+  --durazno-suave: #3A2C18;
+  --menta-suave: #12332F;
+  --uva-suave: #2B2136;
+  --rojo: #E9705F;
+  --rojo-suave: #3A211D;
+
+  --app-background: var(--crema);
+  --app-neutral: var(--tinta);
 }
 
 @layer base {

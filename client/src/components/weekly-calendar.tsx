@@ -203,7 +203,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
   }) => (
     <div className="relative">
       <div className="mb-1">
-        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs text-tinta/50">{label}</span>
       </div>
       {meals.length > 0 ? (
         <div className="space-y-1">
@@ -221,7 +221,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
             variant="append"
             onClick={() => onAddMeal(formatDate(date), mealType)}
             label="Agregar nuevo"
-            className="mt-1 border-2 border-dashed border-gray-300"
+            className="mt-1 border-2 border-dashed border-tinta/20"
           />
         </div>
       ) : (
@@ -230,7 +230,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
           onClick={() => onAddMeal(formatDate(date), mealType)}
           label="Agregar nuevo"
           showIcon={false}
-          className="border-2 border-dashed border-gray-300"
+          className="border-2 border-dashed border-tinta/20"
         />
       )}
     </div>
@@ -289,12 +289,12 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
             return (
               <Card key="weekend" className={`rounded-xl p-4 shadow-sm transition-all ${
                 isWeekendToday 
-                  ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-app-accent shadow-md' 
-                  : 'bg-white border border-gray-100'
+                  ? 'bg-durazno-suave border-2 border-durazno shadow-md' 
+                  : 'bg-papel border border-tinta/10'
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-500">SÁB-DOM</span>
+                    <span className="text-sm font-medium text-tinta/50">SÁB-DOM</span>
                     <span className="text-lg font-semibold text-app-neutral">
                       {date.getDate()}-{weekDates[6].getDate()}
                     </span>
@@ -306,7 +306,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <span className={`text-xs font-medium ${
-                          isSaturdayToday ? 'text-app-accent' : 'text-gray-400'
+                          isSaturdayToday ? 'text-app-accent' : 'text-tinta/40'
                         }`}>SÁBADO</span>
                         {isSaturdayToday && (
                           <span className="text-xs bg-app-accent text-white px-2 py-1 rounded-full font-medium">
@@ -336,7 +336,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <span className={`text-xs font-medium ${
-                          isSundayToday ? 'text-app-accent' : 'text-gray-400'
+                          isSundayToday ? 'text-app-accent' : 'text-tinta/40'
                         }`}>DOMINGO</span>
                         {isSundayToday && (
                           <span className="text-xs bg-app-accent text-white px-2 py-1 rounded-full font-medium">
@@ -369,13 +369,13 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
             return (
               <Card key={index} className={`rounded-xl p-4 shadow-sm transition-all ${
                 isCurrentDay 
-                  ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-app-accent shadow-md' 
-                  : 'bg-white border border-gray-100'
+                  ? 'bg-durazno-suave border-2 border-durazno shadow-md' 
+                  : 'bg-papel border border-tinta/10'
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
                     <span className={`text-sm font-medium ${
-                      isCurrentDay ? 'text-app-accent' : 'text-gray-500'
+                      isCurrentDay ? 'text-app-accent' : 'text-tinta/50'
                     }`}>
                       {getDayName(date).toUpperCase()}
                     </span>
