@@ -28,8 +28,8 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
                 ? "text-purple-400"
                 : "text-yellow-400"
             : isCommentator
-              ? "text-purple-200"
-              : "text-gray-300"
+              ? "text-uva/30"
+              : "text-muted"
         }`}
       />
     ));
@@ -38,8 +38,8 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
   return (
     <Card className={`rounded-xl p-4 shadow-sm border transition-all hover:shadow-md ${
       isCommentator
-        ? "bg-gradient-to-br from-white to-purple-50 border-purple-100 hover:border-purple-200"
-        : "bg-white border-gray-100 hover:border-gray-200"
+        ? "bg-card border-uva/25 hover:border-uva/40"
+        : "bg-card border-border hover:border-tinta/20"
     }`}>
       <div className="flex items-center space-x-3">
         {recipe.imagen && recipe.imagen.startsWith('http') && (
@@ -47,7 +47,7 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
             src={recipe.imagen}
             alt={recipe.nombre}
             className={`w-12 h-12 rounded-lg object-cover border-2 ${
-              isCommentator ? "border-purple-200" : "border-gray-200"
+              isCommentator ? "border-uva/30" : "border-border"
             }`}
             onError={(e) => {
               e.currentTarget.style.display = 'none';
@@ -56,9 +56,7 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-1">
-            <h4 className={`font-medium truncate ${
-              isCommentator ? "text-purple-800" : "text-app-neutral"
-            }`}>
+            <h4 className="font-medium truncate text-app-neutral">
               {recipe.nombre}
             </h4>
             {recipe.esFavorita === 1 && (
@@ -69,7 +67,7 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
           </div>
 
           <p className={`text-sm truncate ${
-            isCommentator ? "text-purple-600" : "text-gray-600"
+            isCommentator ? "text-uva" : "text-muted-foreground"
           }`}>
             {recipe.categoria}
           </p>
@@ -78,7 +76,7 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
             {/* Original kids rating */}
             <div className="flex items-center space-x-1">
               <span className={`text-xs ${
-                isCommentator ? "text-purple-500" : "text-gray-500"
+                isCommentator ? "text-uva/80" : "text-muted-foreground"
               }`}>
                 Niños:
               </span>
@@ -101,7 +99,7 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
             {averageRating && averageRating > 0 && (
               <div className="flex items-center space-x-1">
                 <span className={`text-xs ${
-                  isCommentator ? "text-purple-600" : "text-gray-600"
+                  isCommentator ? "text-uva" : "text-muted-foreground"
                 }`}>
                   Familia: {averageRating.toFixed(1)}
                 </span>
@@ -115,8 +113,8 @@ export function RecipeCard({ recipe, onClick, userRating, averageRating }: Recip
           size="sm"
           className={`p-2 rounded-full transition-colors ${
             isCommentator
-              ? "hover:bg-purple-100 text-purple-600"
-              : "hover:bg-gray-100 text-gray-400"
+              ? "hover:bg-uva/15 text-uva"
+              : "hover:bg-muted text-muted-foreground"
           }`}
           onClick={onClick}
         >

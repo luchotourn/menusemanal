@@ -176,7 +176,7 @@ export default function Recipes() {
         <div className="mt-6">
           {/* Search and Filter - Sticky when focused on mobile */}
           <div className={`mobile-search-container ${isSearchFocused ? 'sticky top-0 z-40 mb-4 pt-2' : 'mb-6'} transition-all duration-200`}>
-            <Card className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 ${isSearchFocused ? 'sticky-search' : ''}`}>
+            <Card className={`bg-card rounded-xl p-4 shadow-sm border border-border ${isSearchFocused ? 'sticky-search' : ''}`}>
               <div className="mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -187,7 +187,7 @@ export default function Recipes() {
                     onFocus={handleSearchFocus}
                     onBlur={handleSearchBlur}
                     placeholder="Buscar comidas..."
-                    className="pl-10 bg-gray-50 border-0 focus:bg-white text-base" // text-base prevents zoom on iOS
+                    className="pl-10 bg-muted border-0 focus:bg-card text-base" // text-base prevents zoom on iOS
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -208,7 +208,7 @@ export default function Recipes() {
                     className={`px-3 py-1 text-xs rounded-full transition-colors ${
                       selectedCategory === category.value
                         ? "bg-app-primary text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                     onClick={() => setSelectedCategory(category.value)}
                   >
@@ -232,16 +232,16 @@ export default function Recipes() {
 
               {/* AI Recipe Assistant Banner */}
               <Card
-                className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 cursor-pointer hover:shadow-md transition-shadow"
+                className="bg-durazno-suave border-durazno/60 cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => setShowAssistant(true)}
               >
                 <div className="flex items-center gap-3 p-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-5 h-5 text-amber-600" />
+                  <div className="w-10 h-10 rounded-full bg-durazno/25 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-brasa" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-amber-900">Armá tu menú con IA</h4>
-                    <p className="text-xs text-amber-700">
+                    <h4 className="text-sm font-semibold text-app-neutral">Armá tu menú con IA</h4>
+                    <p className="text-xs text-muted-foreground">
                       Contanos qué les gusta y te armamos una lista de recetas para empezar
                     </p>
                   </div>
@@ -272,7 +272,7 @@ export default function Recipes() {
                 ))}
               </div>
             ) : (
-              <Card className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+              <Card className="bg-card rounded-xl p-8 shadow-sm border border-border">
                 <div className="text-center">
                   <div className="text-4xl mb-4">🔍</div>
                   <h3 className="text-lg font-semibold text-app-neutral mb-2">

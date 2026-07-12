@@ -125,9 +125,9 @@ export default function Favorites() {
                     {/* Rank badge */}
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                       index === 0 ? "bg-yellow-100 text-yellow-700" :
-                      index === 1 ? "bg-gray-100 text-gray-600" :
+                      index === 1 ? "bg-muted text-muted-foreground" :
                       index === 2 ? "bg-orange-100 text-orange-700" :
-                      "bg-gray-50 text-gray-400"
+                      "bg-muted text-muted-foreground"
                     }`}>
                       {index + 1}
                     </div>
@@ -168,7 +168,7 @@ export default function Favorites() {
               ))}
 
               {/* Summary */}
-              <Card className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mt-4">
+              <Card className="bg-card rounded-xl p-4 shadow-sm border border-border mt-4">
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
                     <div className="text-2xl font-bold text-app-primary">
@@ -188,7 +188,7 @@ export default function Favorites() {
               </Card>
             </div>
           ) : (
-            <Card className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+            <Card className="bg-card rounded-xl p-8 shadow-sm border border-border">
               <div className="text-center">
                 <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-app-neutral mb-2">
