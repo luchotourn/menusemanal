@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Preview de la nueva identidad mediterránea y argentina de Menu Semanal y Francis.">
+  <title>Menu Semanal — Identidad Francis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=Fugaz+One&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --cobalto: #1f4fa3;
+      --cobalto-vivo: #245dbb;
+      --tinta: #12366c;
+      --tomate: #e33a2c;
+      --tomate-oscuro: #b9271d;
+      --tomate-accion: #c92f23;
+      --maiz: #f7c948;
+      --manteca: #f7f0e4;
+      --papel: #fffaf1;
+      --perejil: #2e7d59;
+      --cielo: #dbe9f2;
+      --linea: rgba(18, 54, 108, .18);
+      --sombra: 0 22px 55px rgba(18, 54, 108, .14);
+      --radio: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--tinta);
+      background: var(--manteca);
+      font-family: "Archivo", system-ui, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; }
+    a { color: inherit; }
+    img, svg { display: block; }
+    :focus-visible { outline: 3px solid var(--maiz); outline-offset: 4px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    .preview-switcher {
+      position: fixed;
+      z-index: 200;
+      top: 18px;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px;
+      border: 2px solid var(--tinta);
+      border-radius: 999px;
+      background: rgba(255, 250, 241, .95);
+      box-shadow: 5px 6px 0 var(--tinta);
+      transform: translateX(-50%);
+      backdrop-filter: blur(14px);
+    }
+    .preview-switcher button {
+      min-height: 38px;
+      padding: 0 17px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .preview-switcher button[aria-selected="true"] { color: var(--papel); background: var(--cobalto); }
+
+    .view { display: none; }
+    .view.is-active { display: block; }
+    .container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+    .display { font-family: "Fugaz One", sans-serif; font-weight: 400; }
+    .utility { font-family: "DM Mono", monospace; }
+    .eyebrow { margin: 0 0 12px; font: 500 12px/1.2 "DM Mono", monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .wavy-rule { width: 112px; height: 13px; color: currentColor; }
+
+    .brand-mark { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+    .brand-mark__tile { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: var(--papel); background: var(--cobalto); transform: rotate(-2deg); }
+    .brand-mark__tile svg { width: 27px; height: 27px; }
+    .brand-mark__text { font-size: 17px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+
+    .btn {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 20px;
+      border: 2px solid var(--tinta);
+      border-radius: 13px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 4px 5px 0 var(--tinta);
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    .btn:hover { transform: translate(2px, 2px); box-shadow: 2px 3px 0 var(--tinta); }
+    .btn--red { color: #fff; background: var(--tomate-accion); }
+    .btn--blue { color: #fff; background: var(--cobalto); }
+    .btn--paper { background: var(--papel); }
+    .btn--small { min-height: 40px; padding-inline: 15px; box-shadow: none; }
+
+    /* LANDING */
+    .landing { overflow: hidden; background: var(--manteca); }
+    .landing-nav { position: relative; z-index: 20; border-bottom: 2px solid var(--tinta); background: var(--papel); }
+    .landing-nav__inner { min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .landing-nav__links { display: flex; align-items: center; gap: 26px; }
+    .landing-nav__links a:not(.btn) { font-size: 13px; font-weight: 700; text-decoration: none; }
+
+    .hero { position: relative; min-height: 790px; border-bottom: 2px solid var(--tinta); background: var(--papel); }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0 0 0 56%;
+      opacity: .98;
+      background: repeating-linear-gradient(90deg, var(--cobalto) 0 26px, var(--papel) 26px 52px);
+    }
+    .hero__inner { position: relative; z-index: 2; min-height: 790px; display: grid; grid-template-columns: 1.04fr .96fr; align-items: center; }
+    .hero__copy { padding: 130px 70px 90px 0; }
+    .hero__badge { width: fit-content; padding: 8px 11px; border: 2px solid var(--tinta); background: var(--maiz); font: 500 11px/1 "DM Mono"; text-transform: uppercase; transform: rotate(-1deg); }
+    .hero h1 { max-width: 660px; margin: 24px 0 19px; font: 400 clamp(56px, 6.5vw, 96px)/.91 "Fugaz One"; letter-spacing: -.055em; color: var(--cobalto); }
+    .hero h1 span { color: var(--tomate); }
+    .hero__lede { max-width: 600px; margin: 0 0 28px; font-size: clamp(17px, 2vw, 21px); line-height: 1.5; }
+    .signup-form { max-width: 540px; display: flex; gap: 9px; }
+    .signup-form input { min-width: 0; flex: 1; height: 52px; padding: 0 16px; border: 2px solid var(--tinta); border-radius: 13px; color: var(--tinta); background: #fff; box-shadow: inset 0 -3px 0 rgba(31,79,163,.08); }
+    .signup-form input::placeholder { color: rgba(18,54,108,.48); }
+    .form-note { margin: 14px 0 0; font-size: 12px; color: rgba(18,54,108,.68); }
+    .form-note a { font-weight: 700; }
+
+    .hero__art { position: relative; height: 100%; min-height: 700px; }
+    .hero__sun { position: absolute; width: 132px; height: 132px; top: 110px; right: 30px; border: 2px solid var(--tinta); border-radius: 50%; background: var(--maiz); box-shadow: 9px 10px 0 var(--tomate); }
+    .hero__lemon { position: absolute; z-index: 1; width: 125px; height: 192px; right: -25px; bottom: 4px; transform: rotate(18deg); }
+    .francis-hero { position: absolute; z-index: 3; width: 470px; height: 595px; left: 2%; bottom: 0; filter: drop-shadow(12px 15px 0 rgba(18,54,108,.12)); }
+    .hero-phone { position: absolute; z-index: 5; width: 225px; right: -26px; bottom: 72px; padding: 8px; border: 3px solid var(--tinta); border-radius: 32px; background: var(--tinta); box-shadow: 13px 16px 0 var(--tomate); transform: rotate(3deg); }
+    .hero-phone__screen { overflow: hidden; min-height: 422px; border-radius: 24px; background: var(--papel); }
+    .hero-phone__status { height: 29px; display: flex; align-items: center; justify-content: center; color: #fff; background: var(--cobalto); font: 500 8px/1 "DM Mono"; }
+    .hero-phone__brand { padding: 14px 12px 10px; font-size: 11px; font-weight: 800; text-align: center; letter-spacing: .12em; }
+    .mini-week { padding: 0 10px; }
+    .mini-day { display: grid; grid-template-columns: 22px 1fr; gap: 6px; align-items: center; padding: 7px 0; border-top: 1px solid var(--linea); font-size: 7px; }
+    .mini-day b { font-family: "DM Mono"; }
+    .mini-meals { display: flex; gap: 4px; }
+    .mini-meals span { min-width: 0; padding: 4px; overflow: hidden; border-radius: 4px; background: var(--cielo); white-space: nowrap; text-overflow: ellipsis; }
+    .mini-meals span:first-child { background: rgba(247,201,72,.32); }
+    .mini-cta { margin: 10px; padding: 9px; border-radius: 8px; color: #fff; background: var(--tomate-accion); font-size: 8px; font-weight: 800; text-align: center; }
+
+    .ticker { border-bottom: 2px solid var(--tinta); color: var(--papel); background: var(--cobalto); overflow: hidden; }
+    .ticker__track { min-width: max-content; height: 72px; display: flex; align-items: center; gap: 34px; padding-inline: 28px; font-family: "Fugaz One"; font-size: 19px; text-transform: uppercase; animation: ticker 28s linear infinite; }
+    .ticker__track svg { width: 40px; height: 28px; color: var(--maiz); }
+    @keyframes ticker { to { transform: translateX(-50%); } }
+
+    .landing-section { padding: 110px 0; border-bottom: 2px solid var(--tinta); }
+    .section-title { max-width: 780px; margin: 0; font: 400 clamp(42px, 6vw, 76px)/.95 "Fugaz One"; letter-spacing: -.045em; }
+    .section-title em { color: var(--tomate); font-style: normal; }
+    .section-lede { max-width: 610px; margin: 18px 0 0; font-size: 18px; }
+
+    .francis-section { position: relative; color: var(--papel); background: var(--cobalto); }
+    .francis-section::before { content: ""; position: absolute; inset: 0; opacity: .13; background-image: linear-gradient(var(--papel) 1px, transparent 1px), linear-gradient(90deg, var(--papel) 1px, transparent 1px); background-size: 42px 42px; }
+    .francis-grid { position: relative; display: grid; grid-template-columns: .82fr 1.18fr; gap: 70px; align-items: center; }
+    .francis-portrait { position: relative; min-height: 555px; }
+    .francis-portrait::after { content: ""; position: absolute; width: 330px; height: 330px; left: 10%; top: 12%; border-radius: 50%; background: var(--maiz); box-shadow: 14px 16px 0 var(--tomate); }
+    .francis-portrait svg { position: absolute; z-index: 2; width: 460px; height: 550px; left: -6%; bottom: -111px; }
+    .francis-copy .eyebrow { color: var(--maiz); }
+    .francis-copy .section-title { color: var(--papel); }
+    .chat-stack { margin-top: 34px; display: grid; gap: 12px; }
+    .chat { max-width: 580px; padding: 15px 18px; border: 2px solid var(--tinta); border-radius: 17px 17px 17px 5px; color: var(--tinta); background: var(--papel); box-shadow: 5px 6px 0 var(--tinta); font-size: 14px; }
+    .chat--user { margin-left: auto; border-radius: 17px 17px 5px 17px; background: var(--maiz); transform: rotate(.4deg); }
+    .chat b { color: var(--tomate); }
+
+    .features-section { background: var(--manteca); }
+    .features-head { display: flex; align-items: end; justify-content: space-between; gap: 34px; margin-bottom: 58px; }
+    .features-head .section-lede { margin-bottom: 7px; }
+    .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .feature-card { position: relative; min-height: 335px; padding: 24px; overflow: hidden; border: 2px solid var(--tinta); border-radius: 18px 18px 50px 18px; background: var(--papel); box-shadow: 7px 8px 0 var(--tinta); }
+    .feature-card:nth-child(2) { background: var(--maiz); transform: rotate(1deg); }
+    .feature-card:nth-child(3) { color: #fff; background: var(--tomate-accion); transform: rotate(-1deg); }
+    .feature-card:nth-child(4) { color: #fff; background: var(--cobalto); }
+    .feature-card__icon { width: 94px; height: 94px; margin-bottom: 45px; display: grid; place-items: center; border: 2px solid currentColor; border-radius: 50%; }
+    .feature-card__icon svg { width: 60px; height: 60px; }
+    .feature-card h3 { margin: 0 0 10px; font: 400 23px/1.05 "Fugaz One"; }
+    .feature-card p { margin: 0; font-size: 13px; }
+
+    .how-section { position: relative; background: var(--papel); }
+    .how-grid { margin-top: 55px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .how-step { padding-top: 18px; border-top: 5px solid var(--cobalto); }
+    .how-step:nth-child(2) { border-color: var(--tomate); }
+    .how-step:nth-child(3) { border-color: var(--maiz); }
+    .how-step__number { font: 400 76px/1 "Fugaz One"; color: var(--cobalto); }
+    .how-step:nth-child(2) .how-step__number { color: var(--tomate); }
+    .how-step:nth-child(3) .how-step__number { color: #d49c00; }
+    .how-step h3 { margin: 18px 0 7px; font-size: 17px; }
+    .how-step p { margin: 0; font-size: 14px; }
+
+    .family-proof { background: var(--manteca); }
+    .proof-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 68px; align-items: center; }
+    .proof-collage { position: relative; min-height: 560px; }
+    .proof-poster { position: absolute; inset: 25px 28px 25px 0; padding: 38px; border: 2px solid var(--tinta); background: var(--papel); box-shadow: 12px 14px 0 var(--cobalto); transform: rotate(-2deg); }
+    .proof-poster::after { content: ""; position: absolute; width: 95px; height: 95px; right: 20px; top: 20px; border-radius: 50%; background: var(--maiz); }
+    .proof-poster h3 { position: relative; z-index: 2; margin: 0 0 30px; font: 400 36px/1 "Fugaz One"; color: var(--tomate); }
+    .kid-note { position: relative; z-index: 2; margin-top: 15px; padding: 16px; border: 2px solid var(--tinta); background: #fff; font-size: 13px; }
+    .kid-note:nth-child(3) { margin-left: 40px; background: var(--cielo); transform: rotate(1deg); }
+    .kid-note:nth-child(4) { margin-right: 30px; background: rgba(247,201,72,.38); transform: rotate(-1deg); }
+    .stars { color: var(--tomate); letter-spacing: .08em; }
+    .proof-list { margin: 36px 0 0; padding: 0; list-style: none; }
+    .proof-list li { display: grid; grid-template-columns: 38px 1fr; gap: 14px; align-items: start; padding: 17px 0; border-top: 1px solid var(--linea); }
+    .proof-list span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--tomate); font-weight: 800; }
+    .proof-list b { display: block; margin-bottom: 3px; }
+    .proof-list p { margin: 0; font-size: 13px; }
+
+    .faq-section { background: var(--papel); }
+    .faq-grid { display: grid; grid-template-columns: .7fr 1.3fr; gap: 80px; }
+    .faq-list details { border-top: 2px solid var(--tinta); }
+    .faq-list details:last-child { border-bottom: 2px solid var(--tinta); }
+    .faq-list summary { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 20px; list-style: none; font-weight: 700; cursor: pointer; }
+    .faq-list summary::-webkit-details-marker { display: none; }
+    .faq-list summary::after { content: "+"; width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 28px; border: 2px solid var(--tinta); border-radius: 50%; }
+    .faq-list details[open] summary::after { content: "−"; color: #fff; background: var(--tomate-accion); }
+    .faq-list details p { max-width: 650px; margin: -5px 48px 22px 0; font-size: 14px; }
+
+    .final-cta { position: relative; overflow: hidden; color: #fff; background: var(--tomate-accion); }
+    .final-cta::before, .final-cta::after { content: ""; position: absolute; width: 240px; height: 240px; border-radius: 50%; background: var(--maiz); }
+    .final-cta::before { left: -90px; top: -100px; }
+    .final-cta::after { right: -80px; bottom: -120px; }
+    .final-cta__inner { position: relative; z-index: 2; max-width: 780px; text-align: center; }
+    .final-cta .section-title { margin-inline: auto; color: #fff; }
+    .final-cta .section-lede { margin-inline: auto; }
+    .final-cta .signup-form { margin: 30px auto 0; }
+    .final-cta .btn { color: #fff; background: var(--cobalto); }
+    .final-cta .form-note { color: rgba(255,255,255,.8); }
+    .landing-footer { padding: 32px 0 100px; color: #fff; background: var(--tinta); }
+    .landing-footer__inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .landing-footer small { color: rgba(255,255,255,.65); }
+
+    /* APP PREVIEW */
+    .app-preview { min-height: 100vh; padding: 102px 0 80px; background: var(--cielo); }
+    .app-preview::before { content: ""; position: fixed; inset: 0; z-index: -1; opacity: .24; background: repeating-linear-gradient(90deg, var(--cobalto) 0 2px, transparent 2px 46px); }
+    .app-preview__header { width: min(1280px, calc(100% - 40px)); margin: 0 auto 22px; display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+    .app-preview__header h1 { margin: 0; font: 400 clamp(34px, 4vw, 57px)/1 "Fugaz One"; color: var(--cobalto); }
+    .device-switch { display: flex; gap: 5px; padding: 5px; border: 2px solid var(--tinta); border-radius: 12px; background: var(--papel); }
+    .device-switch button { min-height: 36px; padding: 0 13px; border: 0; border-radius: 8px; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .device-switch button[aria-pressed="true"] { color: #fff; background: var(--cobalto); }
+
+    .product-stage { width: min(1280px, calc(100% - 40px)); margin-inline: auto; padding: 18px; border: 2px solid var(--tinta); border-radius: 30px; background: var(--maiz); box-shadow: 11px 13px 0 var(--tinta); transition: width .3s ease; }
+    .product-stage[data-device="mobile"] { width: min(430px, calc(100% - 28px)); padding: 9px; border-radius: 37px; }
+    .product-app { min-height: 770px; position: relative; display: grid; grid-template-columns: 230px minmax(0, 1fr) 318px; overflow: hidden; border: 2px solid var(--tinta); border-radius: 21px; background: var(--manteca); }
+    .product-stage[data-device="mobile"] .product-app { min-height: 790px; display: block; border-radius: 29px; }
+
+    .app-sidebar { padding: 25px 17px; color: #fff; background: var(--cobalto); }
+    .app-sidebar .brand-mark { color: #fff; }
+    .app-sidebar .brand-mark__tile { color: var(--cobalto); background: var(--maiz); }
+    .app-sidebar .brand-mark__text { font-size: 13px; }
+    .app-user { margin: 34px 0 22px; padding: 14px; border: 1px solid rgba(255,255,255,.35); border-radius: 14px; }
+    .app-user strong { display: block; font-size: 13px; }
+    .app-user span { color: rgba(255,255,255,.72); font-size: 10px; }
+    .app-nav { display: grid; gap: 6px; }
+    .app-nav button { width: 100%; min-height: 46px; display: flex; align-items: center; gap: 11px; padding: 0 13px; border: 0; border-radius: 10px; color: rgba(255,255,255,.75); background: transparent; text-align: left; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .app-nav button svg { width: 19px; height: 19px; }
+    .app-nav button[aria-selected="true"] { color: var(--tinta); background: var(--maiz); }
+    .app-main { min-width: 0; padding: 28px; overflow: hidden; }
+    .screen { display: none; }
+    .screen.is-active { display: block; animation: screen-in .25s ease both; }
+    @keyframes screen-in { from { opacity: 0; transform: translateY(5px); } }
+    .screen-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+    .screen-head h2 { margin: 0; font: 400 32px/1 "Fugaz One"; color: var(--cobalto); }
+    .screen-head p { margin: 5px 0 0; font-size: 12px; }
+    .screen-action { min-height: 40px; padding: 0 13px; border: 2px solid var(--tinta); border-radius: 10px; color: #fff; background: var(--tomate-accion); font-size: 11px; font-weight: 800; cursor: pointer; box-shadow: 3px 4px 0 var(--tinta); }
+
+    .week-bar { display: grid; grid-template-columns: 40px 1fr 40px; gap: 8px; align-items: center; padding: 10px; border: 2px solid var(--tinta); border-radius: 14px; background: var(--papel); }
+    .week-bar button { width: 38px; height: 38px; border: 0; border-radius: 9px; color: #fff; background: var(--cobalto); cursor: pointer; }
+    .week-bar div { text-align: center; }
+    .week-bar b { display: block; font-size: 13px; }
+    .week-bar span { font: 400 9px/1 "DM Mono"; text-transform: uppercase; }
+    .days-grid { margin-top: 13px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }
+    .day-panel { padding: 14px; border: 2px solid var(--tinta); border-radius: 15px; background: var(--papel); }
+    .day-panel.today { background: rgba(247,201,72,.32); box-shadow: 4px 5px 0 var(--tomate); }
+    .day-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .day-panel__head b { font-size: 13px; text-transform: uppercase; }
+    .day-panel__head span { font: 500 9px/1 "DM Mono"; color: var(--tomate); }
+    .meal-row { display: grid; grid-template-columns: 43px 1fr; gap: 8px; align-items: center; padding: 7px; border-top: 1px solid var(--linea); }
+    .meal-thumb { width: 43px; height: 43px; display: grid; place-items: center; border: 1px solid var(--tinta); border-radius: 10px; background: var(--cielo); }
+    .meal-thumb svg { width: 35px; height: 35px; }
+    .meal-row small { display: block; font: 400 8px/1.2 "DM Mono"; text-transform: uppercase; }
+    .meal-row strong { display: block; margin-top: 4px; font-size: 11px; line-height: 1.15; }
+
+    .search-box { height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 13px; border: 2px solid var(--tinta); border-radius: 11px; background: #fff; }
+    .search-box svg { width: 18px; }
+    .search-box span { color: rgba(18,54,108,.48); font-size: 12px; }
+    .chip-row { display: flex; gap: 7px; margin: 12px 0 17px; overflow: hidden; }
+    .chip { padding: 7px 10px; border: 1px solid var(--tinta); border-radius: 999px; background: var(--papel); font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .chip.active { color: #fff; background: var(--cobalto); }
+    .recipe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+    .recipe-card { overflow: hidden; border: 2px solid var(--tinta); border-radius: 15px; background: var(--papel); cursor: pointer; }
+    .recipe-card__art { height: 105px; display: grid; place-items: center; background: var(--maiz); }
+    .recipe-card:nth-child(2) .recipe-card__art { background: var(--cielo); }
+    .recipe-card:nth-child(3) .recipe-card__art { color: #fff; background: var(--tomate); }
+    .recipe-card:nth-child(4) .recipe-card__art { color: #fff; background: var(--cobalto); }
+    .recipe-card__art svg { width: 100px; height: 75px; }
+    .recipe-card__body { padding: 12px; }
+    .recipe-card h3 { margin: 0; font-size: 12px; line-height: 1.15; }
+    .recipe-meta { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 400 8px/1 "DM Mono"; }
+
+    .detail-layout { display: grid; grid-template-columns: .85fr 1.15fr; gap: 20px; }
+    .detail-art { min-height: 440px; display: grid; place-items: center; border: 2px solid var(--tinta); border-radius: 20px; background: var(--maiz); box-shadow: 7px 8px 0 var(--tomate); }
+    .detail-art svg { width: 80%; height: auto; }
+    .detail-copy h2 { margin: 0 0 8px; font: 400 35px/1 "Fugaz One"; color: var(--cobalto); }
+    .detail-copy > p { margin: 0 0 18px; font-size: 12px; }
+    .detail-stats { display: flex; gap: 7px; margin-bottom: 20px; }
+    .detail-stats span { padding: 7px 9px; border-radius: 8px; background: var(--cielo); font: 500 8px/1 "DM Mono"; }
+    .detail-box { margin-top: 12px; padding: 14px; border: 1px solid var(--linea); border-radius: 12px; background: var(--papel); }
+    .detail-box h3 { margin: 0 0 9px; font-size: 12px; }
+    .detail-box ul, .detail-box ol { margin: 0; padding-left: 18px; font-size: 10px; }
+    .detail-box li + li { margin-top: 5px; }
+
+    .family-top { display: grid; grid-template-columns: 1fr .8fr; gap: 12px; }
+    .family-card { padding: 17px; border: 2px solid var(--tinta); border-radius: 15px; background: var(--papel); }
+    .family-card--invite { color: #fff; background: var(--cobalto); }
+    .family-card h3 { margin: 0 0 7px; font-size: 13px; }
+    .family-card p { margin: 0; font-size: 10px; }
+    .avatars { display: flex; margin-top: 16px; }
+    .avatar { width: 43px; height: 43px; display: grid; place-items: center; margin-right: -8px; border: 2px solid var(--papel); border-radius: 50%; background: var(--maiz); font-weight: 800; }
+    .avatar:nth-child(2) { color: #fff; background: var(--tomate); }
+    .avatar:nth-child(3) { color: #fff; background: var(--perejil); }
+    .avatar:nth-child(4) { background: var(--cielo); }
+    .code { margin-top: 14px; padding: 10px; border: 1px dashed rgba(255,255,255,.6); font: 500 18px/1 "DM Mono"; letter-spacing: .18em; text-align: center; }
+    .opinion-list { margin-top: 13px; display: grid; gap: 9px; }
+    .opinion { display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--linea); border-radius: 12px; background: var(--papel); }
+    .opinion .avatar { width: 39px; height: 39px; margin: 0; border: 0; font-size: 11px; }
+    .opinion b { display: block; font-size: 11px; }
+    .opinion p { margin: 3px 0 0; font-size: 9px; }
+    .opinion .stars { font-size: 10px; white-space: nowrap; }
+
+    .francis-dock { padding: 24px 17px; border-left: 2px solid var(--tinta); background: var(--papel); }
+    .francis-dock__art { position: relative; height: 210px; margin: -24px -17px 16px; overflow: hidden; border-bottom: 2px solid var(--tinta); background: repeating-linear-gradient(90deg, var(--cobalto) 0 18px, var(--papel) 18px 36px); }
+    .francis-dock__art::after { content: ""; position: absolute; width: 115px; height: 115px; top: 25px; right: 20px; border-radius: 50%; background: var(--maiz); }
+    .francis-dock__art svg { position: absolute; z-index: 2; width: 190px; height: 230px; left: -4px; bottom: -30px; }
+    .francis-dock h2 { margin: 0; font: 400 23px/1 "Fugaz One"; color: var(--cobalto); }
+    .francis-dock > p { margin: 8px 0 17px; font-size: 10px; }
+    .dock-chat { margin-top: 9px; padding: 11px; border: 1px solid var(--tinta); border-radius: 12px 12px 12px 3px; background: var(--cielo); font-size: 9px; }
+    .dock-chat--user { margin-left: 20px; border-radius: 12px 12px 3px 12px; background: rgba(247,201,72,.46); }
+    .francis-input { height: 42px; margin-top: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 0 11px; border: 2px solid var(--tinta); border-radius: 11px; background: #fff; font-size: 9px; }
+    .francis-input button { width: 30px; height: 30px; border: 0; border-radius: 8px; color: #fff; background: var(--tomate-accion); cursor: pointer; }
+    .mobile-top, .mobile-nav, .mobile-francis { display: none; }
+    .francis-sheet { display: none; }
+
+    .product-stage[data-device="mobile"] .app-sidebar,
+    .product-stage[data-device="mobile"] .francis-dock { display: none; }
+    .product-stage[data-device="mobile"] .mobile-top { height: 69px; display: flex; align-items: center; justify-content: space-between; padding: 0 17px; border-bottom: 2px solid var(--tinta); background: var(--papel); }
+    .mobile-top .brand-mark__text { font-size: 12px; }
+    .mobile-top .brand-mark__tile { width: 36px; height: 36px; }
+    .mobile-top button { width: 37px; height: 37px; border: 2px solid var(--tinta); border-radius: 10px; background: var(--maiz); }
+    .product-stage[data-device="mobile"] .app-main { padding: 18px 14px 88px; }
+    .product-stage[data-device="mobile"] .screen-head h2 { font-size: 27px; }
+    .product-stage[data-device="mobile"] .screen-head p { max-width: 210px; }
+    .product-stage[data-device="mobile"] .days-grid { grid-template-columns: 1fr; }
+    .product-stage[data-device="mobile"] .day-panel:nth-child(n+4) { display: none; }
+    .product-stage[data-device="mobile"] .recipe-grid { grid-template-columns: repeat(2, 1fr); }
+    .product-stage[data-device="mobile"] .detail-layout { grid-template-columns: 1fr; }
+    .product-stage[data-device="mobile"] .detail-art { min-height: 230px; }
+    .product-stage[data-device="mobile"] .detail-art svg { width: 65%; }
+    .product-stage[data-device="mobile"] .family-top { grid-template-columns: 1fr; }
+    .product-stage[data-device="mobile"] .mobile-nav { position: absolute; z-index: 30; left: 0; right: 0; bottom: 0; height: 70px; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--tinta); background: var(--papel); }
+    .mobile-nav button { display: grid; place-items: center; align-content: center; gap: 3px; border: 0; color: rgba(18,54,108,.52); background: transparent; font-size: 8px; font-weight: 700; cursor: pointer; }
+    .mobile-nav button svg { width: 19px; height: 19px; }
+    .mobile-nav button[aria-selected="true"] { color: var(--tomate); }
+    .product-stage[data-device="mobile"] .mobile-francis { position: absolute; z-index: 40; right: 15px; bottom: 82px; width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; border: 2px solid var(--tinta); border-radius: 50%; background: var(--maiz); box-shadow: 4px 5px 0 var(--tinta); cursor: pointer; }
+    .mobile-francis svg { width: 70px; height: 80px; margin-top: 21px; }
+    .product-stage[data-device="mobile"] .francis-sheet { display: none; }
+    .francis-sheet.is-open { position: absolute; z-index: 60; inset: auto 8px 8px; display: block; padding: 18px; border: 2px solid var(--tinta); border-radius: 22px; background: var(--papel); box-shadow: 7px 8px 0 var(--tinta); animation: sheet-in .25s ease both; }
+    @keyframes sheet-in { from { opacity: 0; transform: translateY(20px); } }
+    .francis-sheet__head { display: flex; align-items: center; justify-content: space-between; }
+    .francis-sheet__head b { font: 400 21px/1 "Fugaz One"; color: var(--cobalto); }
+    .francis-sheet__head button { width: 32px; height: 32px; border: 1px solid var(--tinta); border-radius: 50%; background: var(--maiz); }
+    .francis-sheet p { margin: 11px 0; font-size: 11px; }
+
+    .artifact-note { width: min(1280px, calc(100% - 40px)); margin: 26px auto 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 11px; }
+    .artifact-note b { color: var(--tomate); }
+
+    .toast { position: fixed; z-index: 300; left: 50%; bottom: 24px; padding: 12px 18px; border: 2px solid var(--tinta); border-radius: 12px; color: #fff; background: var(--perejil); box-shadow: 5px 6px 0 var(--tinta); font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transform: translate(-50%, 15px); transition: .2s ease; }
+    .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1040px) {
+      .hero::after { inset: 0 0 0 60%; }
+      .hero__inner { grid-template-columns: 1.15fr .85fr; }
+      .hero__copy { padding-right: 35px; }
+      .francis-hero { width: 390px; left: -15%; }
+      .hero-phone { right: -8px; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .feature-card { min-height: 290px; }
+      .product-app { grid-template-columns: 190px minmax(0, 1fr); }
+      .francis-dock { display: none; }
+      .recipe-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 760px) {
+      .preview-switcher { top: 12px; bottom: auto; }
+      .preview-switcher button { min-height: 36px; padding-inline: 14px; font-size: 10px; }
+      .container { width: min(100% - 28px, 1180px); }
+      .landing-nav__inner { min-height: 70px; }
+      .brand-mark__text { font-size: 13px; letter-spacing: .08em; }
+      .landing-nav__links a:not(.btn) { display: none; }
+      .landing-nav .btn { min-height: 40px; padding-inline: 13px; box-shadow: 3px 3px 0 var(--tinta); font-size: 11px; }
+      .hero { min-height: auto; }
+      .hero::after { inset: 58% 0 0; background: repeating-linear-gradient(90deg, var(--cobalto) 0 17px, var(--papel) 17px 34px); }
+      .hero__inner { min-height: 1040px; display: block; }
+      .hero__copy { padding: 72px 0 30px; }
+      .hero h1 { margin-top: 18px; font-size: clamp(50px, 15vw, 70px); }
+      .hero__lede { font-size: 16px; }
+      .signup-form { display: grid; }
+      .signup-form .btn { width: 100%; }
+      .hero__art { min-height: 485px; }
+      .hero__sun { width: 92px; height: 92px; top: 20px; right: 7px; }
+      .francis-hero { width: 340px; height: 430px; left: -70px; }
+      .hero-phone { width: 175px; right: 0; bottom: 41px; box-shadow: 8px 9px 0 var(--tomate); }
+      .hero-phone__screen { min-height: 328px; }
+      .hero-phone .mini-day:nth-child(n+5) { display: none; }
+      .ticker__track { height: 60px; font-size: 15px; }
+      .landing-section { padding: 78px 0; }
+      .section-title { font-size: clamp(39px, 12vw, 59px); }
+      .section-lede { font-size: 16px; }
+      .francis-grid, .proof-grid, .faq-grid { grid-template-columns: 1fr; gap: 38px; }
+      .francis-portrait { min-height: 390px; order: 2; }
+      .francis-portrait::after { width: 245px; height: 245px; left: 18%; }
+      .francis-portrait svg { width: 370px; height: 430px; left: 50%; transform: translateX(-50%); }
+      .features-head { display: block; }
+      .features-head .section-lede { margin-top: 18px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .feature-card { min-height: 255px; }
+      .feature-card__icon { margin-bottom: 28px; }
+      .how-grid { grid-template-columns: 1fr; }
+      .how-step { display: grid; grid-template-columns: 75px 1fr; column-gap: 18px; }
+      .how-step__number { grid-row: 1 / 3; }
+      .how-step h3 { margin: 11px 0 5px; }
+      .proof-collage { min-height: 505px; }
+      .proof-poster { inset-right: 12px; padding: 27px 20px; }
+      .proof-poster h3 { font-size: 30px; }
+      .faq-grid { gap: 30px; }
+      .landing-footer__inner { align-items: flex-start; flex-direction: column; }
+      .app-preview { padding-top: 86px; }
+      .app-preview__header { width: min(100% - 28px, 1280px); display: block; }
+      .app-preview__header h1 { font-size: 33px; }
+      .device-switch { width: fit-content; margin-top: 15px; }
+      .device-switch button:first-child { display: none; }
+      .product-stage { width: min(430px, calc(100% - 22px)) !important; padding: 7px; border-radius: 34px; box-shadow: 7px 8px 0 var(--tinta); }
+      .product-app { min-height: 750px !important; display: block; border-radius: 27px; }
+      .app-sidebar, .francis-dock { display: none; }
+      .mobile-top { height: 65px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 2px solid var(--tinta); background: var(--papel); }
+      .mobile-top .brand-mark__text { font-size: 12px; }
+      .mobile-top .brand-mark__tile { width: 36px; height: 36px; }
+      .mobile-top button { width: 37px; height: 37px; border: 2px solid var(--tinta); border-radius: 10px; background: var(--maiz); }
+      .app-main { padding: 17px 13px 86px; }
+      .screen-head h2 { font-size: 26px; }
+      .screen-action { font-size: 9px; }
+      .days-grid { grid-template-columns: 1fr; }
+      .day-panel:nth-child(n+4) { display: none; }
+      .recipe-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-layout, .family-top { grid-template-columns: 1fr; }
+      .detail-art { min-height: 225px; }
+      .detail-art svg { width: 65%; }
+      .mobile-nav { position: absolute; z-index: 30; left: 0; right: 0; bottom: 0; height: 68px; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--tinta); background: var(--papel); }
+      .mobile-nav button { display: grid; place-items: center; align-content: center; gap: 3px; border: 0; color: rgba(18,54,108,.52); background: transparent; font-size: 8px; font-weight: 700; }
+      .mobile-nav button svg { width: 18px; height: 18px; }
+      .mobile-nav button[aria-selected="true"] { color: var(--tomate); }
+      .mobile-francis { position: absolute; z-index: 40; right: 15px; bottom: 80px; width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; border: 2px solid var(--tinta); border-radius: 50%; background: var(--maiz); box-shadow: 4px 5px 0 var(--tinta); }
+      .mobile-francis svg { width: 68px; height: 78px; margin-top: 21px; }
+      .artifact-note { width: min(100% - 28px, 1280px); align-items: flex-start; flex-direction: column; padding-bottom: 80px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <svg class="sr-only" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="icon-flame" viewBox="0 0 64 64">
+        <path d="M35 5c2 13-8 15-6 27 4-5 7-5 8-13 9 8 15 19 11 30-4 10-13 13-21 11C14 57 9 47 13 36c3-8 10-12 11-22 5 4 7 8 7 13 3-5 3-11 4-22Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M31 35c5 6 7 9 5 14-2 4-8 5-11 1-3-5 1-10 6-15Z" fill="#f7c948"/>
+      </symbol>
+      <symbol id="icon-wave" viewBox="0 0 120 16">
+        <path d="M2 8c8-9 16 9 24 0s16 9 24 0 16 9 24 0 16 9 24 0 12 5 20 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-lemon" viewBox="0 0 120 190">
+        <path d="M69 30c18-16 35-13 43-9-3 16-16 27-37 25" fill="#2e7d59" stroke="#12366c" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M65 31c6-17 4-25 2-30" fill="none" stroke="#12366c" stroke-width="4" stroke-linecap="round"/>
+        <path d="M65 29c36 10 52 47 41 91-10 41-42 69-69 61-28-8-39-49-27-91C21 48 39 22 65 29Z" fill="#f7c948" stroke="#12366c" stroke-width="3"/>
+        <g fill="#e2aa1a" opacity=".7"><circle cx="38" cy="72" r="2"/><circle cx="65" cy="58" r="2"/><circle cx="82" cy="86" r="2"/><circle cx="27" cy="113" r="2"/><circle cx="58" cy="130" r="2"/><circle cx="81" cy="144" r="2"/><circle cx="42" cy="158" r="2"/></g>
+      </symbol>
+      <symbol id="icon-fish" viewBox="0 0 120 62">
+        <path d="M15 31C35 5 78 5 99 31 78 57 35 57 15 31Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        <path d="m99 31 18-18v36L99 31Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        <circle cx="38" cy="26" r="3" fill="currentColor"/>
+        <path d="M51 16c8 7 8 23 0 31M66 14c9 9 9 25 0 34M81 18c7 7 7 20 0 27" fill="none" stroke="currentColor" stroke-width="2"/>
+      </symbol>
+      <symbol id="icon-week" viewBox="0 0 64 64">
+        <rect x="8" y="13" width="48" height="43" rx="5" fill="none" stroke="currentColor" stroke-width="4"/>
+        <path d="M8 25h48M20 8v11M44 8v11" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M18 35h8M18 44h8M36 35h10M36 44h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-book" viewBox="0 0 64 64">
+        <path d="M10 12h17c5 0 7 3 7 7v36c0-4-2-7-7-7H10V12Zm44 0H41c-5 0-7 3-7 7v36c0-4 2-7 7-7h13V12Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        <path d="M17 23h10M17 31h10M41 23h7M41 31h7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-heart" viewBox="0 0 64 64"><path d="M32 54C10 41 7 28 13 19c6-9 16-7 19 1 3-8 13-10 19-1 6 9 3 22-19 35Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></symbol>
+      <symbol id="icon-family" viewBox="0 0 64 64">
+        <circle cx="21" cy="21" r="9" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="45" cy="23" r="7" fill="none" stroke="currentColor" stroke-width="4"/>
+        <path d="M7 54c1-13 6-19 14-19s13 6 14 19M35 53c1-10 4-15 10-15s10 5 12 15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 32 32"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="m21 21 8 8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+      <symbol id="plate-milanesa" viewBox="0 0 150 110">
+        <ellipse cx="75" cy="58" rx="60" ry="41" fill="#fffaf1" stroke="currentColor" stroke-width="3"/>
+        <path d="M36 57c2-18 18-29 40-28 24 1 40 14 39 31-2 18-21 28-43 27-24-1-38-12-36-30Z" fill="#d89a25" stroke="currentColor" stroke-width="3"/>
+        <path d="M45 53c15-10 38-9 58 2M50 66c16-8 34-7 51 1" fill="none" stroke="#f7c948" stroke-width="5" stroke-linecap="round"/>
+        <path d="M18 81c11-8 21-7 30 3M104 84c12-11 24-10 31-2" fill="none" stroke="#2e7d59" stroke-width="5" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="plate-pasta" viewBox="0 0 150 110">
+        <ellipse cx="75" cy="58" rx="60" ry="41" fill="#fffaf1" stroke="currentColor" stroke-width="3"/>
+        <path d="M36 62c8-27 66-34 80 0-13 27-66 28-80 0Z" fill="#e33a2c" stroke="currentColor" stroke-width="3"/>
+        <path d="M47 49c11 18 20 2 31 20 10-20 22 0 32-19M45 66c13-14 21 8 34-10 8 18 20-3 31 11" fill="none" stroke="#f7c948" stroke-width="5" stroke-linecap="round"/>
+      </symbol>
+      <symbol id="plate-tarta" viewBox="0 0 150 110">
+        <ellipse cx="75" cy="58" rx="60" ry="41" fill="#fffaf1" stroke="currentColor" stroke-width="3"/>
+        <path d="m50 83 2-50 55 29-57 21Z" fill="#f7c948" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+        <g fill="#2e7d59"><circle cx="64" cy="48" r="6"/><circle cx="80" cy="56" r="7"/><circle cx="62" cy="67" r="5"/><circle cx="91" cy="67" r="5"/></g>
+      </symbol>
+      <symbol id="plate-empanadas" viewBox="0 0 150 110">
+        <ellipse cx="75" cy="58" rx="60" ry="41" fill="#fffaf1" stroke="currentColor" stroke-width="3"/>
+        <path d="M32 63c16-30 48-30 63 0-18 12-43 12-63 0Z" fill="#f7c948" stroke="currentColor" stroke-width="3"/>
+        <path d="M62 46c17-24 43-18 54 7-14 13-34 16-51 8" fill="#e8b333" stroke="currentColor" stroke-width="3"/>
+        <path d="M39 61c17 8 33 8 49 0M71 58c15 5 27 2 38-6" fill="none" stroke="#fffaf1" stroke-width="3" stroke-dasharray="3 4"/>
+      </symbol>
+      <symbol id="francis-character" viewBox="0 0 420 520">
+        <path d="M91 500c4-117 32-174 119-179 89 3 124 62 129 179" fill="#fffaf1" stroke="#12366c" stroke-width="8" stroke-linejoin="round"/>
+        <path d="M153 333c19 42 84 41 105 0l-11-55h-82l-12 55Z" fill="#f7f0e4" stroke="#12366c" stroke-width="8"/>
+        <path d="M159 344c-18 15-27 38-27 67l42-26 35 46 35-46 43 26c-1-30-10-52-28-68l-50 88-50-87Z" fill="#e33a2c" stroke="#12366c" stroke-width="8" stroke-linejoin="round"/>
+        <path d="M143 464h132M208 431v69" fill="none" stroke="#12366c" stroke-width="7" stroke-linecap="round"/>
+        <path d="M134 160c-3 58 10 124 71 142 59-17 78-72 71-143-7-58-43-88-72-88-31 0-67 33-70 89Z" fill="#f7f0e4" stroke="#12366c" stroke-width="8"/>
+        <path d="M134 155c-23 3-31 30-18 49 5 8 12 12 21 9M277 155c22 3 30 30 17 49-5 8-12 12-21 9" fill="#f7f0e4" stroke="#12366c" stroke-width="8"/>
+        <path d="M144 145c-6-47 23-78 63-78 44 0 69 30 67 81-18-18-36-18-52-9-22 13-54 12-78 6Z" fill="#12366c"/>
+        <path d="M108 91c15-60 136-89 199-29 15 14 11 29-11 34-57 13-121 16-174 14-15-1-20-8-14-19Z" fill="#1f4fa3" stroke="#12366c" stroke-width="8"/>
+        <path d="M137 108c50 2 113-2 158-12" fill="none" stroke="#f7c948" stroke-width="7" stroke-linecap="round"/>
+        <path d="M164 178c10-7 21-7 31 0M222 178c10-7 21-7 31 0" fill="none" stroke="#12366c" stroke-width="7" stroke-linecap="round"/>
+        <path d="M180 206c4 8 14 10 24 4M215 210c10 6 19 4 24-4" fill="none" stroke="#12366c" stroke-width="6" stroke-linecap="round"/>
+        <path d="M207 185c-2 11-4 22-5 32 6 4 12 4 18 0" fill="none" stroke="#12366c" stroke-width="5" stroke-linecap="round"/>
+        <path d="M162 229c24-20 47-13 47-3 2-10 25-17 47 3-15 27-34 25-47 8-14 17-33 19-47-8Z" fill="#12366c"/>
+        <path d="M180 254c18 13 39 13 57 0" fill="none" stroke="#e33a2c" stroke-width="5" stroke-linecap="round"/>
+        <path d="M107 394c-45 8-78-16-84-48-3-19 7-31 21-27 12 3 16 17 20 29 4-18 11-38 22-51 9-10 22-7 22 5 0 10-10 20-12 33 8-11 19-21 28-13 9 9-5 24-12 34 11-7 22-9 27 1 6 13-14 28-32 37Z" fill="#f7f0e4" stroke="#12366c" stroke-width="8" stroke-linejoin="round"/>
+        <path d="M110 392c18-4 34-13 46-29" fill="none" stroke="#12366c" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="72" cy="342" r="10" fill="#e33a2c"/>
+        <path d="M283 358c41-18 73 0 91 34 10 20 9 39 0 43-13 5-20-14-29-28 2 19-1 43-12 47-12 4-17-13-16-33-8 13-18 24-27 16-10-9 3-27 10-38-12 5-23 4-26-7-3-12 1-27 9-34Z" fill="#f7f0e4" stroke="#12366c" stroke-width="8" stroke-linejoin="round"/>
+        <path d="M281 359c-18 5-29 16-38 31" fill="none" stroke="#12366c" stroke-width="8" stroke-linecap="round"/>
+        <path d="M340 355c10-13 23-14 34-6-1 14-12 23-30 22" fill="#2e7d59" stroke="#12366c" stroke-width="5"/>
+        <path d="M336 359c-9-16-5-30 6-38 12 7 15 20 8 36" fill="#2e7d59" stroke="#12366c" stroke-width="5"/>
+        <circle cx="334" cy="376" r="23" fill="#e33a2c" stroke="#12366c" stroke-width="6"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="preview-switcher" role="tablist" aria-label="Vista del artifact">
+    <button id="show-landing" role="tab" aria-controls="landing-view" aria-selected="true">Landing</button>
+    <button id="show-app" role="tab" aria-controls="app-view" aria-selected="false">Producto</button>
+  </div>
+
+  <section class="view is-active" id="landing-view" role="tabpanel" aria-labelledby="show-landing">
+    <div class="landing">
+      <header class="landing-nav">
+        <div class="container landing-nav__inner">
+          <a class="brand-mark" href="#inicio" aria-label="Menu Semanal, inicio">
+            <span class="brand-mark__tile"><svg aria-hidden="true"><use href="#icon-flame"/></svg></span>
+            <span class="brand-mark__text">Menu Semanal</span>
+          </a>
+          <nav class="landing-nav__links" aria-label="Navegación principal">
+            <a href="#francis">Conocé a Francis</a>
+            <a href="#funciones">Cómo funciona</a>
+            <a href="#preguntas">Preguntas</a>
+            <a class="btn btn--small btn--red" href="/login">Iniciar sesión</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" id="inicio">
+          <div class="container hero__inner">
+            <div class="hero__copy">
+              <p class="hero__badge">Family AI · hecha para tu mesa</p>
+              <h1>La semana resuelta. <span>La mesa, compartida.</span></h1>
+              <p class="hero__lede">Francis conoce las recetas de tu familia, escucha lo que dicen los chicos y arma un menú que funciona de verdad. Vos le marcás las reglas. Él cocina el plan.</p>
+              <form class="signup-form" data-signup>
+                <label class="sr-only" for="hero-email">Tu email</label>
+                <input id="hero-email" type="email" placeholder="tu@email.com" autocomplete="email" required>
+                <button class="btn btn--red" type="submit">Quiero probarla <span aria-hidden="true">→</span></button>
+              </form>
+              <p class="form-note">Gratis durante el acceso inicial · ¿Ya tenés cuenta? <a href="/login">Iniciá sesión</a></p>
+            </div>
+            <div class="hero__art" aria-label="Francis, el cocinero asistente, junto a Menu Semanal">
+              <span class="hero__sun" aria-hidden="true"></span>
+              <svg class="francis-hero" role="img" aria-label="Francis, cocinero ilustrado con boina azul, pañuelo rojo y un tomate"><use href="#francis-character"/></svg>
+              <div class="hero-phone" aria-hidden="true">
+                <div class="hero-phone__screen">
+                  <div class="hero-phone__status">9:41 · Menu Semanal</div>
+                  <div class="hero-phone__brand">ESTA SEMANA</div>
+                  <div class="mini-week">
+                    <div class="mini-day"><b>LUN</b><div class="mini-meals"><span>Milanesas</span><span>Ensalada</span></div></div>
+                    <div class="mini-day"><b>MAR</b><div class="mini-meals"><span>Pasta</span><span>Sopa crema</span></div></div>
+                    <div class="mini-day"><b>MIÉ</b><div class="mini-meals"><span>Pollo al limón</span><span>Puré</span></div></div>
+                    <div class="mini-day"><b>JUE</b><div class="mini-meals"><span>Tacos</span><span>Guacamole</span></div></div>
+                    <div class="mini-day"><b>VIE</b><div class="mini-meals"><span>Pizza casera</span><span>Ensalada</span></div></div>
+                    <div class="mini-day"><b>S/D</b><div class="mini-meals"><span>Asado</span><span>Verduras</span></div></div>
+                  </div>
+                  <div class="mini-cta">Planificar con Francis</div>
+                </div>
+              </div>
+              <svg class="hero__lemon" aria-hidden="true"><use href="#icon-lemon"/></svg>
+            </div>
+          </div>
+        </section>
+
+        <div class="ticker" aria-hidden="true">
+          <div class="ticker__track">
+            <span>Menos “¿qué comemos?”</span><svg><use href="#icon-fish"/></svg><span>Más tiempo en la mesa</span><svg><use href="#icon-wave"/></svg><span>Recetas de tu familia</span><svg><use href="#icon-flame"/></svg>
+            <span>Menos “¿qué comemos?”</span><svg><use href="#icon-fish"/></svg><span>Más tiempo en la mesa</span><svg><use href="#icon-wave"/></svg><span>Recetas de tu familia</span><svg><use href="#icon-flame"/></svg>
+          </div>
+        </div>
+
+        <section class="landing-section francis-section" id="francis">
+          <div class="container francis-grid">
+            <div class="francis-portrait" aria-hidden="true"><svg><use href="#francis-character"/></svg></div>
+            <div class="francis-copy">
+              <p class="eyebrow">El fuego, la intuición y tus reglas</p>
+              <h2 class="section-title">Francis planifica. <em>Tu familia decide.</em></h2>
+              <p class="section-lede">No inventa platos que nadie conoce: trabaja con tu recetario, aprende de las estrellas y recuerda qué comieron. Un chef con memoria familiar.</p>
+              <div class="chat-stack">
+                <div class="chat chat--user">“Martes liviano y el viernes viene la abuela.”</div>
+                <div class="chat"><b>Francis</b> · Entendido. El martes va tarta de verduras y el viernes milanesas con puré. Hace cinco semanas que no las comen y son favoritas de los chicos.</div>
+                <div class="chat chat--user">“¿Otra idea para el jueves?”</div>
+                <div class="chat"><b>Francis</b> · Podría ser pollo al limón. Aprovecha ingredientes del miércoles y tarda 30 minutos.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section features-section" id="funciones">
+          <div class="container">
+            <div class="features-head">
+              <h2 class="section-title">Todo lo que pasa <em>antes de sentarse.</em></h2>
+              <p class="section-lede">Plan, recetas y opiniones en un solo lugar. Diseñado para familias hispanoparlantes, sin importar dónde esté su mesa.</p>
+            </div>
+            <div class="feature-grid">
+              <article class="feature-card"><div class="feature-card__icon"><svg aria-hidden="true"><use href="#icon-week"/></svg></div><h3>La semana, a la vista</h3><p>Almuerzo y cena de cada día. Se entiende rápido y se cambia sin desarmar todo.</p></article>
+              <article class="feature-card"><div class="feature-card__icon"><svg aria-hidden="true"><use href="#icon-book"/></svg></div><h3>Tu recetario familiar</h3><p>Guardá las comidas que ya funcionan: ingredientes, instrucciones y tiempos reales.</p></article>
+              <article class="feature-card"><div class="feature-card__icon"><svg aria-hidden="true"><use href="#icon-heart"/></svg></div><h3>Los chicos opinan</h3><p>Estrellas, comentarios y favoritos convierten la comida en una conversación.</p></article>
+              <article class="feature-card"><div class="feature-card__icon"><svg aria-hidden="true"><use href="#icon-family"/></svg></div><h3>Una mesa compartida</h3><p>Invitá a tu familia con un código. Todos ven el plan y cada persona participa a su manera.</p></article>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section how-section">
+          <div class="container">
+            <p class="eyebrow">De cero a semana lista</p>
+            <h2 class="section-title">Empezar es <em>así de simple.</em></h2>
+            <div class="how-grid">
+              <article class="how-step"><div class="how-step__number">1</div><div><h3>Creá tu familia</h3><p>Tu cuenta está lista en menos de un minuto. Después invitás al resto con un código.</p></div></article>
+              <article class="how-step"><div class="how-step__number">2</div><div><h3>Sumá lo que comen</h3><p>Cargá las recetas de siempre o empezá con nuestra selección.</p></div></article>
+              <article class="how-step"><div class="how-step__number">3</div><div><h3>Pedile el plan a Francis</h3><p>Contale cómo viene la semana. Revisás su propuesta, cambiás lo que quieras y listo.</p></div></article>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section family-proof">
+          <div class="container proof-grid">
+            <div class="proof-collage" aria-label="Opiniones de una familia sobre las comidas de la semana">
+              <div class="proof-poster"><h3>¿Qué dijeron en casa?</h3><div class="kid-note"><b>Sofi · <span class="stars">★★★★☆</span></b><br>“Las milanesas estaban riquísimas.”</div><div class="kid-note"><b>Tomi · <span class="stars">★★★★★</span></b><br>“La pizza casera es mi favorita.”</div><div class="kid-note"><b>Mati · <span class="stars">★★★☆☆</span></b><br>“La sopa estaba bien, pero prefiero tomate.”</div></div>
+            </div>
+            <div>
+              <p class="eyebrow">La inteligencia está en escuchar</p>
+              <h2 class="section-title">El menú mejora <em>con cada semana.</em></h2>
+              <p class="section-lede">Francis cruza las opiniones con la historia familiar. Así evita repetir, recupera favoritos y propone comidas que tienen sentido para ustedes.</p>
+              <ul class="proof-list">
+                <li><span>★</span><div><b>Aprende gustos reales</b><p>No trabaja con un perfil genérico: usa lo que cada integrante dijo.</p></div></li>
+                <li><span>↻</span><div><b>Recuerda lo que ya comieron</b><p>Ayuda a variar sin perder de vista los platos que todos esperan.</p></div></li>
+                <li><span>✓</span><div><b>Respeta tus instrucciones</b><p>“Sin pastas”, “viernes rápido” o “viene la abuela”: tus reglas tienen prioridad.</p></div></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section faq-section" id="preguntas">
+          <div class="container faq-grid">
+            <div><p class="eyebrow">Antes de empezar</p><h2 class="section-title">Preguntas <em>frecuentes.</em></h2><svg class="wavy-rule" aria-hidden="true"><use href="#icon-wave"/></svg></div>
+            <div class="faq-list">
+              <details><summary>¿Menu Semanal es gratis?</summary><p>Sí. Está en una etapa temprana y el acceso inicial es gratuito para las familias que nos ayudan a mejorar.</p></details>
+              <details><summary>¿Funciona como app en el celular?</summary><p>Sí. Es una PWA: podés agregarla a tu pantalla de inicio y usarla como una app sin descargarla de una tienda.</p></details>
+              <details><summary>¿Qué pueden hacer los chicos?</summary><p>Pueden ver las comidas, calificar con estrellas, comentar y ganar logros. No pueden modificar recetas ni planes.</p></details>
+              <details><summary>¿Francis inventa recetas?</summary><p>No. Francis planifica con el recetario de tu familia y sigue tus instrucciones. Vos siempre revisás y aprobás.</p></details>
+              <details><summary>¿En qué países está disponible?</summary><p>Está pensada para familias hispanoparlantes en cualquier país. Solo necesitás un email.</p></details>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-section final-cta">
+          <div class="container final-cta__inner">
+            <p class="eyebrow">Un lugar menos para improvisar</p>
+            <h2 class="section-title">La próxima semana puede empezar hoy.</h2>
+            <p class="section-lede">Sumate al acceso inicial y conocé a Francis.</p>
+            <form class="signup-form" data-signup>
+              <label class="sr-only" for="final-email">Tu email</label>
+              <input id="final-email" type="email" placeholder="tu@email.com" autocomplete="email" required>
+              <button class="btn" type="submit">Anotarme <span aria-hidden="true">→</span></button>
+            </form>
+            <p class="form-note">Sin tarjeta · Sin descargas · Hecho para compartir</p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="landing-footer"><div class="container landing-footer__inner"><a class="brand-mark" href="#inicio"><span class="brand-mark__tile"><svg aria-hidden="true"><use href="#icon-flame"/></svg></span><span class="brand-mark__text">Menu Semanal</span></a><small>Hecho con fuego, memoria y cariño para familias que comen juntas.</small></div></footer>
+    </div>
+  </section>
+
+  <section class="view" id="app-view" role="tabpanel" aria-labelledby="show-app">
+    <div class="app-preview">
+      <header class="app-preview__header">
+        <div><p class="eyebrow">Preview interactivo del producto</p><h1>La identidad, puesta a trabajar.</h1></div>
+        <div class="device-switch" aria-label="Tamaño del dispositivo">
+          <button data-device="desktop" aria-pressed="true">Escritorio</button>
+          <button data-device="mobile" aria-pressed="false">Celular</button>
+        </div>
+      </header>
+
+      <div class="product-stage" data-device="desktop">
+        <div class="product-app">
+          <aside class="app-sidebar">
+            <div class="brand-mark"><span class="brand-mark__tile"><svg aria-hidden="true"><use href="#icon-flame"/></svg></span><span class="brand-mark__text">Menu Semanal</span></div>
+            <div class="app-user"><strong>Familia Álvarez</strong><span>4 integrantes · Semana activa</span></div>
+            <nav class="app-nav" aria-label="Pantallas del producto">
+              <button data-screen="semana" aria-selected="true"><svg aria-hidden="true"><use href="#icon-week"/></svg>Semana</button>
+              <button data-screen="recetario" aria-selected="false"><svg aria-hidden="true"><use href="#icon-book"/></svg>Comidas</button>
+              <button data-screen="detalle" aria-selected="false"><svg aria-hidden="true"><use href="#icon-heart"/></svg>Receta</button>
+              <button data-screen="familia" aria-selected="false"><svg aria-hidden="true"><use href="#icon-family"/></svg>Familia</button>
+            </nav>
+          </aside>
+
+          <header class="mobile-top">
+            <div class="brand-mark"><span class="brand-mark__tile"><svg aria-hidden="true"><use href="#icon-flame"/></svg></span><span class="brand-mark__text">Menu Semanal</span></div>
+            <button aria-label="Abrir menú">☰</button>
+          </header>
+
+          <main class="app-main">
+            <section class="screen is-active" data-screen-panel="semana">
+              <div class="screen-head"><div><h2>Esta semana</h2><p>La familia ya sabe qué se come.</p></div><button class="screen-action" data-open-francis>Planificar con Francis</button></div>
+              <div class="week-bar"><button aria-label="Semana anterior">‹</button><div><b>18 — 24 de agosto</b><span>6 comidas planificadas</span></div><button aria-label="Semana siguiente">›</button></div>
+              <div class="days-grid">
+                <article class="day-panel today"><div class="day-panel__head"><b>Lunes 18</b><span>Hoy</span></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-milanesa"/></svg></div><div><small>Almuerzo</small><strong>Milanesas al horno</strong></div></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-tarta"/></svg></div><div><small>Cena</small><strong>Tarta de brócoli</strong></div></div></article>
+                <article class="day-panel"><div class="day-panel__head"><b>Martes 19</b><span>Liviano</span></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-pasta"/></svg></div><div><small>Almuerzo</small><strong>Pasta con salsa</strong></div></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-tarta"/></svg></div><div><small>Cena</small><strong>Sopa crema</strong></div></div></article>
+                <article class="day-panel"><div class="day-panel__head"><b>Miércoles 20</b><span>2 comidas</span></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-empanadas"/></svg></div><div><small>Almuerzo</small><strong>Empanadas de carne</strong></div></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-milanesa"/></svg></div><div><small>Cena</small><strong>Pollo al limón</strong></div></div></article>
+                <article class="day-panel"><div class="day-panel__head"><b>Jueves 21</b><span>Falta cena</span></div><div class="meal-row"><div class="meal-thumb"><svg aria-hidden="true"><use href="#plate-tarta"/></svg></div><div><small>Almuerzo</small><strong>Tacos de carne</strong></div></div><div class="meal-row"><div class="meal-thumb" style="background:var(--papel)">＋</div><div><small>Cena</small><strong>Agregar comida</strong></div></div></article>
+              </div>
+            </section>
+
+            <section class="screen" data-screen-panel="recetario">
+              <div class="screen-head"><div><h2>Comidas de casa</h2><p>El recetario que Francis conoce.</p></div><button class="screen-action">＋ Agregar</button></div>
+              <div class="search-box"><svg aria-hidden="true"><use href="#icon-search"/></svg><span>Buscar una comida…</span></div>
+              <div class="chip-row"><span class="chip active">Todas</span><span class="chip">Favoritas</span><span class="chip">Con opiniones</span><span class="chip">Principales</span></div>
+              <div class="recipe-grid">
+                <article class="recipe-card" data-go-detail><div class="recipe-card__art"><svg aria-hidden="true"><use href="#plate-milanesa"/></svg></div><div class="recipe-card__body"><h3>Milanesas al horno</h3><div class="recipe-meta"><span>35 min</span><span class="stars">★★★★★</span></div></div></article>
+                <article class="recipe-card"><div class="recipe-card__art"><svg aria-hidden="true"><use href="#plate-tarta"/></svg></div><div class="recipe-card__body"><h3>Tarta de brócoli</h3><div class="recipe-meta"><span>45 min</span><span class="stars">★★★★☆</span></div></div></article>
+                <article class="recipe-card"><div class="recipe-card__art"><svg aria-hidden="true"><use href="#plate-pasta"/></svg></div><div class="recipe-card__body"><h3>Pasta con salsa</h3><div class="recipe-meta"><span>25 min</span><span class="stars">★★★★★</span></div></div></article>
+                <article class="recipe-card"><div class="recipe-card__art"><svg aria-hidden="true"><use href="#plate-empanadas"/></svg></div><div class="recipe-card__body"><h3>Empanadas de carne</h3><div class="recipe-meta"><span>55 min</span><span class="stars">★★★★☆</span></div></div></article>
+              </div>
+            </section>
+
+            <section class="screen" data-screen-panel="detalle">
+              <div class="screen-head"><div><h2>Receta familiar</h2><p>Guardada por Laura.</p></div><button class="screen-action">Agregar a la semana</button></div>
+              <div class="detail-layout"><div class="detail-art"><svg aria-hidden="true"><use href="#plate-milanesa"/></svg></div><div class="detail-copy"><h2>Milanesas al horno</h2><p>Las de siempre, pero al horno. Con limón y una ensalada fresca.</p><div class="detail-stats"><span>35 min</span><span>4 porciones</span><span class="stars">★★★★★</span></div><div class="detail-box"><h3>Ingredientes</h3><ul><li>4 bifes de carne</li><li>2 huevos y perejil</li><li>Pan rallado</li><li>Limón para servir</li></ul></div><div class="detail-box"><h3>Cómo se hace</h3><ol><li>Pasar la carne por huevo y pan rallado.</li><li>Hornear 15 minutos por lado.</li><li>Servir con limón y ensalada.</li></ol></div></div></div>
+            </section>
+
+            <section class="screen" data-screen-panel="familia">
+              <div class="screen-head"><div><h2>Nuestra familia</h2><p>Cada opinión ayuda a planificar mejor.</p></div><button class="screen-action">Invitar</button></div>
+              <div class="family-top"><div class="family-card"><h3>Familia Álvarez</h3><p>4 personas compartiendo menú y recetas.</p><div class="avatars"><span class="avatar">L</span><span class="avatar">P</span><span class="avatar">S</span><span class="avatar">T</span></div></div><div class="family-card family-card--invite"><h3>Código familiar</h3><p>Compartilo para sumar a alguien.</p><div class="code">MESA24</div></div></div>
+              <div class="opinion-list">
+                <article class="opinion"><span class="avatar">S</span><div><b>Sofi · Milanesas al horno</b><p>“Estaban riquísimas. Quiero de nuevo.”</p></div><span class="stars">★★★★★</span></article>
+                <article class="opinion"><span class="avatar">T</span><div><b>Tomi · Pizza casera</b><p>“Mi favorita, pero con más queso.”</p></div><span class="stars">★★★★★</span></article>
+                <article class="opinion"><span class="avatar">P</span><div><b>Pedro · Sopa crema</b><p>“Rica y rápida para un martes.”</p></div><span class="stars">★★★★☆</span></article>
+              </div>
+            </section>
+          </main>
+
+          <aside class="francis-dock">
+            <div class="francis-dock__art"><svg aria-hidden="true"><use href="#francis-character"/></svg></div>
+            <h2>Hola, soy Francis.</h2>
+            <p>Conozco el recetario y cómo viene la semana. ¿Qué necesitás?</p>
+            <div class="dock-chat dock-chat--user">El martes algo liviano.</div>
+            <div class="dock-chat">Perfecto. Propongo la tarta de brócoli: les gustó y hace un mes que no la comen.</div>
+            <div class="francis-input"><span>Escribile a Francis…</span><button aria-label="Enviar">→</button></div>
+          </aside>
+
+          <nav class="mobile-nav" aria-label="Navegación móvil">
+            <button data-screen="semana" aria-selected="true"><svg aria-hidden="true"><use href="#icon-week"/></svg>Semana</button>
+            <button data-screen="recetario" aria-selected="false"><svg aria-hidden="true"><use href="#icon-book"/></svg>Comidas</button>
+            <button data-screen="detalle" aria-selected="false"><svg aria-hidden="true"><use href="#icon-heart"/></svg>Receta</button>
+            <button data-screen="familia" aria-selected="false"><svg aria-hidden="true"><use href="#icon-family"/></svg>Familia</button>
+          </nav>
+          <button class="mobile-francis" data-open-francis aria-label="Hablar con Francis"><svg aria-hidden="true"><use href="#francis-character"/></svg></button>
+          <aside class="francis-sheet" aria-label="Asistente Francis">
+            <div class="francis-sheet__head"><b>Francis</b><button data-close-francis aria-label="Cerrar">×</button></div>
+            <p>Conozco tu recetario y cómo viene la semana. ¿Qué necesitás?</p>
+            <div class="dock-chat dock-chat--user">El martes algo liviano.</div>
+            <div class="dock-chat">Propongo la tarta de brócoli: les gustó y hace un mes que no la comen.</div>
+            <div class="francis-input"><span>Escribile a Francis…</span><button aria-label="Enviar">→</button></div>
+          </aside>
+        </div>
+      </div>
+      <div class="artifact-note"><span><b>Probá la navegación:</b> Semana, Comidas, Receta y Familia son vistas interactivas.</span><span>Ilustración y UI originales · HTML autocontenido · Responsive</span></div>
+    </div>
+  </section>
+
+  <div class="toast" role="status" aria-live="polite">¡Listo! Te sumamos al acceso inicial.</div>
+
+  <script>
+    const views = document.querySelectorAll('.view');
+    const viewButtons = document.querySelectorAll('.preview-switcher button');
+    const productStage = document.querySelector('.product-stage');
+    const toast = document.querySelector('.toast');
+
+    function showView(id) {
+      views.forEach((view) => view.classList.toggle('is-active', view.id === id));
+      viewButtons.forEach((button) => button.setAttribute('aria-selected', String(button.getAttribute('aria-controls') === id)));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    viewButtons.forEach((button) => button.addEventListener('click', () => showView(button.getAttribute('aria-controls'))));
+
+    document.querySelectorAll('[data-device]').forEach((button) => {
+      if (!button.closest('.device-switch')) return;
+      button.addEventListener('click', () => {
+        const device = button.dataset.device;
+        productStage.dataset.device = device;
+        document.querySelectorAll('.device-switch button').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      });
+    });
+
+    function showScreen(screen) {
+      document.querySelectorAll('[data-screen-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.screenPanel === screen));
+      document.querySelectorAll('[data-screen]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.screen === screen)));
+      document.querySelector('.francis-sheet').classList.remove('is-open');
+    }
+
+    document.querySelectorAll('[data-screen]').forEach((button) => button.addEventListener('click', () => showScreen(button.dataset.screen)));
+    document.querySelectorAll('[data-go-detail]').forEach((card) => card.addEventListener('click', () => showScreen('detalle')));
+    document.querySelectorAll('[data-open-francis]').forEach((button) => button.addEventListener('click', () => {
+      if (productStage.dataset.device !== 'mobile' && window.innerWidth > 760) return;
+      document.querySelector('.francis-sheet').classList.add('is-open');
+    }));
+    document.querySelectorAll('[data-close-francis]').forEach((button) => button.addEventListener('click', () => document.querySelector('.francis-sheet').classList.remove('is-open')));
+
+    document.querySelectorAll('[data-signup]').forEach((form) => form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = form.querySelector('input[type="email"]');
+      if (!input.checkValidity()) return input.reportValidity();
+      toast.classList.add('is-visible');
+      input.value = '';
+      window.setTimeout(() => toast.classList.remove('is-visible'), 2600);
+    }));
+  </script>
+</body>
+</html>
