@@ -29,11 +29,13 @@ describe("Francis brand preview artifact", () => {
     expect(artifact).toContain('data-screen-panel="familia"');
   });
 
-  it("defines the approved brand palette, Francis illustration, and manual icons", () => {
+  it("defines the approved brand palette and uses only the manual Francis artwork", () => {
     expect(artifact).toContain("--cobalto: #1f4fa3");
     expect(artifact).toContain("--tomate: #e33a2c");
     expect(artifact).toContain("--maiz: #f7c948");
-    expect(artifact).toContain('id="francis-character"');
+    expect(artifact).not.toContain('id="francis-character"');
+    expect(artifact).not.toContain('href="#francis-character"');
+    expect(artifact.match(/class="[^"]*francis-manual-character/g)).toHaveLength(3);
     expect(artifact).toContain("--francis-app-icon: url(\"data:image/png;base64,");
     expect(artifact).toContain("--francis-avatar-icon: url(\"data:image/png;base64,");
     expect(artifact).toContain('<link rel="icon" type="image/png" href="data:image/png;base64,');
