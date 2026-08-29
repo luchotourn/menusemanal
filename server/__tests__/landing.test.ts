@@ -77,4 +77,13 @@ describe("landing.html (rediseño Positano / Toldo)", () => {
     expect(html).toContain("mask-image: linear-gradient(180deg, transparent");
     expect(html).not.toContain('class="placemat"');
   });
+
+  it("keeps the steps section without the 'Cómo empieza' eyebrow and with Francis in step 3", () => {
+    expect(html).not.toContain('<p class="eb">Cómo empieza</p>');
+    expect(html).toContain('<a href="#como-empieza">Empezar</a>');
+    expect(html).toContain("Empezar es muy simple");
+    expect(html).toContain("Pedile a Francis que organice las comidas, aprobalas y listo. Tu familia ya sabe qué se come.");
+    expect(html).toContain('href="/privacidad"');
+    expect(html).toContain('href="/terminos"');
+  });
 });

@@ -144,6 +144,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Legal pages (static, same brand chrome as the landing)
+  for (const page of ["privacidad", "terminos"] as const) {
+    app.get(`/${page}`, async (_req, res, next) => {
+      const filePath = path.resolve(import.meta.dirname, "legal", `${page}.html`);
+      try {
+        const html = await fs.promises.readFile(filePath, "utf-8");
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+      } catch {
+        next();
+      }
+    });
+  }
+
   // Main health check route for deployment systems
   app.get("/api/health-check", async (req, res) => {
     try {
