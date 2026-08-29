@@ -7,6 +7,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ["'Plus Jakarta Sans'", "system-ui", "sans-serif"],
+        display: ["Jost", "Futura", "'Avenir Next'", "system-ui", "sans-serif"],
+        hand: ["Caveat", "'Bradley Hand'", "cursive"],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -17,6 +19,17 @@ export default {
         crema: "var(--crema)",
         papel: "var(--papel)",
         tinta: "var(--tinta)",
+        cobalto: "var(--cobalto)",
+        tomate: {
+          DEFAULT: "var(--tomate)",
+          texto: "var(--tomate-texto)",
+          suave: "var(--tomate-suave)",
+        },
+        maiz: {
+          DEFAULT: "var(--maiz)",
+          suave: "var(--maiz-suave)",
+        },
+        cielo: "var(--cielo)",
         brasa: "var(--brasa)",
         durazno: {
           DEFAULT: "var(--durazno)",
