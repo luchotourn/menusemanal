@@ -108,22 +108,22 @@ export default function Home() {
 
         <main className="max-w-lg mx-auto px-4 pb-20">
           <div className="mt-6">
-            <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+            <Card className="bg-gradient-to-br from-cielo to-crema border-cielo">
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <Users className="w-16 h-16 text-purple-500 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-purple-800 mb-2">
+                  <Users className="w-16 h-16 text-cobalto mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-tinta mb-2">
                     ¡Bienvenido! 🎉
                   </h2>
-                  <p className="text-purple-700 mb-6">
+                  <p className="text-tinta mb-6">
                     Para empezar a calificar las comidas familiares, necesitas unirte a tu familia.
                   </p>
-                  <p className="text-purple-600 mb-6">
+                  <p className="text-cobalto mb-6">
                     Pide a tus papás el código de invitación familiar de 6 dígitos.
                   </p>
                   <Button
                     onClick={() => setLocation("/family-settings")}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    className="bg-cobalto hover:bg-cobalto/90 text-white"
                     size="lg"
                   >
                     <UserPlus className="w-5 h-5 mr-2" />
@@ -133,12 +133,12 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="mt-4 bg-white border-purple-100">
+            <Card className="mt-4 bg-white border-cielo">
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-2xl mb-2">💡</div>
-                  <h3 className="font-semibold text-purple-800 mb-2">¿Cómo funciona?</h3>
-                  <ol className="text-left text-sm text-purple-600 space-y-2">
+                  <h3 className="font-semibold text-tinta mb-2">¿Cómo funciona?</h3>
+                  <ol className="text-left text-sm text-cobalto space-y-2">
                     <li>1. Pide el código familiar a tus papás</li>
                     <li>2. Ingresa el código de 6 dígitos</li>
                     <li>3. ¡Empieza a calificar las comidas con estrellas!</li>

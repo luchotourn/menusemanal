@@ -272,7 +272,7 @@ export function WeekPanel({
                   type="button"
                   disabled={isSigningOff}
                   onClick={() => onSignoff("approved")}
-                  className="flex grow-[1.15] basis-0 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-emerald-600 px-3 py-2 text-[11px] font-extrabold text-white transition-all hover:bg-emerald-700 disabled:opacity-50"
+                  className="flex grow-[1.15] basis-0 items-center justify-center gap-1 whitespace-nowrap rounded-full bg-cobalto px-3 py-2 text-[11px] font-extrabold text-white transition-all hover:brightness-95 disabled:opacity-50"
                 >
                   👍 Aprobar semana
                 </button>
