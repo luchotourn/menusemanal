@@ -1,4 +1,5 @@
 import React from 'react';
+import { FrancisAvatar } from "@/components/francis-avatar";
 import { useAuthStatus } from '@/hooks/useAuth';
 import { StarRating } from './star-rating';
 import { KidButton } from './kid-button';
@@ -24,9 +25,7 @@ export function CommentatorLayout({ children, className = '' }: CommentatorLayou
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-cobalto to-tinta rounded-full flex items-center justify-center text-white text-xl font-bold">
-                👨‍🍳
-              </div>
+              <FrancisAvatar size={48} shape="circle" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">
                   ¡Hola, {user.email.split('@')[0]}! 👋

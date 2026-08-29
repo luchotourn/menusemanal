@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Send } from "lucide-react";
+import { FrancisAvatar } from "@/components/francis-avatar";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatEnhancedWeekRange } from "@/lib/utils";
@@ -233,7 +234,7 @@ export function WeekPanel({
         <div className="mt-3 flex items-stretch gap-2">
           {onOpenPlanner && (
             <ActionButton emphasis={actions.plan} onClick={onOpenPlanner} grow={actions.plan === "primary" ? 1.4 : 1}>
-              <span aria-hidden="true" className="text-sm leading-none">👨‍🍳</span>
+              <FrancisAvatar size={16} className="ring-1 ring-white/60" />
               {actions.planLabel}
             </ActionButton>
           )}
