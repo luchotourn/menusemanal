@@ -337,7 +337,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
               aria-label={`Pedirle a Francis otra idea para el ${label.toLowerCase()}`}
             >
               {isRowResuggesting ? (
-                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                <Loader2 className="w-4 h-4 animate-spin text-cobalto" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
@@ -371,23 +371,37 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
 
   return (
     <div className="fixed left-0 right-0 z-[60] bg-papel flex flex-col" style={heightStyle}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-tinta/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <FrancisAvatar size={24} />
-          <h2 className="font-bold text-base text-tinta">
-            {step === "review" ? "El plan de Francis" : "Pedile a Francis"}
-          </h2>
+      {/* Header — same bar as the rest of the app (see Header) */}
+      <div className="bg-papel/95 backdrop-blur border-b border-tinta/10 flex-shrink-0">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <FrancisAvatar size={28} />
+            <span className="font-display font-semibold uppercase tracking-[0.16em] text-[13px] text-cobalto">
+              Menú Semanal
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-1 h-auto rounded-full hover:bg-crema"
+            onClick={() => onOpenChange(false)}
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5 text-tinta" />
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => onOpenChange(false)}>
-          <X className="w-5 h-5" />
-        </Button>
+      </div>
+
+      {/* Section title */}
+      <div className="max-w-lg mx-auto w-full px-4 pt-4 flex-shrink-0">
+        <h2 className="font-bold text-lg text-tinta">
+          {step === "review" ? "El plan de Francis" : "Pedile a Francis"}
+        </h2>
       </div>
 
       {step === "generating" ? (
         <div className="flex-1 overflow-hidden px-4 pt-5">
           <div className="flex items-start gap-3 mb-4">
-            <FrancisAvatar size={40} shape="circle" />
             <div>
               <h3 className="text-base font-bold text-tinta">Francis está armando la semana…</h3>
               <p className="text-xs text-tinta/60 leading-snug mt-0.5">
@@ -504,13 +518,12 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
             <div className="space-y-4 py-4">
               {isDraftLoading ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                  <Loader2 className="w-6 h-6 animate-spin text-cobalto" />
                 </div>
               ) : (
                 <>
                   {/* Intro */}
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <FrancisAvatar size={56} shape="circle" />
+                  <div>
                     <p className="text-sm text-tinta/70">
                       Francis elige recetas de tu biblioteca para completar las comidas de la
                       semana, mirando las estrellas de los chicos y lo que comieron últimamente.
