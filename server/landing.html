@@ -178,16 +178,16 @@
     .sh h2 { font-family: var(--fd); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 30px; line-height: 1.15; color: var(--cobalto); text-wrap: balance; }
     .sh p { font-size: 16.5px; color: var(--tinta); }
 
-    /* Francis (mantel) */
-    .s-francis { position: relative; }
-    .s-francis::before {
-      content: ""; position: absolute; inset: 0; opacity: 0.55; pointer-events: none;
+    /* Francis — the tablecloth is a placemat under the chat, not the section wallpaper */
+    .s-francis { position: relative; background: var(--crema); }
+    .placemat {
+      max-width: 760px; border: 2px solid var(--cobalto); border-radius: 20px; padding: 18px 16px;
+      background-color: var(--crema);
       background-image:
-        repeating-linear-gradient(0deg, rgba(227, 58, 44, 0.14) 0 3px, transparent 3px 36px),
-        repeating-linear-gradient(90deg, rgba(227, 58, 44, 0.14) 0 3px, transparent 3px 36px);
+        repeating-linear-gradient(0deg, rgba(227, 58, 44, 0.16) 0 3px, transparent 3px 30px),
+        repeating-linear-gradient(90deg, rgba(227, 58, 44, 0.16) 0 3px, transparent 3px 30px);
     }
-    .s-francis .in { position: relative; }
-    .chat { display: grid; gap: 14px; max-width: 760px; }
+    .chat { display: grid; gap: 14px; }
     .ex { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .msg { border-radius: 16px; padding: 12px 16px; font-size: 14.5px; line-height: 1.45; }
     .msg.q { background: var(--cielo); color: var(--tinta); border-radius: 16px 16px 4px 16px; }
@@ -295,6 +295,7 @@
       .sh { margin-bottom: 26px; }
       .sh h2 { font-size: 22px; }
       .ex { grid-template-columns: 1fr; }
+      .placemat { padding: 14px 12px; border-radius: 16px; }
       .feats { grid-template-columns: 1fr 1fr; gap: 12px; }
       .feat { padding: 16px 14px; }
       .steps { grid-template-columns: 1fr; gap: 18px; }
@@ -382,6 +383,7 @@
           <h2>El chef que planifica por vos</h2>
           <p>Le pedís lo que tu familia necesita y Francis arma el menú con tus propias recetas: mira las estrellas de los chicos, lo que comieron las últimas semanas y tus instrucciones al pie de la letra.</p>
         </div>
+        <div class="placemat">
         <div class="chat">
           <div class="ex">
             <div class="msg q">Planeá la semana, martes liviano</div>
@@ -395,6 +397,7 @@
             <div class="msg q">Milanesas el viernes, viene la abuela</div>
             <div class="msg a"><img src="/icon-192.png" alt="" width="26" height="26" /><span>Viernes: milanesas con puré. Tus instrucciones son ley.</span></div>
           </div>
+        </div>
         </div>
       </div>
     </section>

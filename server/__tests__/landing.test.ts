@@ -70,4 +70,9 @@ describe("landing.html (rediseño Positano / Toldo)", () => {
     expect(html).not.toMatch(/#FF6B35/i);
     expect(html).not.toMatch(/#d4825a/i);
   });
+
+  it("frames the Francis chat in a placemat instead of wallpapering the section", () => {
+    expect(html).toContain('class="placemat"');
+    expect(html).not.toMatch(/\.s-francis::before/);
+  });
 });
