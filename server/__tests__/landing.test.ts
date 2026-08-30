@@ -62,7 +62,7 @@ describe("landing.html (rediseño Positano / Toldo)", () => {
     expect(html).toMatch(/<meta name="theme-color" content="#1F4FA3"/);
     expect(html).toContain("/brand/francis.webp");
     expect(html).toContain("/brand/francis.png");
-    expect(html).toContain('property="og:image" content="/brand/og.png"');
+    expect(html).toContain('property="og:image" content="https://menusemanal.app/brand/og.png"');
     expect(html).toContain("<title>Menú Semanal — Chau al «¿qué comemos hoy?»</title>");
   });
 
