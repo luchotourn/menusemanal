@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Check, ChefHat, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Loader2, RefreshCw, Trash2, X } from "lucide-react";
+import { FrancisAvatar } from "@/components/francis-avatar";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -336,7 +337,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
               aria-label={`Pedirle a Francis otra idea para el ${label.toLowerCase()}`}
             >
               {isRowResuggesting ? (
-                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                <Loader2 className="w-4 h-4 animate-spin text-cobalto" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
@@ -369,26 +370,38 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
     : { top: 0, bottom: 0 };
 
   return (
-    <div className="fixed left-0 right-0 z-[60] bg-white flex flex-col" style={heightStyle}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-tinta/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <ChefHat className="w-5 h-5 text-brasa" />
-          <h2 className="font-bold text-base text-tinta">
-            {step === "review" ? "El plan de Francis" : "Pedile a Francis"}
-          </h2>
+    <div className="fixed left-0 right-0 z-[60] bg-papel flex flex-col" style={heightStyle}>
+      {/* Header — same bar as the rest of the app (see Header) */}
+      <div className="bg-papel/95 backdrop-blur border-b border-tinta/10 flex-shrink-0">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <FrancisAvatar size={28} />
+            <span className="font-display font-semibold uppercase tracking-[0.16em] text-[13px] text-cobalto">
+              Menú Semanal
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-1 h-auto rounded-full hover:bg-crema"
+            onClick={() => onOpenChange(false)}
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5 text-tinta" />
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" className="p-1 h-auto" onClick={() => onOpenChange(false)}>
-          <X className="w-5 h-5" />
-        </Button>
+      </div>
+
+      {/* Section title */}
+      <div className="max-w-lg mx-auto w-full px-4 pt-4 flex-shrink-0">
+        <h2 className="font-bold text-lg text-tinta">
+          {step === "review" ? "El plan de Francis" : "Pedile a Francis"}
+        </h2>
       </div>
 
       {step === "generating" ? (
         <div className="flex-1 overflow-hidden px-4 pt-5">
           <div className="flex items-start gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-durazno-suave flex items-center justify-center text-xl flex-shrink-0" aria-hidden="true">
-              👨‍🍳
-            </div>
             <div>
               <h3 className="text-base font-bold text-tinta">Francis está armando la semana…</h3>
               <p className="text-xs text-tinta/60 leading-snug mt-0.5">
@@ -417,7 +430,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
         !draft ? (
           isDraftLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-cobalto" />
             </div>
           ) : (
             /* The draft disappeared (resolved elsewhere or belongs to another
@@ -448,7 +461,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
                 {/* Summary card — Francis presents his plan */}
                 {draft.summary && (
                   <div className="rounded-xl rounded-tr-[22px] border border-durazno bg-durazno-suave p-3 flex items-start gap-2.5 animate-rise-in">
-                    <span className="text-lg leading-none flex-shrink-0" aria-hidden="true">👨‍🍳</span>
+                    <FrancisAvatar size={22} className="mt-0.5" />
                     <p className="text-sm text-tinta leading-snug">{draft.summary}</p>
                   </div>
                 )}
@@ -505,16 +518,13 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
             <div className="space-y-4 py-4">
               {isDraftLoading ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                  <Loader2 className="w-6 h-6 animate-spin text-cobalto" />
                 </div>
               ) : (
                 <>
                   {/* Intro */}
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <div className="w-12 h-12 rounded-full bg-durazno-suave flex items-center justify-center text-2xl" aria-hidden="true">
-                      👨‍🍳
-                    </div>
-                    <p className="text-sm text-gray-500">
+                  <div>
+                    <p className="text-sm text-tinta/70">
                       Francis elige recetas de tu biblioteca para completar las comidas de la
                       semana, mirando las estrellas de los chicos y lo que comieron últimamente.
                       Vos revisás el plan y lo ajustás antes de aplicarlo.
@@ -628,7 +638,7 @@ export function GenerateWeekModal({ open, onOpenChange, weekStartDate }: Generat
               className="w-full bg-brasa hover:bg-brasa/90 text-white font-bold"
               size="lg"
             >
-              <ChefHat className="w-4 h-4 mr-2" />
+              <FrancisAvatar size={18} className="mr-2 ring-1 ring-white/70" />
               Pedirle el plan a Francis
             </Button>
           </div>

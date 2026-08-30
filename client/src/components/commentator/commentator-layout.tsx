@@ -1,4 +1,5 @@
 import React from 'react';
+import { FrancisAvatar } from "@/components/francis-avatar";
 import { useAuthStatus } from '@/hooks/useAuth';
 import { StarRating } from './star-rating';
 import { KidButton } from './kid-button';
@@ -18,27 +19,25 @@ export function CommentatorLayout({ children, className = '' }: CommentatorLayou
   }
 
   return (
-    <div className={`commentator-theme min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 ${className}`}>
+    <div className={`commentator-theme min-h-screen bg-gradient-to-br from-cielo to-crema ${className}`}>
       {/* Fun Header */}
       <header className="bg-white shadow-lg rounded-b-3xl mx-4 mb-6">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                👨‍🍳
-              </div>
+              <FrancisAvatar size={48} shape="circle" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">
                   ¡Hola, {user.email.split('@')[0]}! 👋
                 </h1>
-                <p className="text-purple-600 font-medium">¡Hora de calificar comidas!</p>
+                <p className="text-cobalto font-medium">¡Hora de calificar comidas!</p>
               </div>
             </div>
 
             {/* Fun Stats */}
             <div className="hidden md:flex gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">12</div>
+                <div className="text-2xl font-bold text-cobalto">12</div>
                 <div className="text-xs text-gray-600">Comidas</div>
               </div>
               <div className="text-center">
@@ -56,7 +55,7 @@ export function CommentatorLayout({ children, className = '' }: CommentatorLayou
       </main>
 
       {/* Fun Footer with Achievements Teaser */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-purple-200 rounded-t-3xl shadow-2xl">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-cielo rounded-t-3xl shadow-2xl">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -91,9 +90,9 @@ export function CelebrationToast({ emoji, message, onComplete }: {
 
   return (
     <div className="celebration fixed inset-0 flex items-center justify-center pointer-events-none z-50">
-      <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-purple-300 animate-bounce">
+      <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-cobalto/40 animate-bounce">
         <div className="text-6xl text-center mb-4">{emoji}</div>
-        <div className="text-xl font-bold text-purple-600 text-center">{message}</div>
+        <div className="text-xl font-bold text-cobalto text-center">{message}</div>
       </div>
     </div>
   );
@@ -115,7 +114,7 @@ export function CommentatorDemo() {
     <CommentatorLayout>
       <div className="space-y-8">
         {/* Recipe Card Example */}
-        <div className="kid-card bg-white rounded-3xl p-6 shadow-xl border-4 border-purple-100 hover:border-purple-300 transition-all duration-300">
+        <div className="kid-card bg-white rounded-3xl p-6 shadow-xl border-4 border-cielo hover:border-cobalto/40 transition-all duration-300">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">🍝 Pasta con Salsa</h2>
             <p className="text-lg text-gray-600">¿Qué te pareció esta comida?</p>

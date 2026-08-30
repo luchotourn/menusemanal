@@ -3,45 +3,54 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(210, 20%, 17%);
-  --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(210, 20%, 17%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(210, 20%, 17%);
-  --border: hsl(20, 5.9%, 90%);
-  --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(16, 100%, 61%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(174, 47%, 58%);
-  --secondary-foreground: hsl(0, 0%, 100%);
-  --accent: hsl(51, 100%, 70%);
-  --accent-foreground: hsl(210, 20%, 17%);
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(60, 9.1%, 97.8%);
-  --ring: hsl(210, 20%, 17%);
+  /* shadcn base — mapped to the Positano palette */
+  --background: #FFFDF9;
+  --foreground: #12366C;
+  --muted: #F1ECE4;
+  --muted-foreground: #5A6B85;
+  --popover: #FFFDF9;
+  --popover-foreground: #12366C;
+  --card: #FFFDF9;
+  --card-foreground: #12366C;
+  --border: #DCE0EA;
+  --input: #DCE0EA;
+  --primary: #1F4FA3;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E4ECF9;
+  --secondary-foreground: #12366C;
+  --accent: #FDF3D0;
+  --accent-foreground: #12366C;
+  --destructive: #C93122;
+  --destructive-foreground: #FFFDF9;
+  --ring: #1F4FA3;
   --radius: 0.75rem;
 
-  /* Family AI design tokens — see the redesign proposal (feat/family-ai-redesign) */
-  --crema: #F4EFE4;          /* warm canvas */
-  --papel: #FFFCF5;          /* cards & sheets */
-  --tinta: #211D16;          /* ink */
-  --brasa: #FF6B35;          /* brand + primary CTA (unchanged) */
-  --durazno: #FFBE73;        /* AI fills, chips, "hoy" — replaces ad-hoc amber */
-  --durazno-suave: #FFF6E8;  /* AI/pending soft surfaces */
-  --menta: #4ECDC4;          /* success / confirmations */
-  --menta-suave: #E4F5F2;    /* success soft surfaces (approved week) */
-  --uva: #9C6ADE;            /* kids (commentator) accents */
-  --uva-suave: #F3EBFA;      /* kids soft surfaces (review invite) */
-  --rojo: #C0392B;           /* changes requested */
-  --rojo-suave: #FBEAE7;     /* changes-requested soft surfaces */
+  /* Positano brand tokens (paleta B "Tricolor + tinta") — see rediseno-positano.html */
+  --crema: #F7F2EC;          /* lienzo */
+  --papel: #FFFDF9;          /* tarjetas y hojas */
+  --tinta: #12366C;          /* texto (10.7:1 sobre crema) */
+  --cobalto: #1F4FA3;        /* marca, titulares, interactivo (7.0:1) */
+  --tomate: #E33A2C;         /* CTA principal, HOY — solo rellenos (blanco encima 4.3:1) */
+  --tomate-texto: #C93122;   /* variante para texto rojo chico (4.8:1) */
+  --maiz: #F7C948;           /* estrellas, acentos — nunca texto; encima siempre tinta/cobalto */
+  --cielo: #E4ECF9;          /* superficies suaves: comentarios, aprobado */
+  --maiz-suave: #FDF3D0;     /* superficies suaves: hoy, pendiente, IA */
+  --tomate-suave: #FBE7E4;   /* superficies suaves: cambios pedidos */
 
-  /* Legacy aliases kept so existing .text-app-* / .bg-app-* usage keeps working */
-  --app-primary: var(--brasa);
-  --app-secondary: var(--menta);
-  --app-accent: hsl(51, 100%, 70%); /* #FFE66D */
+  /* Legacy semantic aliases — existing components keep working, now in the new palette */
+  --brasa: var(--tomate);            /* primary CTA */
+  --durazno: var(--maiz);            /* AI fills, chips, "hoy" */
+  --durazno-suave: var(--maiz-suave);
+  --menta: var(--cobalto);           /* success / approved */
+  --menta-suave: var(--cielo);
+  --uva: var(--cobalto);             /* kids (commentator) accents */
+  --uva-suave: var(--cielo);
+  --rojo: var(--tomate-texto);       /* changes requested */
+  --rojo-suave: var(--tomate-suave);
+
+  --app-primary: var(--tomate);
+  --app-secondary: var(--cobalto);
+  --app-accent: var(--tomate-texto); /* HOY chip + today label */
   --app-neutral: var(--tinta);
   --app-background: var(--crema);
 }
@@ -49,35 +58,38 @@
 /* Warm dark theme — token flip only. Opt-in from Ajustes; the light theme
    stays the default until every screen speaks the token language. */
 .dark {
-  --background: #191510;
-  --foreground: #F2EADB;
-  --muted: #221D15;
-  --muted-foreground: rgba(242, 234, 219, 0.62);
-  --popover: #241F17;
-  --popover-foreground: #F2EADB;
-  --card: #241F17;
-  --card-foreground: #F2EADB;
-  --border: rgba(242, 234, 219, 0.14);
-  --input: rgba(242, 234, 219, 0.14);
-  --primary: hsl(16, 100%, 61%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(174, 47%, 58%);
-  --secondary-foreground: hsl(210, 20%, 17%);
-  --accent: hsl(51, 100%, 70%);
-  --accent-foreground: hsl(210, 20%, 17%);
-  --destructive: hsl(0, 62.8%, 50%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: rgba(242, 234, 219, 0.6);
+  --background: #16294F;
+  --foreground: #F7F2EC;
+  --muted: #1E3565;
+  --muted-foreground: #A5B3D1;
+  --popover: #16294F;
+  --popover-foreground: #F7F2EC;
+  --card: #16294F;
+  --card-foreground: #F7F2EC;
+  --border: rgba(247, 242, 236, 0.16);
+  --input: rgba(247, 242, 236, 0.16);
+  --primary: #9DB8F2;
+  --primary-foreground: #0E1D3A;
+  --secondary: #1E3565;
+  --secondary-foreground: #F7F2EC;
+  --accent: #3A3320;
+  --accent-foreground: #F7F2EC;
+  --destructive: #FF8F82;
+  --destructive-foreground: #0E1D3A;
+  --ring: rgba(247, 242, 236, 0.6);
 
-  --crema: #191510;
-  --papel: #241F17;
-  --tinta: #F2EADB;
-  --durazno-suave: #3A2C18;
-  --menta-suave: #12332F;
-  --uva-suave: #2B2136;
-  --rojo: #E9705F;
-  --rojo-suave: #3A211D;
+  --crema: #0E1D3A;
+  --papel: #16294F;
+  --tinta: #F7F2EC;
+  --cobalto: #9DB8F2;
+  --tomate: #E33A2C;
+  --tomate-texto: #FF8F82;
+  --maiz: #F7C948;         /* stars/chips keep the brand yellow on navy (tinta stroke stays legible) */
+  --cielo: #1E3565;
+  --maiz-suave: #3A3320;
+  --tomate-suave: #3A211D;
 
+  --app-accent: var(--tomate);
   --app-background: var(--crema);
   --app-neutral: var(--tinta);
 }
@@ -93,6 +105,25 @@
 }
 
 @layer utilities {
+  /* Positano brand primitives */
+  .bg-toldo {
+    background: repeating-linear-gradient(90deg, var(--cobalto) 0 26px, var(--crema) 26px 52px);
+  }
+  .bg-mantel {
+    background-color: var(--crema);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(227, 58, 44, 0.14) 0 3px, transparent 3px 36px),
+      repeating-linear-gradient(90deg, rgba(227, 58, 44, 0.14) 0 3px, transparent 3px 36px);
+  }
+  .kid-star {
+    color: var(--maiz);
+    -webkit-text-stroke: 0.6px var(--tinta);
+  }
+  .kid-star-off {
+    color: var(--tinta);
+    opacity: 0.2;
+  }
+
   /* Staggered entrance for the Francis plan review — pair with an inline
      animation-delay per row. Motion is skipped for reduced-motion users. */
   @keyframes rise-in {
@@ -198,7 +229,7 @@
     /* Sticky search optimization */
     .sticky-search {
       backdrop-filter: blur(10px);
-      background-color: rgba(255, 255, 255, 0.98);
+      background-color: color-mix(in srgb, var(--papel) 96%, transparent);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
@@ -228,7 +259,7 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      background: rgba(255, 255, 255, 0.98);
+      background: color-mix(in srgb, var(--papel) 96%, transparent);
       backdrop-filter: blur(8px);
       border-radius: 0;
     }

@@ -239,7 +239,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
   if (isLoading) {
     return (
       <div className="p-8 text-center">
-        <p className="text-gray-500">Cargando plan semanal...</p>
+        <p className="text-tinta/60">Cargando plan semanal...</p>
       </div>
     );
   }
@@ -446,7 +446,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
                 event.preventDefault();
                 handleSubmitAndShare();
               }}
-              className="bg-app-accent hover:bg-app-accent/90 text-slate-900"
+              className="bg-tomate hover:bg-tomate/90 text-white"
             >
               {isSubmitting
                 ? "Enviando…"
@@ -475,7 +475,7 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
                 void shareReviewNow();
                 setShowSharePrompt(false);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-cobalto hover:bg-cobalto/90 text-white"
             >
               <Share2 className="w-4 h-4 mr-2" />
               Compartir
@@ -523,8 +523,8 @@ export function WeeklyCalendar({ onAddMeal, onViewMealPlan, onWeekChange, onOpen
               }}
               className={
                 pendingSignoffVerdict === "approved"
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : "bg-amber-600 hover:bg-amber-700 text-white"
+                  ? "bg-cobalto hover:bg-cobalto/90 text-white"
+                  : "bg-tomate hover:bg-tomate/90 text-white"
               }
             >
               {pendingSignoffVerdict === "approved" ? "Aprobar" : "Pedir cambios"}

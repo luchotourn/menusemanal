@@ -28,8 +28,8 @@ export function ProgressTracker({
   };
 
   const gradientClasses = {
-    default: 'bg-gradient-to-r from-purple-500 to-blue-500',
-    rainbow: 'bg-gradient-to-r from-purple-500 via-blue-500 via-green-500 to-yellow-500'
+    default: 'bg-gradient-to-r from-cobalto to-tinta',
+    rainbow: 'bg-gradient-to-r from-cobalto via-maiz to-tomate'
   };
 
   return (
@@ -38,7 +38,7 @@ export function ProgressTracker({
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-700">{label}</span>
           {showPercentage && (
-            <span className="text-sm font-bold text-purple-600">
+            <span className="text-sm font-bold text-cobalto">
               {Math.round(percentage)}%
             </span>
           )}
@@ -88,7 +88,7 @@ export function ProgressTracker({
               key={i}
               className={`
                 w-2 h-2 rounded-full transition-colors duration-300
-                ${i < current ? 'bg-purple-500' : 'bg-gray-300'}
+                ${i < current ? 'bg-cobalto' : 'bg-gray-300'}
               `}
             />
           ))}

@@ -24,7 +24,7 @@ export function KidButton({
   const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number }>>([]);
 
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-purple-300',
+    primary: 'bg-gradient-to-r from-cobalto to-cobalto text-white shadow-cobalto/30',
     secondary: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-300',
     success: 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-green-300',
     warning: 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-300'
@@ -65,7 +65,7 @@ export function KidButton({
         transition-all duration-300 ease-out
         transform hover:scale-105 hover:-translate-y-1
         active:scale-95 active:translate-y-0
-        focus:outline-none focus:ring-4 focus:ring-purple-300 focus:ring-opacity-50
+        focus:outline-none focus:ring-4 focus:ring-cobalto/40 focus:ring-opacity-50
         shadow-lg hover:shadow-xl
         ${variantClasses[variant]}
         ${sizeClasses[size]}

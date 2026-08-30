@@ -28,7 +28,7 @@ function KidStars({ rating }: { rating: number }) {
   return (
     <div className="flex">
       {Array.from({ length: 5 }, (_, i) => (
-        <span key={i} className={`text-xs ${i < rating ? "text-amber-600" : "text-tinta/20"}`}>
+        <span key={i} className={`text-xs ${i < rating ? "kid-star" : "kid-star-off"}`}>
           ★
         </span>
       ))}
@@ -50,9 +50,9 @@ export function MealCard({ meal, onView, onRequestComment }: MealCardProps) {
 
   if (!recipe) {
     return (
-      <div className="bg-red-50 rounded-xl rounded-tr-[22px] p-3 cursor-pointer hover:bg-red-100 transition-colors min-h-[44px] flex items-center">
+      <div className="bg-tomate-suave rounded-xl rounded-tr-[22px] p-3 cursor-pointer hover:brightness-95 transition-colors min-h-[44px] flex items-center">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-red-600 truncate">
+          <p className="text-sm font-medium text-tomate-texto truncate">
             Receta no encontrada
           </p>
         </div>
@@ -86,7 +86,7 @@ export function MealCard({ meal, onView, onRequestComment }: MealCardProps) {
         <div className="flex items-center justify-between gap-2">
           {hasPendingProposal ? (
             <span
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-durazno/60 border border-durazno text-amber-900 text-[11px] font-semibold min-w-0"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-maiz border border-maiz text-tinta text-[11px] font-semibold min-w-0"
               title={proposal ? `${proposal.proposerName} propuso: ${proposal.proposedRecipeName}` : "Hay una propuesta de cambio pendiente"}
             >
               <ArrowLeftRight className="w-3 h-3 flex-shrink-0" />
@@ -98,7 +98,9 @@ export function MealCard({ meal, onView, onRequestComment }: MealCardProps) {
                 <KidStars rating={recipe.calificacionNinos ?? 0} />
               ) : null}
               {Boolean(recipe.esFavorita) ? (
-                <span className="text-xs text-brasa font-medium">⭐</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-tomate-suave text-tomate-texto">
+                  Favorita
+                </span>
               ) : null}
             </div>
           )}
@@ -119,8 +121,8 @@ export function MealCard({ meal, onView, onRequestComment }: MealCardProps) {
                 flex items-center justify-center w-9 h-9 rounded-full flex-shrink-0
                 transition-all duration-150 active:scale-90 shadow-sm
                 ${userAchievement?.leftFeedback === 1
-                  ? "bg-purple-200 border border-purple-300/60"
-                  : "bg-purple-50 border border-purple-200/60 hover:bg-purple-100"
+                  ? "bg-cobalto border border-cobalto"
+                  : "bg-cielo border border-cobalto/30 hover:brightness-95"
                 }
               `}
               title="Comentar o proponer un cambio"
@@ -129,8 +131,8 @@ export function MealCard({ meal, onView, onRequestComment }: MealCardProps) {
               <MessageCircle
                 className={`w-[18px] h-[18px] ${
                   userAchievement?.leftFeedback === 1
-                    ? "text-purple-600 fill-purple-200"
-                    : "text-purple-400"
+                    ? "text-papel"
+                    : "text-cobalto"
                 }`}
               />
             </button>

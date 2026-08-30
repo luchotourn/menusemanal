@@ -3,788 +3,522 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Menu Semanal - Planifica las comidas de tu familia</title>
-  <meta name="description" content="Organiza las comidas de tu familia con inteligencia artificial. Recetas, calendario semanal y participacion de toda la familia." />
-  <meta name="theme-color" content="#FF6B35" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  <meta property="og:title" content="Menu Semanal - Planifica las comidas de tu familia" />
-  <meta property="og:description" content="Organiza las comidas semanales con IA. Recetas, planificacion y feedback familiar." />
+  <title>Menú Semanal — Chau al «¿qué comemos hoy?»</title>
+  <meta name="description" content="Organizá las comidas de la semana con Francis, la IA de las familias modernas. Recetario, calendario semanal y la opinión de los chicos, todo en un solo lugar." />
+  <meta name="theme-color" content="#1F4FA3" />
+  <link rel="icon" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta property="og:title" content="Menú Semanal — Chau al «¿qué comemos hoy?»" />
+  <meta property="og:description" content="Organizá las comidas de la semana con Francis, la IA de las familias modernas." />
   <meta property="og:type" content="website" />
+  <meta property="og:image" content="/brand/og.png" />
+  <meta property="og:locale" content="es_AR" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Menú Semanal — Chau al «¿qué comemos hoy?»" />
+  <meta name="twitter:description" content="Organizá las comidas de la semana con Francis, la IA de las familias modernas." />
+  <meta name="twitter:image" content="/brand/og.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@700&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    /* ── Tokens (paleta B "Tricolor + tinta") ─────────────────── */
     :root {
-      /* Aligned with the app's Family AI tokens (client/src/index.css) */
-      --orange: #FF6B35;         /* brasa — brand + CTA */
-      --orange-light: #FFBE73;   /* durazno — AI accents */
-      --orange-dark: #E05A28;
-      --text: #211D16;           /* tinta */
-      --text-muted: #5a5347;
-      --bg: #F4EFE4;             /* crema */
-      --bg-warm: #FFF6E8;        /* durazno suave */
-      --card: #FFFCF5;           /* papel */
-      --border: rgba(33, 29, 22, 0.12);
-      --green: #4ECDC4;
-      --green-bg: #e8f8f6;
-      --yellow: #f0c040;
-      --yellow-bg: #fef8e6;
-      --purple: #7c6fac;
-      --purple-bg: #f0eef7;
-      --radius: 16px;
+      --crema: #F7F2EC;         /* fondo de página */
+      --papel: #FFFDF9;         /* tarjetas */
+      --tinta: #12366C;         /* texto */
+      --cobalto: #1F4FA3;       /* titulares, links, bordes, interactivo */
+      --tomate: #E33A2C;        /* CTA primario (relleno) */
+      --tomate-texto: #C93122;  /* texto rojo pequeño */
+      --maiz: #F7C948;          /* estrellas, números de paso */
+      --cielo: #E4ECF9;         /* burbujas de pregunta */
+      --maiz-suave: #FDF3D0;
+      --tomate-suave: #FBE7E4;
+      --gris: #5A6B85;          /* texto secundario */
+      --borde: rgba(31, 79, 163, 0.25);
+      --borde-fuerte: rgba(31, 79, 163, 0.45);
+      --sombra: 0 18px 50px rgba(18, 54, 108, 0.16);
+      --fd: "Jost", "Futura", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+      --fb: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --fh: "Caveat", "Bradley Hand", "Segoe Print", cursive;
     }
 
-    html { scroll-behavior: smooth; }
-
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 88px; -webkit-text-size-adjust: 100%; }
     body {
-      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.65;
+      margin: 0;
+      background: var(--crema);
+      color: var(--tinta);
+      font-family: var(--fb);
+      font-size: 15px;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
+    h1, h2, h3, p, ul { margin: 0; }
+    img, svg { display: block; max-width: 100%; }
+    a { color: var(--cobalto); }
+    button { font: inherit; color: inherit; }
+    :focus-visible { outline: 3px solid var(--tomate); outline-offset: 3px; border-radius: 4px; }
+    .skip {
+      position: absolute; left: 16px; top: -60px; z-index: 100;
+      background: var(--papel); color: var(--cobalto); font-weight: 700;
+      padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--cobalto); text-decoration: none;
+    }
+    .skip:focus { top: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-    /* ── NAV ────────────────────────────────── */
-    nav {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
+    /* ── Primitivas de marca ─────────────────────────────────── */
+    .stripes { background: repeating-linear-gradient(90deg, #1F4FA3 0 26px, #F7F2EC 26px 52px); }
+    .gingham {
+      background-color: #F7F2EC;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(227, 58, 44, 0.14) 0 3px, transparent 3px 36px),
+        repeating-linear-gradient(90deg, rgba(227, 58, 44, 0.14) 0 3px, transparent 3px 36px);
     }
-    .nav-inner {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 0.9rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .wave {
+      height: 12px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='12' viewBox='0 0 40 12'%3E%3Cpath d='M0 6 Q10 -2 20 6 T40 6' fill='none' stroke='%231F4FA3' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x center;
     }
-    .logo {
-      font-size: 1.3rem;
-      font-weight: 800;
-      color: var(--orange);
-      text-decoration: none;
-      letter-spacing: -0.02em;
+    .wave.cream {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='12' viewBox='0 0 40 12'%3E%3Cpath d='M0 6 Q10 -2 20 6 T40 6' fill='none' stroke='%23F7F2EC' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
     }
-    .nav-links { display: flex; align-items: center; gap: 0.5rem; }
-    .nav-link {
-      display: inline-block;
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 500;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      transition: all 0.15s;
+    .wave.short { width: 64px; margin: 0 auto; }
+    .heart {
+      display: inline-block; width: 14px; height: 14px; vertical-align: -1px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z' fill='%23E33A2C'/%3E%3C/svg%3E") center/contain no-repeat;
     }
-    .nav-link--ghost { color: var(--text); }
-    .nav-link--ghost:hover { background: rgba(0,0,0,0.04); }
-    .nav-link--primary {
-      background: var(--orange);
-      color: #fff;
-    }
-    .nav-link--primary:hover { background: var(--orange-dark); }
+    .display { font-family: var(--fd); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
 
-    /* ── HERO ───────────────────────────────── */
-    .hero {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 5rem 1.5rem 3rem;
-      text-align: center;
+    .btn {
+      white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border-radius: 999px; font-weight: 700; font-size: 14.5px; padding: 12px 22px; line-height: 1;
+      border: 1.5px solid transparent; text-decoration: none; cursor: pointer;
+      transition: background-color 0.15s, color 0.15s, transform 0.15s;
     }
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      background: var(--bg-warm);
-      color: var(--orange);
-      font-size: 0.85rem;
-      font-weight: 600;
-      padding: 0.4rem 1rem;
-      border-radius: 999px;
-      margin-bottom: 1.5rem;
+    .btn.red { background: var(--tomate); color: #fff; }
+    .btn.red:hover { background: var(--tomate-texto); }
+    .btn.ghost { background: transparent; color: var(--cobalto); border-color: var(--cobalto); }
+    .btn.ghost:hover { background: var(--cielo); }
+    .btn.link { background: transparent; color: var(--cobalto); padding: 12px 4px; text-decoration: underline; text-underline-offset: 3px; }
+    .btn.link:hover { color: var(--tinta); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    input[type="email"] {
+      font: inherit; font-size: 14.5px; color: var(--tinta);
+      height: 48px; width: 260px; max-width: 100%; border-radius: 999px;
+      border: 1.5px solid var(--borde-fuerte); background: var(--papel); padding: 0 18px; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
+    input[type="email"]::placeholder { color: var(--gris); }
+    input[type="email"]:focus { border-color: var(--cobalto); box-shadow: 0 0 0 3px var(--cielo); }
+    .form-msg { font-size: 13.5px; font-weight: 600; min-height: 1.4em; margin-top: 8px; }
+    .form-msg.success { color: var(--cobalto); }
+    .form-msg.error { color: var(--tomate-texto); }
+
+    .in { max-width: 1120px; margin: 0 auto; padding: 0 40px; }
+
+    /* ── Toldo + nav ─────────────────────────────────────────── */
+    .valance { height: 40px; }
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(247, 242, 236, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--borde);
+    }
+    .nav { display: flex; align-items: center; gap: 26px; height: 72px; }
+    .wm {
+      font-family: var(--fd); font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; font-size: 14px;
+      color: var(--cobalto); display: flex; align-items: center; gap: 10px; text-decoration: none; white-space: nowrap;
+    }
+    .wm img { width: 34px; height: 34px; }
+    .nav .links { display: flex; gap: 22px; margin-left: auto; font-weight: 600; font-size: 14px; }
+    .nav .links a { color: var(--tinta); text-decoration: none; padding: 6px 2px; }
+    .nav .links a:hover { color: var(--cobalto); text-decoration: underline; text-underline-offset: 4px; }
+    .nav .cta { display: flex; gap: 10px; }
+    .nav .cta .btn { padding: 10px 18px; font-size: 13.5px; }
+
+    /* ── Hero ────────────────────────────────────────────────── */
+    .hero { padding: 48px 0 70px; background: var(--crema); }
+    .hero .in { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 40px; align-items: center; }
     .hero h1 {
-      font-size: clamp(2rem, 5.5vw, 3.2rem);
-      font-weight: 800;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-      margin-bottom: 1.25rem;
+      font-family: var(--fd); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      font-size: 42px; line-height: 1.06; color: var(--cobalto); text-wrap: balance;
     }
-    .hero h1 em {
-      font-style: normal;
-      color: var(--orange);
+    .hero .p { font-size: 17.5px; margin-top: 20px; max-width: 54ch; color: var(--tinta); }
+    .hero .ctas { margin-top: 28px; }
+    .hero .ctas .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .hero .ctas .btn.link { margin-top: 6px; display: inline-flex; }
+    .hero .art { position: relative; min-height: 520px; }
+    .hero .art picture, .hero .art img.francis { position: absolute; right: 0; top: 0; width: 370px; height: auto; }
+    .weekcard {
+      position: absolute; left: 0; bottom: 84px; width: 250px;
+      background: var(--papel); border: 1.5px solid var(--borde); border-radius: 16px; padding: 14px; box-shadow: var(--sombra);
     }
-    .hero p {
-      font-size: 1.15rem;
-      color: var(--text-muted);
-      max-width: 520px;
-      margin: 0 auto 2.5rem;
+    .weekcard .t {
+      font-family: var(--fd); font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; font-size: 11px;
+      color: var(--cobalto); display: flex; justify-content: space-between; gap: 8px;
     }
-    .hero-cta {
-      max-width: 440px;
-      margin: 0 auto 1rem;
+    .weekcard .t span { font-family: var(--fb); letter-spacing: 0; color: var(--gris); text-transform: none; font-weight: 600; }
+    .weekcard ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+    .weekcard li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12.5px; white-space: nowrap; }
+    .weekcard li .nm { overflow: hidden; text-overflow: ellipsis; }
+    .weekcard li b { font-family: var(--fd); font-weight: 600; font-size: 11px; letter-spacing: 0.08em; color: var(--gris); }
+    .weekcard li .hoy { font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 999px; background: var(--tomate); color: #fff; }
+    .st { color: var(--maiz); -webkit-text-stroke: 0.6px var(--cobalto); font-size: 11px; letter-spacing: 0.5px; }
+    .bubble {
+      position: absolute; left: 0; bottom: 0; max-width: 250px;
+      background: var(--papel); border: 1.5px solid var(--tomate); border-radius: 16px 16px 16px 4px; padding: 8px 12px;
+      font-family: var(--fh); font-size: 19px; color: var(--tomate-texto); line-height: 1.1; box-shadow: 0 10px 30px rgba(18, 54, 108, 0.12);
     }
-    .hero-login {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-    .hero-login a {
-      color: var(--orange);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .hero-login a:hover { text-decoration: underline; }
+    .bubble small { display: block; font-family: var(--fb); font-size: 11px; color: var(--gris); margin-top: 2px; }
 
-    /* ── PHONE MOCKUP ──────────────────────── */
-    .mockup-section {
-      max-width: 1080px;
-      margin: 0 auto 4rem;
-      padding: 0 1.5rem;
-      display: flex;
-      justify-content: center;
-      gap: 2rem;
-      flex-wrap: wrap;
-    }
-    .phone-frame {
-      width: 260px;
-      height: 520px;
-      background: #111;
-      border-radius: 36px;
-      padding: 12px;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1) inset;
-      flex-shrink: 0;
-    }
-    .phone-screen {
-      width: 100%;
-      height: 100%;
-      background: var(--card);
-      border-radius: 26px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .phone-statusbar {
-      height: 36px;
-      background: var(--orange);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-    .phone-content {
-      flex: 1;
-      padding: 0.75rem;
-      overflow: hidden;
-    }
-    .phone-content h3 {
-      font-size: 0.8rem;
-      color: var(--text);
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-    .mock-day {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .mock-day-label {
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      width: 28px;
-      flex-shrink: 0;
-    }
-    .mock-meal {
-      font-size: 0.6rem;
-      background: var(--bg-warm);
-      color: var(--orange-dark);
-      padding: 0.2rem 0.45rem;
-      border-radius: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .mock-meal--green { background: var(--green-bg); color: #2a9d8f; }
-    .phone-nav {
-      height: 40px;
-      border-top: 1px solid #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      font-size: 0.55rem;
-      color: var(--text-muted);
-    }
-    .phone-nav span.active { color: var(--orange); font-weight: 700; }
+    /* ── Secciones ───────────────────────────────────────────── */
+    section { padding: 72px 0; }
+    .sh { display: grid; gap: 12px; max-width: 640px; margin-bottom: 36px; }
+    .eb { font-family: var(--fd); font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; font-size: 12px; color: var(--tomate-texto); }
+    .sh h2 { font-family: var(--fd); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 30px; line-height: 1.15; color: var(--cobalto); text-wrap: balance; }
+    .sh p { font-size: 16.5px; color: var(--tinta); }
 
-    /* ── AI SECTION ─────────────────────────── */
-    .ai-section {
-      background: linear-gradient(135deg, #211D16 0%, #2C2519 100%);
-      color: #F2EADB;
-      padding: 5rem 1.5rem;
-      text-align: center;
+    /* Francis — subtle tablecloth: hairline gingham, large cells, faded at both edges
+       so the section blends into the cream above and below instead of cutting it */
+    .s-francis { position: relative; background: var(--crema); }
+    .s-francis::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(227, 58, 44, 0.09) 0 1.5px, transparent 1.5px 48px),
+        repeating-linear-gradient(90deg, rgba(227, 58, 44, 0.09) 0 1.5px, transparent 1.5px 48px);
+      -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+      mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
     }
-    .ai-section .section-inner {
-      max-width: 680px;
-      margin: 0 auto;
-    }
-    .ai-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      background: rgba(255,190,115,0.14);
-      color: var(--orange-light);
-      font-size: 0.85rem;
-      font-weight: 600;
-      padding: 0.4rem 1rem;
-      border-radius: 999px;
-      margin-bottom: 1.5rem;
-    }
-    .ai-section h2 {
-      font-size: clamp(1.5rem, 4vw, 2.2rem);
-      font-weight: 800;
-      margin-bottom: 1rem;
-      letter-spacing: -0.02em;
-    }
-    .ai-section p {
-      font-size: 1.05rem;
-      color: rgba(255,255,255,0.7);
-      max-width: 520px;
-      margin: 0 auto 2.5rem;
-    }
-    .ai-features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1.25rem;
-      text-align: left;
-    }
-    .ai-card {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 1.25rem;
-    }
-    .ai-card-icon {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .ai-card h4 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      margin-bottom: 0.3rem;
-    }
-    .ai-card p {
-      font-size: 0.8rem;
-      color: rgba(242,234,219,0.6);
-      margin: 0;
-    }
-    /* Command → artifact demo cards: you ask, Francis shows the result */
-    .ai-cmd {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: #F2EADB;
-      margin-bottom: 0.5rem;
-    }
-    .ai-cmd .spark { color: var(--orange-light); margin-right: 0.35rem; }
-    .ai-result {
-      font-size: 0.8rem;
-      color: rgba(242,234,219,0.65);
-      margin: 0;
-    }
-    .ai-result .ok { color: #6FD6CB; font-weight: 700; margin-right: 0.35rem; }
+    .s-francis .in { position: relative; }
+    .chat { display: grid; gap: 14px; max-width: 760px; }
+    .ex { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .msg { border-radius: 16px; padding: 12px 16px; font-size: 14.5px; line-height: 1.45; }
+    .msg.q { background: var(--cielo); color: var(--tinta); border-radius: 16px 16px 4px 16px; }
+    .msg.a { background: var(--papel); border: 1.5px solid var(--borde); border-radius: 16px 16px 16px 4px; display: flex; gap: 10px; align-items: flex-start; }
+    .msg.a img { width: 26px; height: 26px; flex: none; margin-top: 1px; }
 
-    /* ── FEATURES ───────────────────────────── */
-    .features {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 5rem 1.5rem;
+    /* Funciones */
+    .feats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .feat { background: var(--papel); border: 1.5px solid rgba(31, 79, 163, 0.22); border-radius: 18px; padding: 22px 20px; display: grid; gap: 10px; align-content: start; }
+    .feat svg { width: 34px; height: 34px; stroke: var(--cobalto); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .feat h3 { font-family: var(--fd); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 14px; color: var(--cobalto); }
+    .feat p { font-size: 14px; color: var(--tinta); }
+
+    /* Cómo empieza (banda cobalto) */
+    .s-steps { background: var(--cobalto); color: var(--crema); }
+    .s-steps .sh h2, .s-steps .sh p, .s-steps .step p, .s-steps .step h3 { color: var(--crema); }
+    .s-steps .eb { color: var(--maiz); }
+    .s-steps :focus-visible { outline-color: var(--maiz); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; list-style: none; margin: 0; padding: 0; }
+    .step { display: grid; gap: 10px; align-content: start; }
+    .step .n { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-family: var(--fd); font-weight: 600; font-size: 18px; background: var(--maiz); color: var(--tinta); }
+    .step h3 { font-family: var(--fd); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 15px; }
+    .step p { font-size: 14.5px; }
+
+    /* Preguntas (acordeón) */
+    .faq { max-width: 760px; border-top: 1.5px solid var(--borde); }
+    .q { border-bottom: 1.5px solid var(--borde); }
+    .q h3 { font-size: inherit; font-weight: inherit; }
+    .qt {
+      width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      background: none; border: 0; padding: 16px 0; cursor: pointer; text-align: left;
+      font-weight: 700; font-size: 16px; color: var(--tinta); line-height: 1.35;
     }
-    .features h2 {
-      font-size: clamp(1.5rem, 4vw, 2.2rem);
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 0.75rem;
-      letter-spacing: -0.02em;
+    .qt:hover { color: var(--cobalto); }
+    .qt i {
+      flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--cobalto);
+      display: grid; place-items: center; color: var(--cobalto); font-style: normal; font-size: 15px; line-height: 1;
     }
-    .features > p {
-      text-align: center;
-      color: var(--text-muted);
-      max-width: 480px;
-      margin: 0 auto 3rem;
+    .qt i::before { content: "+"; }
+    .qt[aria-expanded="true"] i::before { content: "–"; }
+    .qa { padding: 0 0 18px; }
+    .qa p { font-size: 14.5px; color: var(--tinta); max-width: 62ch; }
+    .qa[hidden] { display: none; }
+
+    /* CTA lista de espera */
+    .ctabox {
+      background: var(--papel); border: 1.5px solid var(--borde); border-radius: 24px; padding: 44px 40px;
+      display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center;
     }
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-    }
-    .feature-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.75rem;
-      transition: box-shadow 0.2s;
-    }
-    .feature-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
-    .feature-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4rem;
-      margin-bottom: 1rem;
-    }
-    .feature-icon--orange { background: var(--bg-warm); }
-    .feature-icon--green { background: var(--green-bg); }
-    .feature-icon--yellow { background: var(--yellow-bg); }
-    .feature-icon--purple { background: var(--purple-bg); }
-    .feature-card h3 {
-      font-size: 1.05rem;
-      font-weight: 700;
-      margin-bottom: 0.4rem;
-    }
-    .feature-card p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
+    .ctabox h2 { font-family: var(--fd); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 28px; line-height: 1.15; color: var(--cobalto); text-wrap: balance; }
+    .ctabox p { margin-top: 8px; font-size: 15.5px; }
+    .ctabox .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .ctabox .invite { font-size: 13px; color: var(--gris); margin-top: 10px; }
+    .ctabox .invite a { color: var(--cobalto); font-weight: 600; }
+
+    /* Footer */
+    footer { background: var(--cobalto); color: var(--crema); padding: 40px 0 34px; }
+    footer .in { display: flex; justify-content: space-between; gap: 24px; align-items: center; flex-wrap: wrap; }
+    footer .wm { color: var(--crema); font-size: 13px; }
+    footer .wm img { width: 30px; height: 30px; }
+    footer .links { display: flex; gap: 18px; font-size: 13.5px; }
+    footer .links a { color: inherit; text-decoration: none; }
+    footer .links a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    footer p { font-size: 13.5px; opacity: 0.92; display: flex; align-items: center; gap: 6px; }
+    footer .wave { margin-top: 28px; opacity: 0.8; }
+    footer :focus-visible { outline-color: var(--maiz); }
+
+    /* ── Tablet ──────────────────────────────────────────────── */
+    @media (max-width: 1000px) {
+      .in { padding: 0 28px; }
+      .nav { gap: 18px; }
+      .nav .links { gap: 16px; }
+      .nav .cta .btn.ghost { display: none; }
+      .hero .in { grid-template-columns: 1fr; gap: 30px; }
+      .hero .art { min-height: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 20px 28px; padding-top: 0; }
+      .hero .art picture, .hero .art img.francis { position: static; width: 300px; }
+      .weekcard { position: static; width: 260px; }
+      .bubble { position: static; transform: none; align-self: flex-start; }
+      .feats { grid-template-columns: 1fr 1fr; }
     }
 
-    /* ── HOW IT WORKS ──────────────────────── */
-    .how {
-      background: var(--bg-warm);
-      padding: 5rem 1.5rem;
+    /* ── Móvil ───────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      html { scroll-padding-top: 76px; }
+      .in { padding: 0 20px; }
+      .valance { height: 28px; }
+      .nav { height: 62px; gap: 12px; }
+      .nav .links { display: none; }
+      .nav .cta .btn.ghost { display: none; }
+      .wm { font-size: 12px; gap: 8px; }
+      .wm img { width: 30px; height: 30px; }
+      .nav .cta { margin-left: auto; }
+      .nav .cta .btn { padding: 9px 14px; font-size: 12.5px; }
+      .hero { padding: 26px 0 40px; }
+      .hero .in { gap: 26px; }
+      .hero h1 { font-size: 29px; letter-spacing: 0.04em; }
+      .hero .p { font-size: 15.5px; }
+      .hero .ctas .row { flex-direction: column; align-items: stretch; }
+      .hero .ctas .row input[type="email"], .hero .ctas .row .btn { width: 100%; }
+      .hero .art { display: grid; justify-items: center; gap: 14px; padding-top: 0; }
+      .hero .art picture, .hero .art img.francis { position: static; width: 230px; }
+      .weekcard { position: static; width: 100%; }
+      .bubble { position: static; transform: none; justify-self: end; border-radius: 16px 16px 4px 16px; }
+      section { padding: 44px 0; }
+      .sh { margin-bottom: 26px; }
+      .sh h2 { font-size: 22px; }
+      .ex { grid-template-columns: 1fr; }
+      .feats { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .feat { padding: 16px 14px; }
+      .steps { grid-template-columns: 1fr; gap: 18px; }
+      .ctabox { grid-template-columns: 1fr; padding: 26px 20px; }
+      .ctabox h2 { font-size: 22px; }
+      .ctabox .row { flex-direction: column; align-items: stretch; }
+      .ctabox .row input[type="email"], .ctabox .row .btn { width: 100%; }
+      footer .in { flex-direction: column; align-items: flex-start; }
     }
-    .how-inner {
-      max-width: 840px;
-      margin: 0 auto;
-    }
-    .how h2 {
-      font-size: clamp(1.5rem, 4vw, 2.2rem);
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 3rem;
-      letter-spacing: -0.02em;
-    }
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 2rem;
-    }
-    .step {
-      text-align: center;
-    }
-    .step-number {
-      width: 48px;
-      height: 48px;
-      background: var(--orange);
-      color: #fff;
-      font-size: 1.25rem;
-      font-weight: 800;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 1rem;
-    }
-    .step h3 {
-      font-size: 1.05rem;
-      font-weight: 700;
-      margin-bottom: 0.4rem;
-    }
-    .step p {
-      font-size: 0.9rem;
-      color: var(--text-muted);
+    @media (max-width: 370px) {
+      .feats { grid-template-columns: 1fr; }
     }
 
-    /* ── FAQ ────────────────────────────────── */
-    .faq {
-      max-width: 680px;
-      margin: 0 auto;
-      padding: 5rem 1.5rem;
-    }
-    .faq h2 {
-      font-size: clamp(1.5rem, 4vw, 2.2rem);
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 2.5rem;
-      letter-spacing: -0.02em;
-    }
-    .faq-item {
-      border-bottom: 1px solid var(--border);
-      padding: 1.25rem 0;
-    }
-    .faq-q {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      width: 100%;
-      border: none;
-      background: none;
-      font: inherit;
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text);
-      text-align: left;
-      padding: 0;
-    }
-    .faq-q::after {
-      content: '+';
-      font-size: 1.3rem;
-      font-weight: 400;
-      color: var(--text-muted);
-      transition: transform 0.2s;
-      flex-shrink: 0;
-      margin-left: 1rem;
-    }
-    .faq-item.open .faq-q::after {
-      content: '-';
-    }
-    .faq-a {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease, padding 0.3s ease;
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      line-height: 1.7;
-    }
-    .faq-item.open .faq-a {
-      max-height: 300px;
-      padding-top: 0.75rem;
-    }
-
-    /* ── BOTTOM CTA ────────────────────────── */
-    .bottom-cta {
-      background: var(--orange);
-      color: #fff;
-      padding: 5rem 1.5rem;
-      text-align: center;
-    }
-    .bottom-cta h2 {
-      font-size: clamp(1.5rem, 4vw, 2.2rem);
-      font-weight: 800;
-      margin-bottom: 0.75rem;
-      letter-spacing: -0.02em;
-    }
-    .bottom-cta p {
-      font-size: 1.05rem;
-      opacity: 0.9;
-      margin-bottom: 2rem;
-      max-width: 440px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .bottom-cta .form-row input[type="email"] {
-      border-color: rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.15);
-      color: #fff;
-    }
-    .bottom-cta .form-row input[type="email"]::placeholder { color: rgba(255,255,255,0.6); }
-    .bottom-cta .form-row input[type="email"]:focus { border-color: #fff; background: rgba(255,255,255,0.2); }
-    .bottom-cta .btn-submit {
-      background: #fff;
-      color: var(--orange);
-    }
-    .bottom-cta .btn-submit:hover {
-      background: rgba(255,255,255,0.9);
-    }
-
-    /* ── FORM ──────────────────────────────── */
-    .form-row {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .form-row input[type="email"] {
-      flex: 1;
-      min-width: 0;
-      padding: 0.75rem 1rem;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color 0.15s;
-      background: var(--card);
-      color: var(--text);
-    }
-    .form-row input[type="email"]:focus { border-color: var(--orange); }
-    .btn-submit {
-      padding: 0.75rem 1.5rem;
-      background: var(--orange);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      white-space: nowrap;
-    }
-    .btn-submit:hover { background: var(--orange-dark); }
-    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-    .form-msg {
-      margin-top: 0.5rem;
-      font-size: 0.85rem;
-      min-height: 1.3rem;
-      font-weight: 500;
-    }
-    .form-msg.success { color: #2d7a3a; }
-    .form-msg.error { color: #c0392b; }
-    .bottom-cta .form-msg.success { color: #c0ffc8; }
-    .bottom-cta .form-msg.error { color: #ffcccb; }
-
-    /* ── FOOTER ─────────────────────────────── */
-    footer {
-      text-align: center;
-      padding: 2.5rem 1.5rem;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-      border-top: 1px solid var(--border);
-    }
-    footer a { color: var(--orange); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-
-    /* ── RESPONSIVE ─────────────────────────── */
-    @media (max-width: 640px) {
-      .hero { padding: 3rem 1.25rem 2rem; }
-      .form-row { flex-direction: column; }
-      .form-row input, .btn-submit { width: 100%; }
-      .mockup-section { gap: 1.25rem; }
-      .phone-frame { width: 220px; height: 440px; }
-      .phone-frame:nth-child(2) { display: none; }
-      .feature-grid { grid-template-columns: 1fr; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
     }
   </style>
 </head>
 <body>
+  <a class="skip" href="#contenido">Saltar al contenido</a>
 
-  <!-- NAV -->
-  <nav>
-    <div class="nav-inner">
-      <a href="/" class="logo">Menu Semanal</a>
-      <div class="nav-links">
-        <a href="/login" class="nav-link nav-link--primary">Iniciar sesion</a>
+  <div class="valance stripes" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <nav class="in nav" aria-label="Principal">
+      <a href="/" class="wm"><img src="/icon-192.png" alt="" width="34" height="34" />Menú Semanal</a>
+      <div class="links">
+        <a href="#francis">Francis</a>
+        <a href="#funciones">Funciones</a>
+        <a href="#como-empieza">Empezar</a>
+        <a href="#preguntas">Preguntas</a>
+      </div>
+      <div class="cta">
+        <a href="/login" class="btn ghost">Iniciar sesión</a>
+        <a href="#acceso" class="btn red">Quiero acceso</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="contenido">
+    <!-- HERO -->
+    <div class="hero">
+      <div class="in">
+        <div>
+          <h1>Chau al «¿qué comemos hoy?»</h1>
+          <p class="p">Organizá las comidas de la semana con Francis, la IA de las familias modernas.</p>
+          <div class="ctas">
+            <form class="waitlist-form" data-source="hero">
+              <div class="row">
+                <label for="email-hero" class="sr-only">Tu email</label>
+                <input id="email-hero" type="email" placeholder="tu@email.com" required autocomplete="email" />
+                <button type="submit" class="btn red btn-submit">Quiero acceso</button>
+              </div>
+              <div class="form-msg" role="status" aria-live="polite"></div>
+            </form>
+            <a href="/login" class="btn link">¿Ya tenés cuenta? Iniciá sesión</a>
+          </div>
+        </div>
+        <div class="art">
+          <picture>
+            <source srcset="/brand/francis.webp" type="image/webp" />
+            <img class="francis" src="/brand/francis.png" alt="Francis, el chef de Menú Semanal" width="370" height="346" />
+          </picture>
+          <div class="weekcard" aria-label="Ejemplo de semana planificada">
+            <div class="t">Semana 35 <span>24 – 30 ago</span></div>
+            <ul>
+              <li><b>LUN</b><span class="nm">Milanesas al horno</span><span class="st" aria-label="5 estrellas">★★★★★</span></li>
+              <li><b>MAR</b><span class="nm">Pasta con salsa, liviano</span><span class="st" aria-label="4 estrellas">★★★★☆</span></li>
+              <li><b>MIÉ</b><span class="nm">Pollo al limón</span><span class="st" aria-label="3 estrellas">★★★☆☆</span></li>
+              <li><b>JUE</b><span class="nm">Tarta de verdura</span><span class="hoy">HOY</span></li>
+              <li><b>VIE</b><span class="nm">Milanesas, viene la abuela</span><span class="st" aria-label="5 estrellas">★★★★★</span></li>
+            </ul>
+          </div>
+          <div class="bubble">"¡La pizza casera es mi favorita!"<small>Tomi · <span aria-label="5 estrellas">★★★★★</span></small></div>
+        </div>
       </div>
     </div>
-  </nav>
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-badge">
-      <span aria-hidden="true">&#10022;</span>
-      Family AI
-    </div>
-    <h1>La IA que conoce a tu familia <em>y te devuelve la semana</em></h1>
-    <p>No es un recetario con un boton: Francis, el chef planificador de Menu Semanal, aprende de las estrellas de tus hijos, respeta tus reglas y arma el menu de la semana en un minuto. Vos solo aprobas.</p>
-    <div class="hero-cta">
-      <form class="waitlist-form" data-source="hero">
-        <div class="form-row">
-          <input type="email" placeholder="tu@email.com" required autocomplete="email" />
-          <button type="submit" class="btn-submit">Quiero acceso</button>
+    <!-- FRANCIS -->
+    <section class="s-francis" id="francis">
+      <div class="in">
+        <div class="sh">
+          <p class="eb">Francis</p>
+          <h2>El chef que planifica por vos</h2>
+          <p>Le pedís lo que tu familia necesita y Francis arma el menú con tus propias recetas: mira las estrellas de los chicos, lo que comieron las últimas semanas y tus instrucciones al pie de la letra.</p>
         </div>
-        <div class="form-msg"></div>
-      </form>
-    </div>
-    <p class="hero-login">Ya tienes cuenta? <a href="/login">Inicia sesion</a></p>
-  </section>
-
-  <!-- PHONE MOCKUPS -->
-  <section class="mockup-section">
-    <div class="phone-frame">
-      <div class="phone-screen">
-        <div class="phone-statusbar">Menu Semanal</div>
-        <div class="phone-content">
-          <h3>Semana 10 - Marzo 2026</h3>
-          <div class="mock-day"><span class="mock-day-label">LUN</span><span class="mock-meal">Milanesas al horno</span><span class="mock-meal mock-meal--green">Ensalada cesar</span></div>
-          <div class="mock-day"><span class="mock-day-label">MAR</span><span class="mock-meal">Pasta con salsa</span><span class="mock-meal mock-meal--green">Sopa crema</span></div>
-          <div class="mock-day"><span class="mock-day-label">MIE</span><span class="mock-meal">Pollo al limon</span><span class="mock-meal mock-meal--green">Pure de papas</span></div>
-          <div class="mock-day"><span class="mock-day-label">JUE</span><span class="mock-meal">Tacos de carne</span><span class="mock-meal mock-meal--green">Guacamole</span></div>
-          <div class="mock-day"><span class="mock-day-label">VIE</span><span class="mock-meal">Pizza casera</span><span class="mock-meal mock-meal--green">Ensalada mixta</span></div>
-          <div class="mock-day"><span class="mock-day-label">S/D</span><span class="mock-meal">Asado familiar</span><span class="mock-meal mock-meal--green">Verduras grilladas</span></div>
-        </div>
-        <div class="phone-nav">
-          <span class="active">Semana</span>
-          <span>Comidas</span>
-          <span>Favoritas</span>
-          <span>Ajustes</span>
+        <div class="chat">
+          <div class="ex">
+            <div class="msg q">Planeá la semana, martes liviano</div>
+            <div class="msg a"><img src="/icon-192.png" alt="" width="26" height="26" /><span>10 comidas propuestas de tu recetario, con el martes liviano cumplido.</span></div>
+          </div>
+          <div class="ex">
+            <div class="msg q">Otra idea para la cena del jueves</div>
+            <div class="msg a"><img src="/icon-192.png" alt="" width="26" height="26" /><span>Tarta de verdura: no la comen hace un mes y a los chicos les encanta.</span></div>
+          </div>
+          <div class="ex">
+            <div class="msg q">Milanesas el viernes, viene la abuela</div>
+            <div class="msg a"><img src="/icon-192.png" alt="" width="26" height="26" /><span>Viernes: milanesas con puré. Tus instrucciones son ley.</span></div>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="phone-frame">
-      <div class="phone-screen">
-        <div class="phone-statusbar" style="background: var(--purple);">Opiniones</div>
-        <div class="phone-content">
-          <h3>Que dicen los chicos</h3>
-          <div style="background:#fef8e6;border-radius:10px;padding:0.6rem;margin-bottom:0.5rem;">
-            <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem;">
-              <span style="font-size:0.65rem;font-weight:700;">Sofi</span>
-              <span style="font-size:0.6rem;color:var(--yellow);">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+    </section>
+
+    <!-- FUNCIONES -->
+    <section class="s-feats" id="funciones">
+      <div class="in">
+        <div class="sh">
+          <p class="eb">Funciones</p>
+          <h2>Todo lo que tu familia necesita</h2>
+          <p>Desde la planificación hasta el feedback de los chicos, todo en un solo lugar.</p>
+        </div>
+        <div class="feats">
+          <div class="feat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+            <h3>Calendario semanal</h3>
+            <p>Almuerzo y cena de cada día. Navegá entre semanas y organizá todo de un vistazo.</p>
+          </div>
+          <div class="feat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M4 17a3 3 0 0 1 3-3h12M8 8h7"/></svg>
+            <h3>Recetario familiar</h3>
+            <p>Guardá tus recetas con ingredientes, instrucciones, fotos y tiempo de preparación.</p>
+          </div>
+          <div class="feat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>
+            <h3>Opiniones de los chicos</h3>
+            <p>Los chicos califican con estrellas, dejan comentarios y ganan logros por probar cosas nuevas.</p>
+          </div>
+          <div class="feat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M14.5 19.5a5 5 0 0 1 7-4"/></svg>
+            <h3>Sistema familiar</h3>
+            <p>Creá tu familia, invitá miembros con un código y compartan recetas y planes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CÓMO EMPIEZA -->
+    <section class="s-steps" id="como-empieza">
+      <div class="in">
+        <div class="sh">
+          <h2>Empezar es muy simple</h2>
+        </div>
+        <ol class="steps">
+          <li class="step"><span class="n" aria-hidden="true">1</span><h3>Creá tu cuenta</h3><p>Registrate en menos de un minuto con tu email. Es gratis.</p></li>
+          <li class="step"><span class="n" aria-hidden="true">2</span><h3>Agregá tus recetas</h3><p>Cargá tus recetas favoritas o buscá inspiración con las que ya tenemos.</p></li>
+          <li class="step"><span class="n" aria-hidden="true">3</span><h3>Planificá la semana</h3><p>Pedile a Francis que organice las comidas, aprobalas y listo. Tu familia ya sabe qué se come.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- PREGUNTAS -->
+    <section class="s-faq" id="preguntas">
+      <div class="in">
+        <div class="sh">
+          <p class="eb">Preguntas frecuentes</p>
+          <h2>Lo que nos preguntan las familias</h2>
+        </div>
+        <div class="faq">
+          <div class="q">
+            <h3><button class="qt" type="button" id="faq-q1" aria-expanded="true" aria-controls="faq-a1">¿Es gratis?<i aria-hidden="true"></i></button></h3>
+            <div class="qa" id="faq-a1" role="region" aria-labelledby="faq-q1"><p>Sí, Menú Semanal es completamente gratis. Estamos en etapa temprana y queremos que la mayor cantidad de familias lo prueben y nos den feedback para mejorar.</p></div>
+          </div>
+          <div class="q">
+            <h3><button class="qt" type="button" id="faq-q2" aria-expanded="false" aria-controls="faq-a2">¿Funciona como app en el celular?<i aria-hidden="true"></i></button></h3>
+            <div class="qa" id="faq-a2" role="region" aria-labelledby="faq-q2" hidden><p>Sí. Menú Semanal es una Progressive Web App (PWA). Podés agregarla a la pantalla de inicio de tu celular y usarla como si fuera una app nativa, sin descargar nada de la tienda.</p></div>
+          </div>
+          <div class="q">
+            <h3><button class="qt" type="button" id="faq-q3" aria-expanded="false" aria-controls="faq-a3">¿Qué rol pueden tener los chicos?<i aria-hidden="true"></i></button></h3>
+            <div class="qa" id="faq-a3" role="region" aria-labelledby="faq-q3" hidden><p>Los chicos se unen como "comentadores". Pueden ver las comidas planeadas, dejar calificaciones con estrellas, escribir comentarios y ganar logros. No pueden crear ni modificar recetas ni planes.</p></div>
+          </div>
+          <div class="q">
+            <h3><button class="qt" type="button" id="faq-q4" aria-expanded="false" aria-controls="faq-a4">¿Cómo funciona la inteligencia artificial?<i aria-hidden="true"></i></button></h3>
+            <div class="qa" id="faq-a4" role="region" aria-labelledby="faq-q4" hidden><p>Menú Semanal tiene a Francis, un chef planificador con inteligencia artificial. Elige entre tus propias recetas mirando las calificaciones de tu familia y lo que comieron las últimas semanas, y respeta tus instrucciones al pie de la letra ("martes liviano", "sin pastas"). Nunca inventa platos: cocina con tu recetario.</p></div>
+          </div>
+          <div class="q">
+            <h3><button class="qt" type="button" id="faq-q5" aria-expanded="false" aria-controls="faq-a5">¿En qué países está disponible?<i aria-hidden="true"></i></button></h3>
+            <div class="qa" id="faq-a5" role="region" aria-labelledby="faq-q5" hidden><p>Menú Semanal está disponible para toda Latinoamérica y cualquier familia de habla hispana. Solo necesitás un email para registrarte.</p></div>
+          </div>
+          <div class="q">
+            <h3><button class="qt" type="button" id="faq-q6" aria-expanded="false" aria-controls="faq-a6">¿Puedo invitar a mi familia?<i aria-hidden="true"></i></button></h3>
+            <div class="qa" id="faq-a6" role="region" aria-labelledby="faq-q6" hidden><p>Sí. Al crear una familia, se genera un código de invitación que podés compartir. Los demás miembros se unen con ese código y ya comparten recetas y planes de comida.</p></div>
+          </div>
+        </div>
+        <noscript><style>.qa[hidden] { display: block; } .qt i { display: none; }</style></noscript>
+      </div>
+    </section>
+
+    <!-- LISTA DE ESPERA -->
+    <section class="s-cta" id="acceso">
+      <div class="in">
+        <div class="ctabox">
+          <div>
+            <h2>¿Organizamos la semana?</h2>
+            <p>Unite a la lista de espera y te avisamos cuando abramos el acceso.</p>
+          </div>
+          <form class="waitlist-form" data-source="footer">
+            <div class="row">
+              <label for="email-footer" class="sr-only">Tu email</label>
+              <input id="email-footer" type="email" placeholder="tu@email.com" required autocomplete="email" />
+              <button type="submit" class="btn red btn-submit">Anotarme</button>
             </div>
-            <p style="font-size:0.6rem;color:var(--text-muted);margin:0;">Las milanesas estaban riquisimas!</p>
-          </div>
-          <div style="background:#f0eef7;border-radius:10px;padding:0.6rem;margin-bottom:0.5rem;">
-            <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem;">
-              <span style="font-size:0.65rem;font-weight:700;">Tomi</span>
-              <span style="font-size:0.6rem;color:var(--yellow);">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-            </div>
-            <p style="font-size:0.6rem;color:var(--text-muted);margin:0;">La pizza casera es mi favorita! Mas de esas</p>
-          </div>
-          <div style="background:var(--green-bg);border-radius:10px;padding:0.6rem;margin-bottom:0.5rem;">
-            <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.25rem;">
-              <span style="font-size:0.65rem;font-weight:700;">Mati</span>
-              <span style="font-size:0.6rem;color:var(--yellow);">&#9733;&#9733;&#9733;&#9734;&#9734;</span>
-            </div>
-            <p style="font-size:0.6rem;color:var(--text-muted);margin:0;">La sopa estaba bien pero prefiero la de tomate</p>
-          </div>
-          <div style="text-align:center;padding:0.5rem 0;">
-            <span style="font-size:0.6rem;color:var(--orange);font-weight:600;">3 estrellas ganadas esta semana</span>
-          </div>
-        </div>
-        <div class="phone-nav">
-          <span>Semana</span>
-          <span>Comidas</span>
-          <span class="active" style="color:var(--purple);">Opiniones</span>
-          <span>Ajustes</span>
+            <div class="form-msg" role="status" aria-live="polite"></div>
+            <p class="invite">¿Tenés un código de invitación? <a href="/register">Creá tu cuenta</a>.</p>
+          </form>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </main>
 
-  <!-- AI SECTION -->
-  <section class="ai-section">
-    <div class="section-inner">
-      <div class="ai-badge">
-        <span aria-hidden="true">&#x1F468;&#x200D;&#x1F373;</span>
-        Francis AI
-      </div>
-      <h2>Francis, el chef que planifica por vos</h2>
-      <p>Le pedis lo que tu familia necesita y Francis arma el menu con tus propias recetas: mira las estrellas de los chicos, lo que comieron las ultimas semanas y tus reglas. Nunca inventa platos — cocina con tu recetario.</p>
-      <div class="ai-features">
-        <div class="ai-card">
-          <p class="ai-cmd"><span class="spark">&#10022;</span>Planea la semana, martes liviano</p>
-          <p class="ai-result"><span class="ok">&#10003;</span>10 comidas propuestas de tu recetario, con el martes liviano cumplido</p>
-        </div>
-        <div class="ai-card">
-          <p class="ai-cmd"><span class="spark">&#10022;</span>Otra idea para la cena del jueves</p>
-          <p class="ai-result"><span class="ok">&#10003;</span>Tarta de verdura — no la comen hace un mes y a los chicos les encanta</p>
-        </div>
-        <div class="ai-card">
-          <p class="ai-cmd"><span class="spark">&#10022;</span>Milanesas el viernes, viene la abuela</p>
-          <p class="ai-result"><span class="ok">&#10003;</span>Viernes: milanesas con pure — tus instrucciones son ley</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURES -->
-  <section class="features">
-    <h2>Todo lo que tu familia necesita</h2>
-    <p>Desde la planificacion hasta el feedback de los chicos, todo en un solo lugar.</p>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <div class="feature-icon feature-icon--orange">&#x1F4C5;</div>
-        <h3>Calendario semanal</h3>
-        <p>Visualiza almuerzo y cena de cada dia. Navega entre semanas y organiza todo de un vistazo.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon feature-icon--green">&#x1F468;&#x200D;&#x1F373;</div>
-        <h3>Recetario familiar</h3>
-        <p>Guarda tus recetas con ingredientes, instrucciones, fotos y tiempo de preparacion.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon feature-icon--yellow">&#x2B50;</div>
-        <h3>Opiniones de los chicos</h3>
-        <p>Los ninos califican con estrellas, dejan comentarios y ganan logros por probar cosas nuevas.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon feature-icon--purple">&#x1F46A;</div>
-        <h3>Sistema familiar</h3>
-        <p>Crea tu familia, invita miembros con un codigo y compartan recetas y planes de comida.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOW IT WORKS -->
-  <section class="how">
-    <div class="how-inner">
-      <h2>Empezar es muy simple</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <h3>Crea tu cuenta</h3>
-          <p>Registrate en menos de un minuto con tu email. Es gratis.</p>
-        </div>
-        <div class="step">
-          <div class="step-number">2</div>
-          <h3>Agrega tus recetas</h3>
-          <p>Carga tus recetas favoritas o busca inspiracion con las que ya tenemos.</p>
-        </div>
-        <div class="step">
-          <div class="step-number">3</div>
-          <h3>Planifica la semana</h3>
-          <p>Asigna recetas a cada dia y listo. Tu familia ya sabe que se come.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section class="faq">
-    <h2>Preguntas frecuentes</h2>
-    <div class="faq-item">
-      <button class="faq-q">Es gratis?</button>
-      <div class="faq-a">Si, Menu Semanal es completamente gratis. Estamos en etapa temprana y queremos que la mayor cantidad de familias lo prueben y nos den feedback para mejorar.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q">Funciona como app en el celular?</button>
-      <div class="faq-a">Si. Menu Semanal es una Progressive Web App (PWA). Podes agregarla a la pantalla de inicio de tu celular y usarla como si fuera una app nativa, sin descargar nada de la tienda.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q">Que rol pueden tener los chicos?</button>
-      <div class="faq-a">Los chicos se unen como "comentadores". Pueden ver las comidas planeadas, dejar calificaciones con estrellas, escribir comentarios y ganar logros. No pueden crear ni modificar recetas ni planes.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q">Como funciona la inteligencia artificial?</button>
-      <div class="faq-a">Menu Semanal tiene a Francis, un chef planificador con inteligencia artificial. Elige entre tus propias recetas mirando las calificaciones de tu familia y lo que comieron las ultimas semanas, y respeta tus instrucciones al pie de la letra ("martes liviano", "sin pastas"). Nunca inventa platos: cocina con tu recetario.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q">En que paises esta disponible?</button>
-      <div class="faq-a">Menu Semanal esta disponible para toda Latinoamerica y cualquier familia de habla hispana. Solo necesitas un email para registrarte.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q">Puedo invitar a mi familia?</button>
-      <div class="faq-a">Si. Al crear una familia, se genera un codigo de invitacion que podes compartir. Los demas miembros se unen con ese codigo y ya comparten recetas y planes de comida.</div>
-    </div>
-  </section>
-
-  <!-- BOTTOM CTA -->
-  <section class="bottom-cta">
-    <h2>Lista para organizar las comidas?</h2>
-    <p>Unite a la lista de espera y te avisamos cuando abramos el acceso.</p>
-    <div style="max-width:440px;margin:0 auto;">
-      <form class="waitlist-form" data-source="footer">
-        <div class="form-row">
-          <input type="email" placeholder="tu@email.com" required autocomplete="email" />
-          <button type="submit" class="btn-submit">Anotarme</button>
-        </div>
-        <div class="form-msg"></div>
-      </form>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
   <footer>
-    <p style="margin-bottom:0.5rem;"><strong style="color:var(--orange);">Menu Semanal</strong></p>
-    <p>Hecho con amor para familias que comen bien.</p>
-    <p style="margin-top:0.75rem;">Ya tienes cuenta? <a href="/login">Inicia sesion</a></p>
+    <div class="in">
+      <a href="/" class="wm"><img src="/icon-192.png" alt="" width="30" height="30" />Menú Semanal</a>
+      <p><span class="heart" aria-hidden="true"></span>Hecho con amor para familias que comen bien.</p>
+      <div class="links">
+        <a href="/login">Iniciar sesión</a>
+        <a href="/privacidad">Privacidad</a>
+        <a href="/terminos">Términos</a>
+      </div>
+    </div>
+    <div class="wave cream" aria-hidden="true"></div>
   </footer>
 
   <script>
@@ -823,16 +557,16 @@
         .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
         .then(function(res) {
           if (res.ok || res.data.message) {
-            msg.textContent = res.data.message || 'Gracias! Te avisamos pronto.';
+            msg.textContent = res.data.message || '¡Gracias! Te avisamos pronto.';
             msg.className = 'form-msg success';
             input.value = '';
           } else {
-            msg.textContent = res.data.error || 'Algo salio mal. Intenta de nuevo.';
+            msg.textContent = res.data.error || 'Algo salió mal. Intentá de nuevo.';
             msg.className = 'form-msg error';
           }
         })
         .catch(function() {
-          msg.textContent = 'Error de conexion. Intenta de nuevo.';
+          msg.textContent = 'Error de conexión. Intentá de nuevo.';
           msg.className = 'form-msg error';
         })
         .finally(function() {
@@ -842,19 +576,24 @@
       });
     });
 
-    // FAQ accordion
-    document.querySelectorAll('.faq-q').forEach(function(q) {
+    // FAQ accordion (button + hidden panel)
+    var triggers = document.querySelectorAll('.qt');
+    triggers.forEach(function(q) {
       q.addEventListener('click', function() {
-        var item = q.parentElement;
-        var wasOpen = item.classList.contains('open');
-        // Close all
-        document.querySelectorAll('.faq-item').forEach(function(i) { i.classList.remove('open'); });
-        // Toggle clicked
-        if (!wasOpen) item.classList.add('open');
+        var wasOpen = q.getAttribute('aria-expanded') === 'true';
+        triggers.forEach(function(other) {
+          other.setAttribute('aria-expanded', 'false');
+          var panel = document.getElementById(other.getAttribute('aria-controls'));
+          if (panel) panel.hidden = true;
+        });
+        if (!wasOpen) {
+          q.setAttribute('aria-expanded', 'true');
+          var own = document.getElementById(q.getAttribute('aria-controls'));
+          if (own) own.hidden = false;
+        }
       });
     });
   })();
   </script>
-
 </body>
 </html>
