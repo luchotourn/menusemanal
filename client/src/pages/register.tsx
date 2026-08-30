@@ -14,6 +14,7 @@ import {
   authInputClass,
   authLabelClass,
   authPrimaryButtonClass,
+  LegalNotice,
 } from "@/components/auth-layout";
 
 import { PasswordStrength } from "@/components/password-strength";
@@ -59,7 +60,6 @@ export default function Register() {
   }, [password, confirmPassword, trigger]);
 
   const onSubmit = (data: RegisterFormData) => {
-    console.log("Form submitted for user:", data.email);
     registerUser(data);
   };
 
@@ -71,7 +71,7 @@ export default function Register() {
     <AuthLayout
       title="Creá tu cuenta"
       hint="Registrate en menos de un minuto. Es gratis."
-      footer="Al crear una cuenta aceptás los términos de servicio y la política de privacidad."
+      footer={<LegalNotice action="Al crear una cuenta" />}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {/* Full name */}
@@ -230,13 +230,13 @@ export default function Register() {
           />
           <Label htmlFor="acceptTerms" className="text-sm cursor-pointer leading-relaxed text-tinta font-medium">
             Acepto los{" "}
-            <Link href="#" className="font-bold text-cobalto hover:underline">
+            <a href="/terminos" className="font-bold text-cobalto hover:underline">
               términos y condiciones
-            </Link>{" "}
+            </a>{" "}
             y la{" "}
-            <Link href="#" className="font-bold text-cobalto hover:underline">
+            <a href="/privacidad" className="font-bold text-cobalto hover:underline">
               política de privacidad
-            </Link>
+            </a>
           </Label>
         </div>
         {errors.acceptTerms && (

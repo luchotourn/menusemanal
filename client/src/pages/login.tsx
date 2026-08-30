@@ -13,6 +13,7 @@ import {
   authInputClass,
   authLabelClass,
   authPrimaryButtonClass,
+  LegalNotice,
 } from "@/components/auth-layout";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -49,7 +50,7 @@ export default function Login() {
     <AuthLayout
       title="Hola de nuevo"
       hint="Ingresá para ver qué come tu familia esta semana."
-      footer="Al iniciar sesión aceptás los términos de servicio y la política de privacidad."
+      footer={<LegalNotice action="Al iniciar sesión" />}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {/* Email */}

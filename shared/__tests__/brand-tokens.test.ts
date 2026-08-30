@@ -151,3 +151,30 @@ describe("PWA manifest + icons", () => {
     expect(html).toContain("family=Jost");
   });
 });
+
+describe("PR review fixes", () => {
+  it("dark theme redefines every brand token the light theme has, including maíz", () => {
+    const start = css.indexOf(".dark {");
+    const dark = css.slice(start, css.indexOf("\n}\n", start));
+    for (const name of ["crema", "papel", "tinta", "cobalto", "tomate", "tomate-texto", "maiz", "cielo", "maiz-suave", "tomate-suave"]) {
+      expect(dark, `--${name} in .dark`).toMatch(new RegExp(`--${name}:`));
+    }
+  });
+
+  it("sticky search surfaces use the papel token instead of hardcoded white", () => {
+    expect(css).not.toContain("rgba(255, 255, 255, 0.98)");
+    expect(css).toContain("color-mix(in srgb, var(--papel) 96%, transparent)");
+  });
+
+  it("register never logs user data and the auth fine print links to the legal pages", () => {
+    const register = readFileSync(path.join(ROOT, "client/src/pages/register.tsx"), "utf-8");
+    const login = readFileSync(path.join(ROOT, "client/src/pages/login.tsx"), "utf-8");
+    const layout = readFileSync(path.join(ROOT, "client/src/components/auth-layout.tsx"), "utf-8");
+    expect(register).not.toContain("console.log");
+    expect(register).not.toContain('href="#"');
+    expect(layout).toContain('href="/terminos"');
+    expect(layout).toContain('href="/privacidad"');
+    expect(register).toContain("LegalNotice");
+    expect(login).toContain("LegalNotice");
+  });
+});

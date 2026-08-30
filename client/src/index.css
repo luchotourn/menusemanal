@@ -84,6 +84,7 @@
   --cobalto: #9DB8F2;
   --tomate: #E33A2C;
   --tomate-texto: #FF8F82;
+  --maiz: #F7C948;         /* stars/chips keep the brand yellow on navy (tinta stroke stays legible) */
   --cielo: #1E3565;
   --maiz-suave: #3A3320;
   --tomate-suave: #3A211D;
@@ -228,7 +229,7 @@
     /* Sticky search optimization */
     .sticky-search {
       backdrop-filter: blur(10px);
-      background-color: rgba(255, 255, 255, 0.98);
+      background-color: color-mix(in srgb, var(--papel) 96%, transparent);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
@@ -258,7 +259,7 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      background: rgba(255, 255, 255, 0.98);
+      background: color-mix(in srgb, var(--papel) 96%, transparent);
       backdrop-filter: blur(8px);
       border-radius: 0;
     }

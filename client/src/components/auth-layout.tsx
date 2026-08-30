@@ -83,6 +83,23 @@ export function AuthLayout({
   );
 }
 
+/** Fine print under the auth forms, with real links to the legal pages. */
+export function LegalNotice({ action }: { action: string }) {
+  return (
+    <p>
+      {action} aceptás los{" "}
+      <a href="/terminos" className="font-semibold text-cobalto hover:underline">
+        términos y condiciones
+      </a>{" "}
+      y la{" "}
+      <a href="/privacidad" className="font-semibold text-cobalto hover:underline">
+        política de privacidad
+      </a>
+      .
+    </p>
+  );
+}
+
 /** Shared field styles so login/register inputs match the mockup exactly. */
 export const authInputClass =
   "h-12 rounded-xl px-4 text-base bg-papel border-[1.5px] border-cobalto/45 focus-visible:border-cobalto focus-visible:ring-4 focus-visible:ring-cielo focus-visible:ring-offset-0 placeholder:text-muted-foreground";
