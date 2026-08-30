@@ -86,4 +86,13 @@ describe("landing.html (rediseño Positano / Toldo)", () => {
     expect(html).toContain('href="/privacidad"');
     expect(html).toContain('href="/terminos"');
   });
+
+  it("declares absolute Open Graph image URLs so WhatsApp and friends render the preview", () => {
+    expect(html).toContain('property="og:image" content="https://menusemanal.app/brand/og.png"');
+    expect(html).toContain('name="twitter:image" content="https://menusemanal.app/brand/og.png"');
+    expect(html).toContain('property="og:url" content="https://menusemanal.app/"');
+    expect(html).toContain('property="og:image:width" content="1200"');
+    expect(html).toContain('property="og:image:height" content="630"');
+    expect(html).not.toMatch(/content="\/brand\/og\.png"/);
+  });
 });
